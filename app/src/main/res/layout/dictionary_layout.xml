@@ -1,0 +1,370 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/dictionary_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#111827"
+    android:padding="8dp">
+
+    <!-- Header with language selector and close button -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="8dp">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_dictionary"
+            android:tint="#A78BFA"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Dictionary"
+            android:textSize="18sp"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:layout_marginEnd="8dp" />
+
+        <!-- Language pair: Source [swap] Target -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <Button
+                android:id="@+id/dict_source_lang"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_weight="1"
+                android:text="English"
+                android:textSize="12sp"
+                android:textColor="#FFFFFF"
+                android:background="@drawable/dict_spinner_background"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:layout_marginEnd="4dp"
+                android:textAllCaps="false" />
+
+            <ImageButton
+                android:id="@+id/dict_swap_btn"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/ic_swap"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Swap languages"
+                android:layout_marginEnd="4dp" />
+
+            <Button
+                android:id="@+id/dict_target_lang"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_weight="1"
+                android:text="العربية"
+                android:textSize="12sp"
+                android:textColor="#FFFFFF"
+                android:background="@drawable/dict_spinner_background"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:textAllCaps="false" />
+
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/dict_close_btn"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="#9CA3AF"
+            android:contentDescription="Close"
+            android:layout_marginStart="8dp" />
+
+    </LinearLayout>
+
+    <!-- Search Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:orientation="horizontal"
+        android:background="@drawable/dict_search_background"
+        android:gravity="center_vertical"
+        android:paddingStart="12dp"
+        android:paddingEnd="8dp"
+        android:layout_marginBottom="8dp">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@android:drawable/ic_menu_search"
+            android:tint="#6B7280"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:id="@+id/dict_search_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text=""
+            android:hint="Type a word to search..."
+            android:textSize="16sp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#6B7280"
+            android:maxLines="1" />
+
+        <ImageButton
+            android:id="@+id/dict_clear_btn"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@android:drawable/ic_input_delete"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="#6B7280"
+            android:contentDescription="Clear"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/dict_search_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="Search"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/dict_search_button"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:textAllCaps="false" />
+
+    </LinearLayout>
+
+    <!-- Results Area (Scrollable) -->
+    <ScrollView
+        android:id="@+id/dict_results_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:background="@drawable/dict_results_background"
+        android:padding="12dp"
+        android:layout_marginBottom="8dp">
+
+        <LinearLayout
+            android:id="@+id/dict_results_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Word Title -->
+            <TextView
+                android:id="@+id/dict_word_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="20sp"
+                android:textColor="#A78BFA"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <!-- Phonetic -->
+            <TextView
+                android:id="@+id/dict_phonetic"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="14sp"
+                android:textColor="#9CA3AF"
+                android:fontFamily="monospace"
+                android:visibility="gone" />
+
+            <!-- Part of Speech -->
+            <TextView
+                android:id="@+id/dict_part_of_speech"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="12sp"
+                android:textColor="#10B981"
+                android:textStyle="italic"
+                android:background="@drawable/dict_pos_badge"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:layout_marginTop="4dp"
+                android:visibility="gone" />
+
+            <!-- Definition -->
+            <TextView
+                android:id="@+id/dict_definition"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="15sp"
+                android:textColor="#E5E7EB"
+                android:lineSpacingMultiplier="1.3"
+                android:layout_marginTop="8dp"
+                android:visibility="gone" />
+
+            <!-- Example -->
+            <TextView
+                android:id="@+id/dict_example"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="14sp"
+                android:textColor="#9CA3AF"
+                android:textStyle="italic"
+                android:layout_marginTop="8dp"
+                android:visibility="gone" />
+
+            <!-- Placeholder text -->
+            <TextView
+                android:id="@+id/dict_placeholder"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Type a word and tap Search to see its definition"
+                android:textSize="14sp"
+                android:textColor="#6B7280"
+                android:gravity="center" />
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <!-- Mini Keyboard for typing -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#1A1A1A"
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="8dp">
+
+        <!-- Row 0: 1 2 3 4 5 6 7 8 9 0 -->
+        <LinearLayout
+            android:id="@+id/dict_row0"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center" />
+
+        <!-- Row 1: Q W E R T Y U I O P -->
+        <LinearLayout
+            android:id="@+id/dict_row1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center" />
+
+        <!-- Row 2: A S D F G H J K L -->
+        <LinearLayout
+            android:id="@+id/dict_row2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp" />
+
+        <!-- Row 3: Z X C V B N M ⌫ -->
+        <LinearLayout
+            android:id="@+id/dict_row3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingStart="24dp"
+            android:paddingEnd="4dp" />
+
+        <!-- Row 4: Space and special keys -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingTop="2dp">
+
+            <Button
+                android:id="@+id/dict_key_symbols"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="⌨"
+                android:textSize="18sp"
+                android:textColor="#A78BFA"
+                android:background="@drawable/dict_key_special"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp"
+                android:textAllCaps="false" />
+
+            <Button
+                android:id="@+id/dict_key_globe"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="🌐"
+                android:textSize="18sp"
+                android:textColor="#FFFFFF"
+                android:background="@drawable/dict_key_special"
+                android:layout_marginEnd="2dp"
+                android:textAllCaps="false" />
+
+            <Button
+                android:id="@+id/dict_key_emoji"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="☺"
+                android:textSize="20sp"
+                android:textColor="#FFFFFF"
+                android:background="@drawable/dict_key_special"
+                android:layout_marginEnd="2dp"
+                android:textAllCaps="false" />
+
+            <Button
+                android:id="@+id/dict_key_space"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="3.5"
+                android:text="Space"
+                android:textSize="14sp"
+                android:textColor="#FFFFFF"
+                android:background="@drawable/dict_key_background"
+                android:layout_marginEnd="2dp"
+                android:textAllCaps="false" />
+
+            <Button
+                android:id="@+id/dict_key_dot"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="0.8"
+                android:text="."
+                android:textSize="20sp"
+                android:textColor="#FFFFFF"
+                android:background="@drawable/dict_key_special"
+                android:layout_marginEnd="2dp"
+                android:textAllCaps="false" />
+
+            <Button
+                android:id="@+id/dict_key_search"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="⌕"
+                android:textSize="22sp"
+                android:textColor="#4A9EFF"
+                android:background="@drawable/dict_key_special"
+                android:layout_marginEnd="2dp"
+                android:textAllCaps="false" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

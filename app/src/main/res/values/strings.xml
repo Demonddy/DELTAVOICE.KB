@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">deltavoice</string>
+    <string name="keyboard_name">deltavoice</string>
+    <string name="voice_input">Voice Input</string>
+    <string name="text_to_speech">Text to Speech</string>
+    <string name="record_video">Record Video</string>
+    <string name="toggle_mode">Toggle Mode</string>
+    <string name="toggle_keyboard_mode">Toggle Keyboard Mode</string>
+    <string name="normal_keyboard_mode">Normal Keyboard Mode</string>
+    <string name="ai_keyboard_mode">AI Keyboard Mode</string>
+    <string name="select_language">Select Language</string>
+    <string name="translate_text">Translate Text</string>
+    <string name="select_translation_language">Select Translation Language</string>
+    <string name="microphone_permission_required">Microphone permission is required for voice input</string>
+    <string name="camera_permission_required">Camera permission is required for video recording</string>
+    <string name="recording_video">Recording video...</string>
+    <string name="video_recorded">Video recorded successfully</string>
+    <string name="recording_audio">Recording audio...</string>
+    <string name="audio_recorded">Audio recorded successfully</string>
+    <string name="voice_mode_title">Step 2: Choose how to process your voice</string>
+    <string name="voice_mode_subtitle">Choose processing mode:</string>
+    <string name="voice_mode_full">Change Language &amp; Voice</string>
+    <string name="voice_mode_full_desc">Full conversion</string>
+    <string name="voice_mode_voice_only">Translate My Same Voice</string>
+    <string name="voice_mode_voice_only_desc">Voice cloning</string>
+    <string name="voice_mode_text_only">Transcript &amp; Translate</string>
+    <string name="voice_mode_text_only_desc">Text output</string>
+    <string name="voice_mode_language">Language</string>
+    <string name="voice_mode_voice">Voice</string>
+    <string name="voice_mode_quick_text">Quick Text</string>
+    <string name="voice_mode_full_process">Full Process</string>
+    <string name="voice_mode_action_done">Done</string>
+    <string name="voice_mode_action_processing">Processing...</string>
+    <string name="voice_mode_action_send">Send</string>
+    <string name="ai_chat_title">AI Assistant</string>
+    <string name="ai_chat_welcome">Hi! I\'m your AI assistant. Ask me anything - I can help with writing, questions, translations, and more!</string>
+    <string name="ai_chat_hint">Type your message...</string>
+</resources>
+

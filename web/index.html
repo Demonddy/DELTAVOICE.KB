@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0F0F10">
+    <meta name="description" content="DeltaVoice - AI Voice Translator & Converter">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>DeltaVoice</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L2 7v10l10 5 10-5V7L12 2z" stroke="#8B5CF6" stroke-width="2" fill="none"/>
+                    <path d="M12 6l6 3v6l-6 3-6-3V9l6-3z" fill="#8B5CF6"/>
+                </svg>
+                <span>DeltaVoice</span>
+            </div>
+            <div class="status" id="status">Ready</div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Recording Section -->
+            <section class="record-section" id="recordSection">
+                <h2>Step 1: Record Your Voice</h2>
+                <p class="subtitle">Tap the microphone to start recording</p>
+                
+                <div class="recorder">
+                    <div class="ring ring-outer"></div>
+                    <div class="ring ring-middle"></div>
+                    <button class="mic-button" id="micButton" aria-label="Record">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="timer" id="timer">0:00</div>
+                <p class="hint" id="recordHint">Tap to record</p>
+            </section>
+
+            <!-- Processing Section (Hidden by default) -->
+            <section class="process-section hidden" id="processSection">
+                <h2>Step 2: Process Your Voice</h2>
+                
+                <!-- Audio Player -->
+                <div class="audio-player" id="audioPlayer">
+                    <button class="play-button" id="playButton" aria-label="Play">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" id="playIcon">
+                            <path d="M8 5.14v13.72c0 .79.87 1.27 1.54.84l10.08-6.86c.58-.39.58-1.29 0-1.69L9.54 4.3C8.87 3.87 8 4.35 8 5.14z"/>
+                        </svg>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" id="pauseIcon" class="hidden">
+                            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                        </svg>
+                    </button>
+                    <div class="waveform" id="waveform"></div>
+                    <span class="duration" id="duration">0:00</span>
+                </div>
+
+                <!-- Mode Selection -->
+                <p class="mode-label">Choose processing mode:</p>
+                <div class="mode-cards">
+                    <button class="mode-card selected" data-mode="complete" id="modeComplete">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M7 2v11h3v9l7-12h-4l4-8z"/>
+                        </svg>
+                        <span class="mode-title">Full Conversion</span>
+                        <span class="mode-desc">Translate & change voice</span>
+                    </button>
+                    <button class="mode-card" data-mode="voice-only" id="modeVoice">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                        </svg>
+                        <span class="mode-title">Voice Only</span>
+                        <span class="mode-desc">Change voice, keep language</span>
+                    </button>
+                    <button class="mode-card" data-mode="text-only" id="modeText">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M2.5 4v3h5v12h3V7h5V4h-13zm19 5h-9v3h3v7h3v-7h3V9z"/>
+                        </svg>
+                        <span class="mode-title">Text Only</span>
+                        <span class="mode-desc">Get text transcript</span>
+                    </button>
+                </div>
+
+                <!-- Options -->
+                <div class="options">
+                    <div class="select-wrapper">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                        </svg>
+                        <select id="languageSelect">
+                            <option value="en">English</option>
+                            <option value="es">Spanish</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                            <option value="it">Italian</option>
+                            <option value="pt">Portuguese</option>
+                            <option value="ru">Russian</option>
+                            <option value="ja">Japanese</option>
+                            <option value="ko">Korean</option>
+                            <option value="zh">Chinese</option>
+                            <option value="ar">Arabic</option>
+                            <option value="hi">Hindi</option>
+                        </select>
+                    </div>
+                    <div class="select-wrapper">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                        </svg>
+                        <select id="voiceSelect">
+                            <option value="adam">Adam</option>
+                            <option value="aria">Aria</option>
+                            <option value="roger">Roger</option>
+                            <option value="sarah">Sarah</option>
+                            <option value="laura">Laura</option>
+                            <option value="charlie">Charlie</option>
+                            <option value="george">George</option>
+                            <option value="liam">Liam</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="actions">
+                    <button class="btn btn-send" id="sendButton" disabled>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                        </svg>
+                        Send
+                    </button>
+                    <button class="btn btn-process" id="processButton">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M7 2v11h3v9l7-12h-4l4-8z"/>
+                        </svg>
+                        Process
+                    </button>
+                </div>
+
+                <!-- Output Section -->
+                <div class="output hidden" id="outputSection">
+                    <h3>Output</h3>
+                    <div class="output-text" id="outputText"></div>
+                    <div class="output-audio" id="outputAudio">
+                        <audio id="outputAudioPlayer" controls></audio>
+                    </div>
+                </div>
+
+                <!-- Back Button -->
+                <button class="back-button" id="backButton">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                    </svg>
+                    Record Again
+                </button>
+            </section>
+        </main>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay hidden" id="loadingOverlay">
+            <div class="loader"></div>
+            <p id="loadingText">Processing...</p>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

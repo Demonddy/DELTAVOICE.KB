@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B5CF6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7C3AED;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" rx="100" fill="#0F0F10"/>
+  
+  <!-- Outer ring -->
+  <circle cx="256" cy="256" r="180" fill="none" stroke="url(#grad)" stroke-width="4" opacity="0.3"/>
+  
+  <!-- Middle ring -->
+  <circle cx="256" cy="256" r="140" fill="none" stroke="url(#grad)" stroke-width="4" opacity="0.5"/>
+  
+  <!-- Inner circle with gradient -->
+  <circle cx="256" cy="256" r="100" fill="url(#grad)"/>
+  
+  <!-- Microphone icon -->
+  <g fill="#FFFFFF">
+    <!-- Mic body -->
+    <rect x="228" y="190" width="56" height="90" rx="28" ry="28"/>
+    
+    <!-- Mic stand -->
+    <path d="M312 280c0 30.93-25.07 56-56 56s-56-25.07-56-56h-20c0 38.66 29.08 70.54 66.5 74.73V390h19V354.73c37.42-4.19 66.5-36.07 66.5-74.73h-20z"/>
+  </g>
+  
+  <!-- Delta symbol (small) -->
+  <path d="M256 140 l20 30 h-40 z" fill="url(#grad)" opacity="0.8"/>
+</svg>

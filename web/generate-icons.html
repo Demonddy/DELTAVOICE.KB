@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate DeltaVoice Icons</title>
+    <style>
+        body { 
+            font-family: system-ui; 
+            padding: 40px; 
+            background: #1a1a1a; 
+            color: #fff;
+        }
+        canvas { 
+            display: block; 
+            margin: 20px auto;
+            background: #0F0F10;
+        }
+        button {
+            display: block;
+            margin: 10px auto;
+            padding: 12px 24px;
+            background: #8B5CF6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover { background: #7C3AED; }
+        .download-links {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .download-links a {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px 20px;
+            background: #333;
+            color: #8B5CF6;
+            text-decoration: none;
+            border-radius: 6px;
+        }
+        .download-links a:hover { background: #444; }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center;">DeltaVoice Icon Generator</h1>
+    
+    <h2 style="text-align: center;">192x192</h2>
+    <canvas id="canvas192" width="192" height="192"></canvas>
+    
+    <h2 style="text-align: center;">512x512</h2>
+    <canvas id="canvas512" width="512" height="512"></canvas>
+    
+    <div class="download-links" id="links"></div>
+    
+    <button onclick="generateIcons()">Generate Icons</button>
+    
+    <script>
+        function drawIcon(ctx, size) {
+            const scale = size / 512;
+            
+            // Background
+            ctx.fillStyle = '#0F0F10';
+            roundRect(ctx, 0, 0, size, size, 100 * scale);
+            
+            // Gradient
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#8B5CF6');
+            gradient.addColorStop(1, '#7C3AED');
+            
+            // Outer ring
+            ctx.strokeStyle = gradient;
+            ctx.globalAlpha = 0.3;
+            ctx.lineWidth = 4 * scale;
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, 180 * scale, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Middle ring
+            ctx.globalAlpha = 0.5;
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, 140 * scale, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Inner circle
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, 100 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Microphone
+            ctx.fillStyle = '#FFFFFF';
+            
+            // Mic body
+            const micX = 228 * scale;
+            const micY = 190 * scale;
+            const micW = 56 * scale;
+            const micH = 90 * scale;
+            const micR = 28 * scale;
+            
+            ctx.beginPath();
+            ctx.moveTo(micX + micR, micY);
+            ctx.lineTo(micX + micW - micR, micY);
+            ctx.quadraticCurveTo(micX + micW, micY, micX + micW, micY + micR);
+            ctx.lineTo(micX + micW, micY + micH - micR);
+            ctx.quadraticCurveTo(micX + micW, micY + micH, micX + micW - micR, micY + micH);
+            ctx.lineTo(micX + micR, micY + micH);
+            ctx.quadraticCurveTo(micX, micY + micH, micX, micY + micH - micR);
+            ctx.lineTo(micX, micY + micR);
+            ctx.quadraticCurveTo(micX, micY, micX + micR, micY);
+            ctx.fill();
+            
+            // Mic stand
+            ctx.beginPath();
+            const centerX = size / 2;
+            ctx.arc(centerX, 280 * scale, 56 * scale, Math.PI, 0);
+            ctx.lineTo(centerX + 46 * scale, 280 * scale);
+            ctx.arc(centerX, 280 * scale, 46 * scale, 0, Math.PI, true);
+            ctx.fill();
+            
+            // Mic pole
+            ctx.fillRect(centerX - 10 * scale, 330 * scale, 20 * scale, 60 * scale);
+        }
+        
+        function roundRect(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.fill();
+        }
+        
+        function generateIcons() {
+            const canvas192 = document.getElementById('canvas192');
+            const canvas512 = document.getElementById('canvas512');
+            
+            drawIcon(canvas192.getContext('2d'), 192);
+            drawIcon(canvas512.getContext('2d'), 512);
+            
+            // Create download links
+            const links = document.getElementById('links');
+            links.innerHTML = `
+                <a href="${canvas192.toDataURL('image/png')}" download="icon-192.png">Download 192x192</a>
+                <a href="${canvas512.toDataURL('image/png')}" download="icon-512.png">Download 512x512</a>
+            `;
+        }
+        
+        // Auto-generate on load
+        window.onload = generateIcons;
+    </script>
+</body>
+</html>

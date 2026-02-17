@@ -1,0 +1,1162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#0F0F10"
+    android:padding="8dp">
+
+    <!-- AI Features Row (Top Row with Circular Buttons) -->
+    <LinearLayout
+        android:id="@+id/ai_features_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:padding="4dp">
+
+        <!-- AI Button with Badge -->
+        <RelativeLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="4dp">
+            <ImageButton
+                android:id="@+id/btn_ai_main"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_ai_mode"
+                android:background="@drawable/ai_circle_button"
+                android:contentDescription="@string/ai_keyboard_mode"
+                android:padding="8dp" />
+        </RelativeLayout>
+
+        <!-- Calculator Button -->
+        <ImageButton
+            android:id="@+id/btn_calculator"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_calculator"
+            android:background="@drawable/ai_circle_button"
+            android:contentDescription="Calculator"
+            android:layout_margin="4dp"
+            android:padding="8dp" />
+
+        <!-- Camera/Video Button -->
+        <ImageButton
+            android:id="@+id/btn_camera"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_camera"
+            android:background="@drawable/ai_circle_button"
+            android:contentDescription="Video Recording"
+            android:layout_margin="4dp"
+            android:padding="8dp" />
+
+        <!-- List Button -->
+        <ImageButton
+            android:id="@+id/btn_list"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_list"
+            android:background="@drawable/ai_circle_button"
+            android:contentDescription="List"
+            android:layout_margin="4dp"
+            android:padding="8dp" />
+
+        <!-- AI Chat Button -->
+        <ImageButton
+            android:id="@+id/btn_text_t"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_ai_chat"
+            android:background="@drawable/ai_circle_button"
+            android:contentDescription="AI Chat"
+            android:layout_margin="4dp"
+            android:padding="8dp" />
+
+        <!-- KB+ Button (AI Writing Tools) -->
+        <ImageButton
+            android:id="@+id/btn_kb_plus"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_kb_plus"
+            android:background="@drawable/ai_circle_button"
+            android:contentDescription="AI Writing Tools"
+            android:layout_margin="4dp"
+            android:padding="8dp" />
+
+        <!-- Microphone Button -->
+        <ImageButton
+            android:id="@+id/btn_voice"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_mic"
+            android:background="@drawable/ai_circle_button"
+            android:contentDescription="@string/voice_input"
+            android:layout_margin="4dp"
+            android:padding="8dp" />
+
+        <!-- Globe Button -->
+        <ImageButton
+            android:id="@+id/btn_globe"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_globe"
+            android:background="@drawable/ai_circle_button"
+            android:contentDescription="Language"
+            android:layout_margin="4dp"
+            android:padding="8dp" />
+
+        <!-- App Grid Button -->
+        <ImageButton
+            android:id="@+id/btn_app_grid"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_app_grid"
+            android:background="@drawable/ai_circle_button"
+            android:contentDescription="Apps"
+            android:layout_margin="4dp"
+            android:padding="8dp" />
+    </LinearLayout>
+
+    <!-- Predictive text suggestions (replaces icons when typing) -->
+    <LinearLayout
+        android:id="@+id/predictions_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:visibility="gone"
+        android:padding="4dp"
+        android:minHeight="48dp">
+
+        <HorizontalScrollView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:scrollbars="none"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:id="@+id/predictions_row"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical" />
+        </HorizontalScrollView>
+
+        <!-- Voice and return buttons (always visible when predictions shown) -->
+        <ImageButton
+            android:id="@+id/predictions_voice_btn"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_mic"
+            android:background="@drawable/ai_circle_button"
+            android:contentDescription="Voice input"
+            android:layout_marginStart="4dp"
+            android:padding="8dp" />
+
+        <ImageButton
+            android:id="@+id/predictions_return_btn"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@android:drawable/ic_menu_revert"
+            android:background="@drawable/ai_circle_button"
+            android:tint="#FFFFFF"
+            android:contentDescription="Return to icons"
+            android:layout_marginStart="4dp"
+            android:padding="8dp" />
+    </LinearLayout>
+
+    <!-- AI Features Container (Language Selector - Hidden by default) -->
+    <LinearLayout
+        android:id="@+id/ai_features_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <!-- Language Selector Container -->
+        <LinearLayout
+            android:id="@+id/language_selector_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="4dp">
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Full Emoji Picker (Hidden by default) -->
+    <include
+        android:id="@+id/emoji_picker_include"
+        layout="@layout/emoji_picker"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+
+    <!-- Calculator (Hidden by default) -->
+    <include
+        android:id="@+id/calculator_include"
+        layout="@layout/calculator_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+
+    <!-- Dictionary (Hidden by default) -->
+    <include
+        android:id="@+id/dictionary_include"
+        layout="@layout/dictionary_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+
+    <!-- Voice Recording UI (Step 1) - Shows when recording -->
+    <LinearLayout
+        android:id="@+id/voice_recording_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#0A0A0A"
+        android:padding="16dp"
+        android:visibility="gone">
+
+        <!-- Header with back button -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingBottom="16dp">
+
+            <ImageButton
+                android:id="@+id/btn_recording_back"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@android:drawable/ic_menu_revert"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Back"
+                android:tint="#FFFFFF" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Voice input"
+                android:textSize="18sp"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:layout_marginStart="12dp" />
+        </LinearLayout>
+
+        <!-- Mic button with rings -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="180dp"
+            android:layout_gravity="center">
+
+            <!-- Outer ring -->
+            <View
+                android:id="@+id/recording_ring_outer"
+                android:layout_width="160dp"
+                android:layout_height="160dp"
+                android:layout_gravity="center"
+                android:background="@drawable/recording_ring_outer" />
+
+            <!-- Middle ring -->
+            <View
+                android:id="@+id/recording_ring_middle"
+                android:layout_width="120dp"
+                android:layout_height="120dp"
+                android:layout_gravity="center"
+                android:background="@drawable/recording_ring_middle" />
+
+            <!-- Mic button -->
+            <ImageButton
+                android:id="@+id/btn_recording_mic"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_mic"
+                android:background="@drawable/recording_mic_button"
+                android:tint="#FFFFFF"
+                android:padding="20dp"
+                android:contentDescription="Tap to pause" />
+        </FrameLayout>
+
+        <!-- Status text -->
+        <TextView
+            android:id="@+id/recording_status_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Tap to record"
+            android:textSize="16sp"
+            android:textColor="#AAAAAA"
+            android:gravity="center"
+            android:paddingTop="16dp" />
+    </LinearLayout>
+
+    <!-- Voice Processing UI (Step 2) - Replaces keyboard when shown -->
+    <LinearLayout
+        android:id="@+id/voice_processing_step2_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#111521"
+        android:padding="16dp"
+        android:visibility="gone">
+
+        <!-- Audio Player Bar -->
+        <LinearLayout
+            android:id="@+id/audio_player_container"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/audio_player_background"
+            android:paddingStart="6dp"
+            android:paddingEnd="16dp"
+            android:layout_marginBottom="16dp">
+
+            <ImageButton
+                android:id="@+id/btn_play_recording"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_play"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Play recording"
+                android:padding="8dp"
+                android:tint="#3B82F6" />
+
+            <!-- Audio waveform visualization placeholder -->
+            <View
+                android:id="@+id/audio_waveform"
+                android:layout_width="0dp"
+                android:layout_height="24dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:background="#2A3140" />
+
+            <TextView
+                android:id="@+id/audio_duration_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0:00"
+                android:textColor="#9CA3AF"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingBottom="8dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Step 2: Choose how to process your voice"
+                android:textSize="16sp"
+                android:textColor="#E5E7EB" />
+
+            <ImageButton
+                android:id="@+id/keyboard_button_close_processing"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Close"
+                android:padding="4dp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Choose processing mode:"
+            android:textSize="13sp"
+            android:textColor="#A3A3A3"
+            android:paddingBottom="12dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="3">
+
+            <!-- Option 1: Change Language & Voice (Full Conversion) -->
+            <LinearLayout
+                android:id="@+id/keyboard_option_full"
+                android:layout_width="0dp"
+                android:layout_height="100dp"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="@drawable/voice_mode_card_selected"
+                android:padding="8dp"
+                android:layout_marginEnd="6dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_lightning"
+                    android:tint="#C084FC" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Change Language\n&amp; Voice"
+                    android:textColor="#EDEFF4"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:paddingTop="4dp"
+                    android:gravity="center"
+                    android:lineSpacingMultiplier="1.1" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Full conversion"
+                    android:textColor="#B8BCC7"
+                    android:textSize="9sp"
+                    android:gravity="center"
+                    android:paddingTop="2dp" />
+            </LinearLayout>
+
+            <!-- Option 2: Translate My Same Voice (Voice Cloning) -->
+            <LinearLayout
+                android:id="@+id/keyboard_option_voice"
+                android:layout_width="0dp"
+                android:layout_height="100dp"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="@drawable/voice_mode_card_unselected"
+                android:padding="8dp"
+                android:layout_marginHorizontal="6dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_mic"
+                    android:tint="#EDEFF4" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Translate My\nSame Voice"
+                    android:textColor="#EDEFF4"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:paddingTop="4dp"
+                    android:gravity="center"
+                    android:lineSpacingMultiplier="1.1" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Voice cloning"
+                    android:textColor="#B8BCC7"
+                    android:textSize="9sp"
+                    android:gravity="center"
+                    android:paddingTop="2dp" />
+            </LinearLayout>
+
+            <!-- Option 3: Transcript & Translate (Text Output) -->
+            <LinearLayout
+                android:id="@+id/keyboard_option_text"
+                android:layout_width="0dp"
+                android:layout_height="100dp"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="@drawable/voice_mode_card_unselected"
+                android:padding="8dp"
+                android:layout_marginStart="6dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_text_t"
+                    android:tint="#EDEFF4" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Transcript &amp;\nTranslate"
+                    android:textColor="#EDEFF4"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:paddingTop="4dp"
+                    android:gravity="center"
+                    android:lineSpacingMultiplier="1.1" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Text output"
+                    android:textColor="#B8BCC7"
+                    android:textSize="9sp"
+                    android:gravity="center"
+                    android:paddingTop="2dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="16dp">
+
+            <!-- Language Spinner Container -->
+            <LinearLayout
+                android:id="@+id/language_spinner_container"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/voice_mode_pill_background"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
+
+                <ImageView
+                    android:id="@+id/language_icon"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_globe"
+                    android:tint="#EDEFF4" />
+
+                <Spinner
+                    android:id="@+id/keyboard_spinner_language"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:spinnerMode="dropdown"
+                    android:popupBackground="#2A3140"
+                    android:layout_marginStart="8dp" />
+            </LinearLayout>
+
+            <!-- Voice Spinner Container -->
+            <LinearLayout
+                android:id="@+id/voice_spinner_container"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/voice_mode_pill_background"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
+
+                <ImageView
+                    android:id="@+id/voice_icon"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_speaker"
+                    android:tint="#EDEFF4" />
+
+                <Spinner
+                    android:id="@+id/keyboard_spinner_voice"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:spinnerMode="dropdown"
+                    android:popupBackground="#2A3140"
+                    android:layout_marginStart="8dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Single Action Button - handles Done/Processing/Send states -->
+        <Button
+            android:id="@+id/keyboard_button_action"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="16dp"
+            android:text="  Done"
+            android:drawableStart="@drawable/ic_ai_mode"
+            android:drawablePadding="10dp"
+            android:background="@drawable/voice_mode_button_purple"
+            android:textColor="#FFFFFF"
+            android:textAllCaps="false"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:gravity="center" />
+    </LinearLayout>
+
+    <!-- Video Recording Container - Hidden by default -->
+    <FrameLayout
+        android:id="@+id/video_recording_container"
+        android:layout_width="match_parent"
+        android:layout_height="280dp"
+        android:background="#0A0A0A"
+        android:visibility="gone">
+
+        <!-- Camera Preview -->
+        <TextureView
+            android:id="@+id/camera_preview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- Header Overlay -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="12dp"
+            android:background="#80000000"
+            android:layout_gravity="top">
+
+            <ImageButton
+                android:id="@+id/btn_video_back"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@android:drawable/ic_menu_revert"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Back"
+                android:tint="#FFFFFF" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Video Recording"
+                android:textSize="16sp"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:layout_marginStart="12dp" />
+
+            <TextView
+                android:id="@+id/video_recording_timer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00"
+                android:textSize="14sp"
+                android:textColor="#FF5252"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- Recording Controls Overlay -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="16dp"
+            android:layout_gravity="bottom"
+            android:background="#80000000">
+
+            <TextView
+                android:id="@+id/video_status_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tap to start recording"
+                android:textSize="14sp"
+                android:textColor="#AAAAAA"
+                android:layout_marginBottom="12dp" />
+
+            <ImageButton
+                android:id="@+id/btn_video_record"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:src="@drawable/ic_camera"
+                android:background="@drawable/recording_mic_button"
+                android:tint="#FFFFFF"
+                android:padding="16dp"
+                android:contentDescription="Record Video" />
+        </LinearLayout>
+
+        <!-- Switch Camera Button -->
+        <ImageButton
+            android:id="@+id/btn_switch_camera"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="top|end"
+            android:layout_margin="60dp"
+            android:src="@android:drawable/ic_menu_rotate"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="#FFFFFF"
+            android:contentDescription="Switch Camera" />
+    </FrameLayout>
+
+    <!-- Video Preview & Processing Container - Hidden by default -->
+    <LinearLayout
+        android:id="@+id/video_preview_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#111521"
+        android:padding="16dp"
+        android:visibility="gone">
+
+        <!-- Header with close button -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingBottom="12dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Preview &amp; Process Video"
+                android:textSize="16sp"
+                android:textColor="#E5E7EB"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/btn_video_close"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Close"
+                android:tint="#9CA3AF" />
+        </LinearLayout>
+
+        <!-- Video Player -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="160dp"
+            android:background="#1A1F2E"
+            android:layout_marginBottom="12dp">
+
+            <VideoView
+                android:id="@+id/video_player"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_gravity="center" />
+
+            <ImageButton
+                android:id="@+id/btn_play_video"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_play"
+                android:background="@drawable/ai_circle_button"
+                android:tint="#FFFFFF"
+                android:padding="12dp"
+                android:contentDescription="Play Video" />
+
+            <TextView
+                android:id="@+id/video_duration_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|end"
+                android:layout_margin="8dp"
+                android:padding="4dp"
+                android:background="#80000000"
+                android:text="0:00"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp" />
+        </FrameLayout>
+
+        <!-- Processing Options Label -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Choose processing options:"
+            android:textSize="13sp"
+            android:textColor="#A3A3A3"
+            android:paddingBottom="12dp" />
+
+        <!-- Language and Voice Selectors -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <!-- Language Spinner Container -->
+            <LinearLayout
+                android:id="@+id/video_language_spinner_container"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/voice_mode_pill_highlighted"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_globe"
+                    android:tint="#C084FC" />
+
+                <Spinner
+                    android:id="@+id/video_spinner_language"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:spinnerMode="dropdown"
+                    android:popupBackground="#2A3140"
+                    android:layout_marginStart="8dp" />
+            </LinearLayout>
+
+            <!-- Voice Spinner Container -->
+            <LinearLayout
+                android:id="@+id/video_voice_spinner_container"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/voice_mode_pill_highlighted"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_speaker"
+                    android:tint="#C084FC" />
+
+                <Spinner
+                    android:id="@+id/video_spinner_voice"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:spinnerMode="dropdown"
+                    android:popupBackground="#2A3140"
+                    android:layout_marginStart="8dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Process Button -->
+        <Button
+            android:id="@+id/btn_process_video"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="  Process Video"
+            android:drawableStart="@drawable/ic_ai_mode"
+            android:drawablePadding="10dp"
+            android:background="@drawable/voice_mode_button_purple"
+            android:textColor="#FFFFFF"
+            android:textAllCaps="false"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:gravity="center" />
+    </LinearLayout>
+
+    <!-- AI Chat Container - Hidden by default -->
+    <LinearLayout
+        android:id="@+id/ai_chat_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#111521"
+        android:visibility="gone">
+
+        <!-- Chat Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="12dp"
+            android:background="#1A1F2E">
+
+            <ImageView
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_ai_mode"
+                android:tint="#A78BFA" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="AI Assistant"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginStart="10dp" />
+
+            <ImageButton
+                android:id="@+id/ai_chat_close_btn"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Close"
+                android:tint="#9CA3AF" />
+        </LinearLayout>
+
+        <!-- Chat Messages Area -->
+        <ScrollView
+            android:id="@+id/ai_chat_scroll"
+            android:layout_width="match_parent"
+            android:layout_height="180dp"
+            android:fillViewport="true"
+            android:background="#111521">
+
+            <LinearLayout
+                android:id="@+id/ai_chat_messages"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <!-- Welcome Message -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="start"
+                    android:layout_marginBottom="12dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/ai_chat_bubble_ai"
+                        android:padding="12dp"
+                        android:layout_marginEnd="48dp">
+
+                        <TextView
+                            android:id="@+id/ai_welcome_text"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Hi! I'm your AI assistant. Ask me anything - I can help with writing, questions, translations, and more!"
+                            android:textColor="#E5E7EB"
+                            android:textSize="14sp"
+                            android:lineSpacingMultiplier="1.3" />
+                    </LinearLayout>
+                </LinearLayout>
+
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- Input Area with Mini Keyboard -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#1A1F2E"
+            android:padding="8dp">
+
+            <!-- Input Bar -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:orientation="horizontal"
+                android:background="@drawable/ai_chat_input_background"
+                android:gravity="center_vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="4dp"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:id="@+id/ai_chat_input_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="Type your message..."
+                    android:textColorHint="#6B7280"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+
+                <ImageButton
+                    android:id="@+id/ai_chat_clear_btn"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@android:drawable/ic_menu_close_clear_cancel"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Clear"
+                    android:tint="#6B7280"
+                    android:visibility="gone" />
+
+                <ImageButton
+                    android:id="@+id/ai_chat_send_btn"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:src="@drawable/ic_send"
+                    android:background="@drawable/ai_chat_send_button"
+                    android:contentDescription="Send"
+                    android:tint="#FFFFFF"
+                    android:padding="8dp" />
+            </LinearLayout>
+
+            <!-- Mini Keyboard Rows -->
+            <LinearLayout
+                android:id="@+id/ai_chat_row0"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center" />
+
+            <LinearLayout
+                android:id="@+id/ai_chat_row1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center" />
+
+            <LinearLayout
+                android:id="@+id/ai_chat_row2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp" />
+
+            <LinearLayout
+                android:id="@+id/ai_chat_row3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:paddingStart="24dp"
+                android:paddingEnd="4dp" />
+
+            <!-- Bottom Row: Space and Special Keys -->
+            <LinearLayout
+                android:id="@+id/ai_chat_mini_keyboard_bottom_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:paddingTop="2dp">
+
+                <Button
+                    android:id="@+id/ai_chat_key_globe"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_weight="1"
+                    android:text="🌐"
+                    android:textSize="18sp"
+                    android:textColor="#FFFFFF"
+                    android:background="@drawable/dict_key_special"
+                    android:layout_marginStart="2dp"
+                    android:layout_marginEnd="2dp"
+                    android:textAllCaps="false" />
+
+                <Button
+                    android:id="@+id/ai_chat_key_emoji"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_weight="1"
+                    android:text="☺"
+                    android:textSize="18sp"
+                    android:textColor="#FFFFFF"
+                    android:background="@drawable/dict_key_special"
+                    android:layout_marginEnd="2dp"
+                    android:textAllCaps="false" />
+
+                <Button
+                    android:id="@+id/ai_chat_key_space"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_weight="3"
+                    android:text="space"
+                    android:textSize="12sp"
+                    android:textColor="#9CA3AF"
+                    android:background="@drawable/dict_key_background"
+                    android:layout_marginEnd="2dp"
+                    android:textAllCaps="false" />
+
+                <Button
+                    android:id="@+id/ai_chat_key_send"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_weight="1.2"
+                    android:text="Send"
+                    android:textSize="12sp"
+                    android:textColor="#FFFFFF"
+                    android:background="@drawable/voice_mode_button_purple"
+                    android:layout_marginEnd="2dp"
+                    android:textAllCaps="false" />
+
+            </LinearLayout>
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- AI Writing Tools Container (Hidden by default) -->
+    <include
+        android:id="@+id/ai_writing_tools_include"
+        layout="@layout/ai_writing_tools"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+
+    <!-- Keyboard Layout -->
+    <LinearLayout
+        android:id="@+id/keyboard_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="6dp">
+
+        <!-- Numbers Row: 1 2 3 4 5 6 7 8 9 0 -->
+        <LinearLayout
+            android:id="@+id/row_numbers"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="2dp">
+        </LinearLayout>
+
+        <!-- First Letter Row: Q W E R T Y U I O P -->
+        <LinearLayout
+            android:id="@+id/row_qwerty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="2dp">
+        </LinearLayout>
+
+        <!-- Second Letter Row: A S D F G H J K L -->
+        <LinearLayout
+            android:id="@+id/row_asdf"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="2dp"
+            android:paddingStart="18dp"
+            android:paddingEnd="18dp">
+        </LinearLayout>
+
+        <!-- Third Letter Row: Z X C V B N M -->
+        <LinearLayout
+            android:id="@+id/row_zxcv"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="2dp">
+        </LinearLayout>
+
+        <!-- Bottom Row -->
+        <LinearLayout
+            android:id="@+id/row_bottom"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="2dp">
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

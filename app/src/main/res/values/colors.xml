@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App Primary Colors -->
+    <color name="ic_launcher_background">#7C4DFF</color>
+    <color name="primary">#8B5CF6</color>
+    <color name="primary_dark">#7C3AED</color>
+    <color name="primary_light">#A78BFA</color>
+    <color name="accent">#C084FC</color>
+    
+    <!-- Background Colors -->
+    <color name="background_dark">#0F0F10</color>
+    <color name="background_card">#1A1A1D</color>
+    <color name="background_surface">#111114</color>
+    <color name="background_elevated">#1F1F23</color>
+    
+    <!-- Text Colors -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#9CA3AF</color>
+    <color name="text_tertiary">#6B7280</color>
+    <color name="text_accent">#C084FC</color>
+    
+    <!-- Gradient Colors -->
+    <color name="gradient_start">#8B5CF6</color>
+    <color name="gradient_middle">#A855F7</color>
+    <color name="gradient_end">#C084FC</color>
+    
+    <!-- Status Colors -->
+    <color name="success">#10B981</color>
+    <color name="warning">#F59E0B</color>
+    <color name="error">#EF4444</color>
+    <color name="info">#3B82F6</color>
+    
+    <!-- Feature Colors -->
+    <color name="video_color">#F472B6</color>
+    <color name="voice_color">#60A5FA</color>
+    <color name="ai_color">#34D399</color>
+    <color name="themes_color">#FBBF24</color>
+    
+    <!-- Premium Colors -->
+    <color name="premium_gold">#FFD700</color>
+    <color name="premium_gradient_start">#F59E0B</color>
+    <color name="premium_gradient_end">#EAB308</color>
+</resources>

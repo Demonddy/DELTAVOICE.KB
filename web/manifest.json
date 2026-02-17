@@ -1,0 +1,55 @@
+{
+    "name": "DeltaVoice - AI Voice Translator",
+    "short_name": "DeltaVoice",
+    "description": "Record, translate, and convert your voice with AI",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0F0F10",
+    "theme_color": "#8B5CF6",
+    "orientation": "portrait",
+    "scope": "/",
+    "lang": "en",
+    "icons": [
+        {
+            "src": "icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        },
+        {
+            "src": "icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": ["utilities", "productivity"],
+    "shortcuts": [
+        {
+            "name": "Record Voice",
+            "short_name": "Record",
+            "description": "Start a new voice recording",
+            "url": "/?action=record",
+            "icons": [
+                {
+                    "src": "icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        }
+    ],
+    "screenshots": [],
+    "prefer_related_applications": false,
+    "related_applications": [
+        {
+            "platform": "play",
+            "id": "com.deltavoice"
+        }
+    ]
+}

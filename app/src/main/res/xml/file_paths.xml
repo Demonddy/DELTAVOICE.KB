@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Cache directory for processed audio files -->
+    <cache-path
+        name="audio_cache"
+        path="." />
+    
+    <!-- External cache directory -->
+    <external-cache-path
+        name="external_audio_cache"
+        path="." />
+    
+    <!-- Files directory for recordings -->
+    <files-path
+        name="audio_files"
+        path="." />
+</paths>

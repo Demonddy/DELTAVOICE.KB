@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/emoji_picker_container"
+    android:layout_width="match_parent"
+    android:layout_height="280dp"
+    android:orientation="vertical"
+    android:background="#1A1A1A">
+
+    <!-- Category Tabs -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:orientation="horizontal"
+        android:background="#252525">
+        
+        <HorizontalScrollView
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/emoji_category_tabs"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:gravity="center_vertical">
+
+                <!-- Search Icon -->
+                <ImageButton
+                    android:id="@+id/emoji_search_btn"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@android:drawable/ic_menu_search"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Search"
+                    android:tint="#888888"
+                    android:padding="8dp" />
+
+            <!-- Recent -->
+            <ImageButton
+                android:id="@+id/emoji_tab_recent"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@android:drawable/ic_menu_recent_history"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Recent"
+                android:tint="#888888"
+                android:padding="8dp" />
+
+            <!-- Smileys (Selected by default) -->
+            <ImageButton
+                android:id="@+id/emoji_tab_smileys"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_emoji_smileys"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Smileys"
+                android:tint="#4A9EFF"
+                android:padding="8dp" />
+
+            <!-- People -->
+            <ImageButton
+                android:id="@+id/emoji_tab_people"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_emoji_people"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="People"
+                android:tint="#888888"
+                android:padding="8dp" />
+
+            <!-- Animals -->
+            <ImageButton
+                android:id="@+id/emoji_tab_animals"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_emoji_animals"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Animals"
+                android:tint="#888888"
+                android:padding="8dp" />
+
+            <!-- Food -->
+            <ImageButton
+                android:id="@+id/emoji_tab_food"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_emoji_food"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Food"
+                android:tint="#888888"
+                android:padding="8dp" />
+
+            <!-- Activities -->
+            <ImageButton
+                android:id="@+id/emoji_tab_activities"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_emoji_activities"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Activities"
+                android:tint="#888888"
+                android:padding="8dp" />
+
+            <!-- Travel -->
+            <ImageButton
+                android:id="@+id/emoji_tab_travel"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_emoji_travel"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Travel"
+                android:tint="#888888"
+                android:padding="8dp" />
+
+            <!-- Objects -->
+            <ImageButton
+                android:id="@+id/emoji_tab_objects"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_emoji_objects"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Objects"
+                android:tint="#888888"
+                android:padding="8dp" />
+
+            <!-- Symbols -->
+            <ImageButton
+                android:id="@+id/emoji_tab_symbols"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_emoji_symbols"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Symbols"
+                android:tint="#888888"
+                android:padding="8dp" />
+
+            <!-- Flags -->
+            <ImageButton
+                android:id="@+id/emoji_tab_flags"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_emoji_flags"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Flags"
+                android:tint="#888888"
+                android:padding="8dp" />
+
+            </LinearLayout>
+        </HorizontalScrollView>
+        
+        <!-- Backspace Button -->
+        <ImageButton
+            android:id="@+id/emoji_backspace_btn"
+            android:layout_width="48dp"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_backspace"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="Backspace"
+            android:tint="#AAAAAA"
+            android:padding="12dp" />
+            
+    </LinearLayout>
+
+    <!-- Emoji Grid with ScrollView -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:scrollbars="vertical"
+        android:fadeScrollbars="false"
+        android:background="#1A1A1A">
+
+        <GridLayout
+            android:id="@+id/emoji_grid_full"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="8"
+            android:padding="4dp"
+            android:useDefaultMargins="false" />
+
+    </ScrollView>
+
+    <!-- Bottom Bar with keyboard switch -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="42dp"
+        android:orientation="horizontal"
+        android:background="#1F1F1F"
+        android:gravity="center_vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <!-- Back to Keyboard Button -->
+        <ImageButton
+            android:id="@+id/emoji_back_to_keyboard"
+            android:layout_width="40dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_keyboard"
+            android:background="@drawable/key_function_background"
+            android:contentDescription="Keyboard"
+            android:tint="#FFFFFF"
+            android:padding="8dp" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- Enter/Return Button -->
+        <ImageButton
+            android:id="@+id/emoji_enter_btn"
+            android:layout_width="60dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_enter"
+            android:background="@drawable/key_function_background"
+            android:contentDescription="Enter"
+            android:tint="#FFFFFF"
+            android:padding="8dp" />
+
+    </LinearLayout>
+
+</LinearLayout>
