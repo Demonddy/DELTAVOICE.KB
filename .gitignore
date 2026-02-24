@@ -86,3 +86,8 @@ lint/tmp/
 
 # Cursor MCP config (may contain access tokens)
 .cursor/mcp.json
+
+# Convex / Node
+.env.local
+.env*.local
+node_modules

@@ -1,0 +1,12 @@
+{
+  "name": "keyboard-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "convex dev",
+    "dev:backend": "convex dev"
+  },
+  "devDependencies": {
+    "convex": "^1.32.0"
+  }
+}

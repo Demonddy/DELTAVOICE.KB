@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- AI chat messages area height - compact to leave room for keyboard -->
+    <dimen name="ai_chat_messages_height">100dp</dimen>
+    <!-- AI chat key height (portrait) -->
+    <dimen name="ai_chat_key_height">34dp</dimen>
+    <dimen name="ai_chat_bottom_row_height">40dp</dimen>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- AI chat messages - smaller in landscape for keyboard space -->
+    <dimen name="ai_chat_messages_height">72dp</dimen>
+    <dimen name="ai_chat_key_height">28dp</dimen>
+    <dimen name="ai_chat_bottom_row_height">34dp</dimen>
+</resources>

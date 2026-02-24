@@ -1,8 +1,7 @@
 package com.deltavoice.api
 
+import com.deltavoice.config.ConvexConfig
 import com.deltavoice.config.SupabaseConfig
-import io.github.jan.supabase.functions.functions
-import io.ktor.client.call.body
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -14,10 +13,11 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Service for full voice workflow: transcribe -> translate -> convert to speech
+ * Service for full voice workflow: transcribe -> translate -> convert to speech.
+ * Uses Convex for complete (Change Language & Voice) and voice-only (Translate My Same Voice)
+ * when ConvexConfig.USE_CONVEX_FOR_VOICE_WORKFLOW is true.
  */
 class CompleteVoiceWorkflowService {
-    private val supabase = SupabaseClient.getClient()
     private val json = Json { ignoreUnknownKeys = true }
 
     @Serializable
@@ -37,7 +37,8 @@ class CompleteVoiceWorkflowService {
         val convertedAudioBase64: String? = null,
         val targetLanguage: String? = null,
         val voiceStyle: String? = null,
-        val workflowType: String? = null
+        val workflowType: String? = null,
+        val ttsFallback: Boolean? = null
     )
 
     suspend fun runWorkflow(
@@ -70,50 +71,47 @@ class CompleteVoiceWorkflowService {
             format = audioFile.extension.takeIf { it.isNotBlank() } ?: "m4a"
         )
 
-        // Retry logic with exponential backoff
+        // Use Convex for real-time delivery of complete and voice-only workflows
+        val useConvex = ConvexConfig.USE_CONVEX_FOR_VOICE_WORKFLOW &&
+            (workflowType == "complete" || workflowType == "voice-only")
+
+        if (useConvex && !ConvexConfig.CONVEX_SITE_URL.contains("YOUR_DEPLOYMENT")) {
+            val convexMaxRetries = 3
+            for (attempt in 1..convexMaxRetries) {
+                android.util.Log.d("DeltaVoice", "WorkflowService: Convex attempt $attempt/$convexMaxRetries (real-time delivery)...")
+                val convexResult = callConvex(request)
+                if (convexResult != null) {
+                    android.util.Log.d("DeltaVoice", "WorkflowService: Convex real-time delivery succeeded!")
+                    return@withContext Result.success(convexResult)
+                }
+                if (attempt < convexMaxRetries) {
+                    val delayMs = 1000L * attempt
+                    android.util.Log.d("DeltaVoice", "WorkflowService: Convex retry in ${delayMs}ms...")
+                    kotlinx.coroutines.delay(delayMs)
+                }
+            }
+            android.util.Log.w("DeltaVoice", "WorkflowService: Convex failed after $convexMaxRetries attempts, falling back to Supabase")
+        }
+
+        // Supabase fallback (direct HTTP with 120s read timeout)
         val maxRetries = 3
         var lastException: Exception? = null
         
         for (attempt in 1..maxRetries) {
             try {
-                android.util.Log.d("DeltaVoice", "WorkflowService: Attempt $attempt/$maxRetries - Calling Supabase function...")
+                android.util.Log.d("DeltaVoice", "WorkflowService: Attempt $attempt/$maxRetries - Calling Supabase (direct HTTP)...")
                 
-                // Call Supabase function
-                val response = supabase.functions.invoke(
-                    function = SupabaseConfig.FUNCTION_COMPLETE_VOICE_WORKFLOW,
-                    body = request
-                )
-
-                val responseText: String = response.body()
-                
-                android.util.Log.d("DeltaVoice", "WorkflowService: Response received, length = ${responseText.length}")
-                
-                // Check for error response
-                if (responseText.contains("\"error\"") && responseText.contains("\"success\":false")) {
-                    val errorMatch = Regex("\"error\"\\s*:\\s*\"([^\"]+)\"").find(responseText)
-                    val errorMsg = errorMatch?.groupValues?.get(1) ?: "Server error"
-                    android.util.Log.e("DeltaVoice", "WorkflowService: Server returned error: $errorMsg")
-                    return@withContext Result.failure(Exception(errorMsg))
+                val result = callWithDirectHttp(request)
+                if (result != null) {
+                    android.util.Log.d("DeltaVoice", "WorkflowService: Workflow completed successfully!")
+                    return@withContext Result.success(result)
                 }
-                
-                val result = json.decodeFromString<WorkflowResponse>(responseText)
-                
-                android.util.Log.d("DeltaVoice", "WorkflowService: Parsed response - success=${result.success}, hasOriginalText=${!result.originalText.isNullOrBlank()}, hasTranslatedText=${!result.translatedText.isNullOrBlank()}, hasAudio=${!result.convertedAudioBase64.isNullOrBlank()}, audioLength=${result.convertedAudioBase64?.length ?: 0}")
-                
-                // Verify we got useful data
-                if (!result.success && result.originalText.isNullOrBlank() && result.translatedText.isNullOrBlank()) {
-                    android.util.Log.e("DeltaVoice", "WorkflowService: No useful data in response")
-                    return@withContext Result.failure(Exception("No response from server"))
-                }
-                
-                android.util.Log.d("DeltaVoice", "WorkflowService: Workflow completed successfully!")
-                return@withContext Result.success(result)
+                lastException = Exception("Empty or invalid response")
                 
             } catch (e: Exception) {
                 lastException = e
                 android.util.Log.e("DeltaVoice", "WorkflowService: Attempt $attempt failed: ${e.message}")
                 
-                // Don't retry on non-network errors
                 val isNetworkError = e.message?.contains("Unable to resolve host", ignoreCase = true) == true ||
                                      e.message?.contains("timeout", ignoreCase = true) == true ||
                                      e.message?.contains("connection", ignoreCase = true) == true ||
@@ -123,24 +121,10 @@ class CompleteVoiceWorkflowService {
                     break
                 }
                 
-                // Wait before retry (exponential backoff: 1s, 2s, 4s)
                 val delayMs = (1000L * (1 shl (attempt - 1)))
                 android.util.Log.d("DeltaVoice", "WorkflowService: Waiting ${delayMs}ms before retry...")
                 kotlinx.coroutines.delay(delayMs)
             }
-        }
-        
-        // All retries with Supabase SDK failed, try direct HTTP as fallback
-        android.util.Log.d("DeltaVoice", "WorkflowService: SDK failed, trying direct HTTP...")
-        
-        try {
-            val result = callWithDirectHttp(request)
-            if (result != null) {
-                return@withContext Result.success(result)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("DeltaVoice", "WorkflowService: Direct HTTP also failed: ${e.message}")
-            lastException = e
         }
         
         // All attempts failed
@@ -167,6 +151,44 @@ class CompleteVoiceWorkflowService {
         Result.failure(Exception(errorMsg))
     }
     
+    /**
+     * Call Convex HTTP action for real-time delivery of complete and voice-only workflows.
+     * Uses 60s connect / 120s read timeout for long-running voice processing.
+     */
+    private fun callConvex(request: WorkflowRequest): WorkflowResponse? {
+        return try {
+            val url = URL(ConvexConfig.VOICE_WORKFLOW_URL)
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.connectTimeout = 60000
+            connection.readTimeout = 120000
+            connection.doOutput = true
+
+            val requestJson = json.encodeToString(request)
+            OutputStreamWriter(connection.outputStream).use { writer ->
+                writer.write(requestJson)
+                writer.flush()
+            }
+
+            val responseCode = connection.responseCode
+            val responseText = if (responseCode == HttpURLConnection.HTTP_OK) {
+                connection.inputStream.bufferedReader().use { it.readText() }
+            } else {
+                connection.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+            }
+            connection.disconnect()
+
+            val result = json.decodeFromString<WorkflowResponse>(responseText)
+            if (result.success || !result.originalText.isNullOrBlank() || !result.translatedText.isNullOrBlank()) {
+                result
+            } else null
+        } catch (e: Exception) {
+            android.util.Log.e("DeltaVoice", "WorkflowService: Convex call failed: ${e.message}")
+            null
+        }
+    }
+
     /**
      * Direct HTTP call as fallback when Supabase SDK fails
      */
@@ -196,18 +218,21 @@ class CompleteVoiceWorkflowService {
             val responseCode = connection.responseCode
             android.util.Log.d("DeltaVoice", "WorkflowService: Direct HTTP - response code: $responseCode")
             
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                val responseText = connection.inputStream.bufferedReader().use { it.readText() }
-                android.util.Log.d("DeltaVoice", "WorkflowService: Direct HTTP - response length: ${responseText.length}")
-                
+            val responseText = if (responseCode == HttpURLConnection.HTTP_OK) {
+                connection.inputStream.bufferedReader().use { it.readText() }
+            } else {
+                connection.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+            }
+            android.util.Log.d("DeltaVoice", "WorkflowService: Direct HTTP - response code: $responseCode, length: ${responseText.length}")
+
+            if (responseCode == HttpURLConnection.HTTP_OK && responseText.isNotBlank()) {
                 val result = json.decodeFromString<WorkflowResponse>(responseText)
                 if (result.success || !result.originalText.isNullOrBlank() || !result.translatedText.isNullOrBlank()) {
-                    android.util.Log.d("DeltaVoice", "WorkflowService: Direct HTTP successful!")
+                    android.util.Log.d("DeltaVoice", "WorkflowService: Direct HTTP successful! ttsFallback=${result.ttsFallback}")
                     return result
                 }
-            } else {
-                val errorText = connection.errorStream?.bufferedReader()?.use { it.readText() } ?: "Unknown error"
-                android.util.Log.e("DeltaVoice", "WorkflowService: Direct HTTP error: $responseCode - $errorText")
+            } else if (responseCode >= 400 && responseText.isNotBlank()) {
+                android.util.Log.e("DeltaVoice", "WorkflowService: Direct HTTP error: $responseCode - $responseText")
             }
             
             return null

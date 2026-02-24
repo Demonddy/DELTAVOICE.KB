@@ -1,6 +1,5 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -144,13 +143,10 @@ async function translateText(text: string, targetLanguage: string): Promise<stri
     throw new Error('OpenAI API key not configured');
   }
 
-  if (targetLanguage === 'en') {
-    return text; // No translation needed for English
-  }
-
   console.log('Translating text to:', targetLanguage);
 
   const languageNames: { [key: string]: string } = {
+    'en': 'English',
     'es': 'Spanish', 'fr': 'French', 'de': 'German', 'it': 'Italian',
     'pt': 'Portuguese', 'ru': 'Russian', 'ja': 'Japanese', 'ko': 'Korean',
     'zh': 'Chinese', 'ar': 'Arabic', 'hi': 'Hindi', 'nl': 'Dutch',
@@ -281,119 +277,21 @@ async function convertTextToSpeech(
   // Handle MyVoiceClone by retrieving from database or creating automatically
   let voiceId: string;
   if (voiceStyle === 'myvoiceclone') {
-    console.log('🎭 MYVOICECLONE REQUESTED - Starting workflow');
+    console.log('🎭 MYVOICECLONE REQUESTED - strict fresh clone from current recording');
     console.log('🎭 Audio data available:', !!audioBase64, 'Size:', audioBase64 ? audioBase64.length : 0);
-    
+
+    if (!audioBase64 || audioBase64.length < 2000) {
+      throw new Error('Voice clone requires a valid recording. Please record a longer voice sample and try again.');
+    }
+
     try {
-      // Initialize Supabase client
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-      // Get user from authorization header
-      const authHeader = req.headers.get('authorization');
-      console.log('🎭 Auth header present:', !!authHeader);
-      
-      if (!authHeader) {
-        console.log('🎭 No auth header - creating anonymous voice clone from audio');
-        // Create voice clone from current audio if available
-        if (audioBase64 && audioBase64.length > 0) {
-          console.log('🎭 Creating voice clone from audio data...');
-          voiceId = await createVoiceCloneFromAudio(audioBase64, 'Auto Voice Clone', audioFormat);
-          console.log('🎭 Anonymous voice clone created successfully:', voiceId);
-        } else {
-          console.log('🎭 No audio data available for voice clone creation, using default voice');
-          voiceId = '9BWtsMINqrJLrRacOk9x'; // Fallback to Aria
-        }
-      } else {
-        const { data: { user }, error: authError } = await supabase.auth.getUser(
-          authHeader.replace('Bearer ', '')
-        );
-
-        if (authError || !user) {
-          console.log('🎭 Authentication failed, creating voice clone from audio:', authError);
-          // Create voice clone from current audio if available
-          if (audioBase64 && audioBase64.length > 0) {
-            console.log('🎭 Creating voice clone from audio data (auth failed)...');
-          voiceId = await createVoiceCloneFromAudio(audioBase64, 'Auto Voice Clone', audioFormat);
-            console.log('🎭 Voice clone created successfully (auth failed):', voiceId);
-          } else {
-            console.log('🎭 No audio data available for voice clone creation, using default voice');
-            voiceId = '9BWtsMINqrJLrRacOk9x'; // Fallback to Aria
-          }
-        } else {
-          console.log('🎭 User authenticated, checking for existing voice clone:', user.id);
-          
-          // Optimized query with timeout - get the most recent default voice clone
-          const { data: voiceClone, error: dbError } = await supabase
-            .from('voice_clones')
-            .select('elevenlabs_voice_id, name')
-            .eq('user_id', user.id)
-            .eq('is_default', true)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (dbError) {
-            console.error('🎭 Voice clone lookup error:', dbError);
-            // Create voice clone from current audio if available
-            if (audioBase64 && audioBase64.length > 0) {
-              console.log('🎭 Creating voice clone from audio data (db error)...');
-              voiceId = await createVoiceCloneFromAudio(audioBase64, 'Auto Voice Clone', audioFormat);
-              console.log('🎭 Voice clone created successfully (db error):', voiceId);
-            } else {
-              console.log('🎭 No audio data available for voice clone creation, using default voice');
-              voiceId = '9BWtsMINqrJLrRacOk9x'; // Fallback to Aria
-            }
-          } else if (!voiceClone) {
-            console.log('🎭 No existing voice clone found for user, creating new one from audio');
-            // Create voice clone from current audio and save to database if audio is available
-            if (audioBase64 && audioBase64.length > 0) {
-              console.log('🎭 Creating new voice clone from audio data...');
-              voiceId = await createVoiceCloneFromAudio(audioBase64, 'My Voice Clone', audioFormat);
-              console.log('🎭 New voice clone created successfully:', voiceId);
-              
-              // Save to database for future use
-              const { error: insertError } = await supabase
-                .from('voice_clones')
-                .insert({
-                  user_id: user.id,
-                  name: 'My Voice Clone',
-                  elevenlabs_voice_id: voiceId,
-                  is_default: true
-                });
-                
-              if (insertError) {
-                console.error('🎭 Failed to save voice clone to database:', insertError);
-              } else {
-                console.log('🎭 Voice clone saved to database for user:', user.id);
-              }
-            } else {
-              console.log('🎭 No audio data available for voice clone creation, using default voice');
-              voiceId = '9BWtsMINqrJLrRacOk9x'; // Fallback to Aria
-            }
-          } else {
-            voiceId = voiceClone.elevenlabs_voice_id;
-            console.log('🎭 Using existing user voice clone:', voiceClone.name, 'ID:', voiceId);
-          }
-        }
-      }
+      // Always build clone from THIS recording so output matches the latest speaker sample.
+      const cloneName = `Live Voice Clone ${Date.now()}`;
+      voiceId = await createVoiceCloneFromAudio(audioBase64, cloneName, audioFormat);
+      console.log('🎭 Fresh voice clone created for current request:', voiceId);
     } catch (error) {
-      console.error('🎭 Error with voice clone workflow:', error);
-      // Create voice clone from current audio as fallback
-      try {
-        if (audioBase64 && audioBase64.length > 0) {
-          console.log('🎭 Fallback: Creating voice clone from audio data...');
-          voiceId = await createVoiceCloneFromAudio(audioBase64, 'Fallback Voice Clone', audioFormat);
-          console.log('🎭 Fallback voice clone created successfully:', voiceId);
-        } else {
-          console.log('🎭 No audio data available for fallback voice clone creation, using default voice');
-          voiceId = '9BWtsMINqrJLrRacOk9x'; // Ultimate fallback to Aria
-        }
-      } catch (fallbackError) {
-        console.error('🎭 Fallback voice clone creation failed:', fallbackError);
-        voiceId = '9BWtsMINqrJLrRacOk9x'; // Ultimate fallback to Aria
-      }
+      console.error('🎭 Fresh voice clone creation failed:', error);
+      throw new Error(`Voice clone creation failed for current recording: ${error instanceof Error ? error.message : String(error)}`);
     }
   } else if (voiceStyle.startsWith('clone_')) {
     // For existing voice clones, get the actual ElevenLabs voice ID
@@ -423,11 +321,16 @@ async function convertTextToSpeech(
     text: text.substring(0, 50) + '...'
   });
 
-  // Use eleven_turbo_v2_5 for ~3x faster TTS; fallback to multilingual_v2 if needed
+  // For cloned voices, prioritize quality/fidelity over speed.
+  const isClonedVoice = voiceStyle === 'myvoiceclone' || voiceStyle.startsWith('clone_');
   const langCode = targetLanguage ? languageCodeMap[targetLanguage] || targetLanguage : undefined;
-  const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?optimize_streaming_latency=2`;
-  const voiceSettings = { stability: 0.5, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true };
-  const modelsToTry = ['eleven_turbo_v2_5', 'eleven_multilingual_v2'];
+  const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?optimize_streaming_latency=${isClonedVoice ? 0 : 2}`;
+  const voiceSettings = isClonedVoice
+    ? { stability: 0.35, similarity_boost: 1.0, style: 0.0, use_speaker_boost: true }
+    : { stability: 0.5, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true };
+  const modelsToTry = isClonedVoice
+    ? ['eleven_multilingual_v2', 'eleven_turbo_v2_5']
+    : ['eleven_turbo_v2_5', 'eleven_multilingual_v2'];
   let response: Response | null = null;
   let lastError = '';
   for (const modelId of modelsToTry) {
@@ -457,6 +360,13 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  let originalText = '';
+  let translatedText = '';
+  let convertedAudioBase64 = '';
+  let workflowType = 'complete';
+  let targetLanguage = '';
+  let voiceStyle = '';
 
   try {
     // Check API keys first (support OPENAI_API_KEY77 for OpenAI)
@@ -491,7 +401,11 @@ serve(async (req) => {
     console.log('🚀 Edge function started - complete-voice-workflow');
     console.log('🚀 Request method:', req.method);
     
-    const { audioBase64, targetLanguage, voiceStyle, workflowType = 'complete', format } = await req.json();
+    const reqBody = await req.json();
+    const { audioBase64, format } = reqBody;
+    targetLanguage = reqBody.targetLanguage || '';
+    voiceStyle = reqBody.voiceStyle || '';
+    workflowType = reqBody.workflowType || 'complete';
 
     console.log('🚀 Request payload received:', { 
       audioSize: audioBase64?.length || 0,
@@ -512,42 +426,43 @@ serve(async (req) => {
       );
     }
 
-    // Step 1: Transcribe the audio to text (always required)
+    // Step 1: Transcribe the audio to text (shared by all modes)
     console.log('Step 1: Transcribing audio...');
-    const originalText = await transcribeAudio(audioBase64, format);
+    originalText = await transcribeAudio(audioBase64, format);
 
     if (!originalText || originalText.trim().length === 0) {
       throw new Error('No speech detected in audio. Please speak clearly and try again.');
     }
 
-    let translatedText = originalText;
-    let convertedAudioBase64 = '';
+    // Step 2 & 3: Explicit per-mode handling — each workflow is fully independent
+    const shouldTranslate = targetLanguage && targetLanguage.trim().length > 0;
 
-    // Step 2: Translation (conditional based on workflow type and language)
-    if (workflowType === 'text-only') {
-      // For text-only mode, only translate if target language is different from English
-      if (targetLanguage !== 'en') {
-        console.log('Step 2: Translating text for text-only mode...');
-        translatedText = await translateText(originalText, targetLanguage);
+    switch (workflowType) {
+      case 'complete': {
+        // Change Language & Voice: Preset voice (Adam, Aria, etc.) + optional translation + TTS
+        translatedText = shouldTranslate ? await translateText(originalText, targetLanguage) : originalText;
+        console.log('Step 2 [complete]: Translation done. Step 3: TTS with preset voice:', voiceStyle);
+        convertedAudioBase64 = await convertTextToSpeech(translatedText, voiceStyle, req, undefined, format, targetLanguage);
+        break;
       }
-    } else if (workflowType === 'voice-only') {
-      // For voice-only mode, skip translation entirely
-      console.log('Step 2: Skipping translation for voice-only mode...');
-      translatedText = originalText;
-    } else {
-      // For complete mode, translate if target language is different
-      if (targetLanguage !== 'en') {
-        console.log('Step 2: Translating text...');
-        translatedText = await translateText(originalText, targetLanguage);
+      case 'voice-only': {
+        // Translate My Same Voice: Clone user's voice from recording + optional translation + TTS with clone
+        translatedText = shouldTranslate ? await translateText(originalText, targetLanguage) : originalText;
+        console.log('Step 2 [voice-only]: Translation done. Step 3: TTS with voice clone from recording');
+        convertedAudioBase64 = await convertTextToSpeech(translatedText, 'myvoiceclone', req, audioBase64, format, targetLanguage);
+        break;
       }
-    }
-
-    // Step 3: Voice conversion (skip for text-only mode)
-    if (workflowType !== 'text-only') {
-      console.log('Step 3: Converting to speech...');
-      convertedAudioBase64 = await convertTextToSpeech(translatedText, voiceStyle, req, audioBase64, format, targetLanguage);
-    } else {
-      console.log('Step 3: Skipping voice conversion for text-only mode...');
+      case 'text-only': {
+        // Transcript & Translate: Translation only, no TTS
+        translatedText = shouldTranslate ? await translateText(originalText, targetLanguage) : originalText;
+        console.log('Step 2 [text-only]: Translation done. Step 3: Skipped (text output only)');
+        break;
+      }
+      default: {
+        translatedText = shouldTranslate ? await translateText(originalText, targetLanguage) : originalText;
+        convertedAudioBase64 = await convertTextToSpeech(translatedText, voiceStyle, req, undefined, format, targetLanguage);
+        break;
+      }
     }
 
     // Return the workflow result
@@ -582,21 +497,43 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Voice workflow error:', error);
-    
+    const errMsg = error instanceof Error ? error.message : String(error);
+
+    // When TTS fails but we have transcription + translation, return partial success for device fallback
+    const isTtsError = errMsg.includes('Voice conversion failed') ||
+      errMsg.includes('Voice clone creation failed');
+    const hasText = (originalText && originalText.trim()) || (translatedText && translatedText.trim());
+    if (isTtsError && hasText && (workflowType === 'complete' || workflowType === 'voice-only')) {
+      console.log('TTS failed - returning text for device TTS fallback');
+      return new Response(JSON.stringify({
+        success: true,
+        originalText: originalText || '',
+        translatedText: translatedText || originalText || '',
+        convertedAudioBase64: '',
+        targetLanguage,
+        voiceStyle,
+        workflowType,
+        ttsFallback: true
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     // Provide specific error messages based on the error type
     let userFriendlyMessage = 'Voice processing failed. Please try again.';
     
-    if (error.message.includes('OpenAI API key not configured')) {
+    if (errMsg.includes('OpenAI API key not configured')) {
       userFriendlyMessage = 'OpenAI API key not configured. Please add your OpenAI API key to continue.';
-    } else if (error.message.includes('ElevenLabs API key not configured')) {
+    } else if (errMsg.includes('ElevenLabs API key not configured')) {
       userFriendlyMessage = 'ElevenLabs API key not configured. Please add your ElevenLabs API key to continue.';
-    } else if (error.message.includes('No speech detected')) {
-      userFriendlyMessage = error.message;
-    } else if (error.message.includes('Transcription failed')) {
+    } else if (errMsg.includes('No speech detected')) {
+      userFriendlyMessage = errMsg;
+    } else if (errMsg.includes('Transcription failed')) {
       userFriendlyMessage = 'Failed to transcribe audio. Please ensure good audio quality and try again.';
-    } else if (error.message.includes('Translation failed')) {
+    } else if (errMsg.includes('Translation failed')) {
       userFriendlyMessage = 'Translation failed. Please check your settings and try again.';
-    } else if (error.message.includes('Voice conversion failed')) {
+    } else if (errMsg.includes('Voice conversion failed')) {
       userFriendlyMessage = 'Voice conversion failed. Please try again or select a different voice.';
     }
 
@@ -604,7 +541,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: false,
         error: userFriendlyMessage,
-        details: error.message,
+        details: errMsg,
         timestamp: new Date().toISOString()
       }),
       { 

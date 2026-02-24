@@ -10,6 +10,8 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
@@ -58,6 +60,20 @@
             android:excludeFromRecents="true"
             android:exported="false"
             android:screenOrientation="portrait" />
+
+        <!-- Video Upload Activity - file picker for keyboard video processing -->
+        <activity
+            android:name=".VideoUploadActivity"
+            android:theme="@style/Theme.DeltaVoice.Translucent"
+            android:excludeFromRecents="true"
+            android:exported="false" />
+
+        <!-- Audio Upload Activity - file picker for keyboard voice processing -->
+        <activity
+            android:name=".AudioUploadActivity"
+            android:theme="@style/Theme.DeltaVoice.Translucent"
+            android:excludeFromRecents="true"
+            android:exported="false" />
 
         <!-- Voice Process Mode Activity -->
         <activity

@@ -19,4 +19,11 @@
         <item name="android:windowMinWidthMinor">90%</item>
         <item name="colorAccent">@color/accent</item>
     </style>
+
+    <!-- Translucent theme for file-picker activities (VideoUpload, AudioUpload) -->
+    <style name="Theme.DeltaVoice.Translucent" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
 </resources>

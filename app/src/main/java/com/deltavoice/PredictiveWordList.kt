@@ -7,21 +7,27 @@ package com.deltavoice
  */
 object PredictiveWordList {
     
-    private val dictionaries = mapOf(
-        "en" to englishWords,
-        "es" to spanishWords,
-        "fr" to frenchWords,
-        "de" to germanWords,
-        "it" to italianWords,
-        "pt" to portugueseWords,
-        "ru" to russianWords,
-        "ar" to arabicWords,
-        "hi" to hindiWords,
-        "ja" to japaneseWords,
-        "ko" to koreanWords,
-        "zh" to chinesePinyinWords
-    )
+    private val dictionaries by lazy {
+        mapOf(
+            "en" to englishWords,
+            "es" to spanishWords,
+            "fr" to frenchWords,
+            "de" to germanWords,
+            "it" to italianWords,
+            "pt" to portugueseWords,
+            "ru" to russianWords,
+            "ar" to arabicWords,
+            "hi" to hindiWords,
+            "ja" to japaneseWords,
+            "ko" to koreanWords,
+            "zh" to chinesePinyinWords
+        )
+    }
     
+    /** Get raw word set for a language (used by PredictiveTextEngine). */
+    fun getWordsForLanguage(languageCode: String): Set<String> =
+        dictionaries[languageCode] ?: dictionaries["en"]!!
+
     /**
      * Get predictions for the given prefix in the specified language.
      * @param prefix User's partial input

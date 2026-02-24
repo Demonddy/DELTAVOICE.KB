@@ -23,8 +23,8 @@
             android:layout_margin="4dp">
             <ImageButton
                 android:id="@+id/btn_ai_main"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:src="@drawable/ic_ai_mode"
                 android:background="@drawable/ai_circle_button"
                 android:contentDescription="@string/ai_keyboard_mode"
@@ -34,8 +34,8 @@
         <!-- Calculator Button -->
         <ImageButton
             android:id="@+id/btn_calculator"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:src="@drawable/ic_calculator"
             android:background="@drawable/ai_circle_button"
             android:contentDescription="Calculator"
@@ -45,8 +45,8 @@
         <!-- Camera/Video Button -->
         <ImageButton
             android:id="@+id/btn_camera"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:src="@drawable/ic_camera"
             android:background="@drawable/ai_circle_button"
             android:contentDescription="Video Recording"
@@ -56,8 +56,8 @@
         <!-- List Button -->
         <ImageButton
             android:id="@+id/btn_list"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:src="@drawable/ic_list"
             android:background="@drawable/ai_circle_button"
             android:contentDescription="List"
@@ -67,8 +67,8 @@
         <!-- AI Chat Button -->
         <ImageButton
             android:id="@+id/btn_text_t"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:src="@drawable/ic_ai_chat"
             android:background="@drawable/ai_circle_button"
             android:contentDescription="AI Chat"
@@ -78,8 +78,8 @@
         <!-- KB+ Button (AI Writing Tools) -->
         <ImageButton
             android:id="@+id/btn_kb_plus"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:src="@drawable/ic_kb_plus"
             android:background="@drawable/ai_circle_button"
             android:contentDescription="AI Writing Tools"
@@ -89,8 +89,8 @@
         <!-- Microphone Button -->
         <ImageButton
             android:id="@+id/btn_voice"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:src="@drawable/ic_mic"
             android:background="@drawable/ai_circle_button"
             android:contentDescription="@string/voice_input"
@@ -100,8 +100,8 @@
         <!-- Globe Button -->
         <ImageButton
             android:id="@+id/btn_globe"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:src="@drawable/ic_globe"
             android:background="@drawable/ai_circle_button"
             android:contentDescription="Language"
@@ -111,8 +111,8 @@
         <!-- App Grid Button -->
         <ImageButton
             android:id="@+id/btn_app_grid"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:src="@drawable/ic_app_grid"
             android:background="@drawable/ai_circle_button"
             android:contentDescription="Apps"
@@ -222,7 +222,7 @@
         android:padding="16dp"
         android:visibility="gone">
 
-        <!-- Header with back button -->
+        <!-- Header with back button, title, and upload -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -240,13 +240,25 @@
                 android:tint="#FFFFFF" />
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:text="Voice input"
                 android:textSize="18sp"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"
                 android:layout_marginStart="12dp" />
+
+            <ImageButton
+                android:id="@+id/btn_voice_upload"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_upload"
+                android:background="@drawable/ai_circle_button"
+                android:contentDescription="Upload audio file"
+                android:padding="8dp"
+                android:tint="#FFFFFF"
+                android:layout_marginStart="8dp" />
         </LinearLayout>
 
         <!-- Mic button with rings -->
@@ -344,7 +356,18 @@
                 android:layout_height="wrap_content"
                 android:text="0:00"
                 android:textColor="#9CA3AF"
-                android:textSize="13sp" />
+                android:textSize="13sp"
+                android:layout_marginEnd="6dp" />
+
+            <ImageButton
+                android:id="@+id/btn_send_raw_recording"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/ic_send"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Send recorded voice without processing"
+                android:padding="6dp"
+                android:tint="#10B981" />
         </LinearLayout>
 
         <LinearLayout
@@ -676,6 +699,20 @@
                 android:contentDescription="Record Video" />
         </LinearLayout>
 
+        <!-- Upload Button - top right, for video/image from gallery -->
+        <ImageButton
+            android:id="@+id/btn_video_upload"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="56dp"
+            android:layout_marginEnd="12dp"
+            android:src="@drawable/ic_upload"
+            android:background="@drawable/ai_circle_button"
+            android:contentDescription="Upload video or image"
+            android:padding="10dp"
+            android:tint="#FFFFFF" />
+
         <!-- Switch Camera Button -->
         <ImageButton
             android:id="@+id/btn_switch_camera"
@@ -690,14 +727,19 @@
     </FrameLayout>
 
     <!-- Video Preview & Processing Container - Hidden by default -->
-    <LinearLayout
+    <ScrollView
         android:id="@+id/video_preview_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:fillViewport="true"
         android:background="#111521"
-        android:padding="16dp"
         android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
 
         <!-- Header with close button -->
         <LinearLayout
@@ -726,10 +768,11 @@
                 android:tint="#9CA3AF" />
         </LinearLayout>
 
-        <!-- Video Player -->
+        <!-- Video Player - play button overlays center, compact for clarity -->
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="160dp"
+            android:layout_height="180dp"
+            android:minHeight="140dp"
             android:background="#1A1F2E"
             android:layout_marginBottom="12dp">
 
@@ -741,13 +784,13 @@
 
             <ImageButton
                 android:id="@+id/btn_play_video"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:layout_gravity="center"
                 android:src="@drawable/ic_play"
                 android:background="@drawable/ai_circle_button"
                 android:tint="#FFFFFF"
-                android:padding="12dp"
+                android:padding="10dp"
                 android:contentDescription="Play Video" />
 
             <TextView
@@ -770,9 +813,9 @@
             android:text="Choose processing options:"
             android:textSize="13sp"
             android:textColor="#A3A3A3"
-            android:paddingBottom="12dp" />
+            android:paddingBottom="8dp" />
 
-        <!-- Language and Voice Selectors -->
+        <!-- Language and Voice Selectors - clear pill-style buttons -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -851,7 +894,9 @@
             android:textSize="16sp"
             android:textStyle="bold"
             android:gravity="center" />
-    </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
 
     <!-- AI Chat Container - Hidden by default -->
     <LinearLayout
@@ -897,11 +942,11 @@
                 android:tint="#9CA3AF" />
         </LinearLayout>
 
-        <!-- Chat Messages Area -->
+        <!-- Chat Messages Area - compact height to leave room for keyboard -->
         <ScrollView
             android:id="@+id/ai_chat_scroll"
             android:layout_width="match_parent"
-            android:layout_height="180dp"
+            android:layout_height="@dimen/ai_chat_messages_height"
             android:fillViewport="true"
             android:background="#111521">
 
@@ -993,20 +1038,56 @@
                     android:padding="8dp" />
             </LinearLayout>
 
-            <!-- Mini Keyboard Rows -->
+            <!-- AI Chat predictive suggestions -->
+            <HorizontalScrollView
+                android:id="@+id/ai_chat_suggestions_scroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none"
+                android:fillViewport="true"
+                android:visibility="gone"
+                android:layout_marginBottom="4dp">
+
+                <LinearLayout
+                    android:id="@+id/ai_chat_suggestions_row"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:minHeight="40dp" />
+            </HorizontalScrollView>
+
+            <!-- Mini Keyboard Rows - scrollable when space is limited -->
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxHeight="220dp"
+                android:scrollbars="none"
+                android:fillViewport="true"
+                android:overScrollMode="never">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
             <LinearLayout
                 android:id="@+id/ai_chat_row0"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center" />
+                android:gravity="center"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp" />
 
             <LinearLayout
                 android:id="@+id/ai_chat_row1"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center" />
+                android:gravity="center"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp" />
 
             <LinearLayout
                 android:id="@+id/ai_chat_row2"
@@ -1014,8 +1095,8 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp" />
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp" />
 
             <LinearLayout
                 android:id="@+id/ai_chat_row3"
@@ -1023,8 +1104,11 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center"
-                android:paddingStart="24dp"
-                android:paddingEnd="4dp" />
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp" />
+
+            </LinearLayout>
+            </ScrollView>
 
             <!-- Bottom Row: Space and Special Keys -->
             <LinearLayout
@@ -1038,7 +1122,7 @@
                 <Button
                     android:id="@+id/ai_chat_key_globe"
                     android:layout_width="0dp"
-                    android:layout_height="44dp"
+                    android:layout_height="@dimen/ai_chat_bottom_row_height"
                     android:layout_weight="1"
                     android:text="🌐"
                     android:textSize="18sp"
@@ -1051,7 +1135,7 @@
                 <Button
                     android:id="@+id/ai_chat_key_emoji"
                     android:layout_width="0dp"
-                    android:layout_height="44dp"
+                    android:layout_height="@dimen/ai_chat_bottom_row_height"
                     android:layout_weight="1"
                     android:text="☺"
                     android:textSize="18sp"
@@ -1063,7 +1147,7 @@
                 <Button
                     android:id="@+id/ai_chat_key_space"
                     android:layout_width="0dp"
-                    android:layout_height="44dp"
+                    android:layout_height="@dimen/ai_chat_bottom_row_height"
                     android:layout_weight="3"
                     android:text="space"
                     android:textSize="12sp"
@@ -1075,7 +1159,7 @@
                 <Button
                     android:id="@+id/ai_chat_key_send"
                     android:layout_width="0dp"
-                    android:layout_height="44dp"
+                    android:layout_height="@dimen/ai_chat_bottom_row_height"
                     android:layout_weight="1.2"
                     android:text="Send"
                     android:textSize="12sp"
