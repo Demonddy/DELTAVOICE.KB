@@ -8,6 +8,10 @@ android {
     namespace 'com.deltavoice'
     compileSdk 34
 
+    androidResources {
+        generateLocaleConfig true
+    }
+
     defaultConfig {
         applicationId "com.deltavoice"
         minSdk 21

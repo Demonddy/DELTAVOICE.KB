@@ -3,7 +3,10 @@ package com.deltavoice
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -16,6 +19,7 @@ import java.util.Locale
 /**
  * Activity to pick video/image from gallery for keyboard video processing.
  * Launched by MainKeyboardService; broadcasts the file path when done.
+ * Finishes instantly with no animation so user returns directly to keyboard processing panel.
  */
 class VideoUploadActivity : AppCompatActivity() {
 
@@ -23,7 +27,7 @@ class VideoUploadActivity : AppCompatActivity() {
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri == null) {
-            finish()
+            finishInstantly()
             return@registerForActivityResult
         }
         handlePickedUri(uri)
@@ -35,6 +39,11 @@ class VideoUploadActivity : AppCompatActivity() {
         pickMedia.launch("*/*")
     }
 
+    private fun finishInstantly() {
+        overridePendingTransition(0, 0)
+        finish()
+    }
+
     private fun handlePickedUri(uri: Uri) {
         try {
             val mimeType = contentResolver.getType(uri) ?: ""
@@ -43,7 +52,7 @@ class VideoUploadActivity : AppCompatActivity() {
 
             if (!isVideo && !isImage) {
                 Toast.makeText(this, "Please select a video or image file", Toast.LENGTH_SHORT).show()
-                finish()
+                finishInstantly()
                 return
             }
 
@@ -53,7 +62,7 @@ class VideoUploadActivity : AppCompatActivity() {
                     "Select a video file for voice processing. Images can be shared directly from your gallery.",
                     Toast.LENGTH_LONG
                 ).show()
-                finish()
+                finishInstantly()
                 return
             }
 
@@ -78,15 +87,17 @@ class VideoUploadActivity : AppCompatActivity() {
             getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .edit()
                 .putString(KEY_PENDING_PATH, path)
-                .apply()
+                .commit()  // Must be synchronous so keyboard receiver reads path before broadcast
 
-            sendBroadcast(Intent(ACTION_VIDEO_UPLOADED))
+            sendBroadcast(Intent(ACTION_VIDEO_UPLOADED).setPackage(packageName))
             Toast.makeText(this, "File ready for processing", Toast.LENGTH_SHORT).show()
+            // Delay finish so keyboard can request show and user returns to keyboard, not app
+            Handler(Looper.getMainLooper()).postDelayed({ finishInstantly() }, 350)
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "Failed to open file: ${e.message}", Toast.LENGTH_SHORT).show()
+            finishInstantly()
         }
-        finish()
     }
 
     companion object {

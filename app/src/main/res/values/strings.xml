@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- App identity -->
     <string name="app_name">deltavoice</string>
     <string name="keyboard_name">deltavoice</string>
+    <string name="app_version">deltavoice v1.0.0</string>
+
+    <!-- Keyboard & Voice -->
     <string name="voice_input">Voice Input</string>
     <string name="text_to_speech">Text to Speech</string>
     <string name="record_video">Record Video</string>
@@ -9,15 +13,31 @@
     <string name="toggle_keyboard_mode">Toggle Keyboard Mode</string>
     <string name="normal_keyboard_mode">Normal Keyboard Mode</string>
     <string name="ai_keyboard_mode">AI Keyboard Mode</string>
+    <string name="tap_to_record">Tap to record</string>
+    <string name="tap_to_start_recording">Tap to start recording</string>
+    <string name="recording_tap_to_pause">Tap to pause</string>
+
+    <!-- Language & Translation -->
     <string name="select_language">Select Language</string>
     <string name="translate_text">Translate Text</string>
     <string name="select_translation_language">Select Translation Language</string>
+    <string name="translate_to">Translate to: %s</string>
+    <string name="translation_target_set">Translation target set to %s</string>
+
+    <!-- Permissions -->
     <string name="microphone_permission_required">Microphone permission is required for voice input</string>
     <string name="camera_permission_required">Camera permission is required for video recording</string>
-    <string name="recording_video">Recording video...</string>
+    <string name="camera_permission_required_short">Camera permission required</string>
+    <string name="audio_permission_required">Audio permission required</string>
+    <string name="microphone_permission_to_record">Microphone permission required to record</string>
+
+    <!-- Recording status -->
+    <string name="recording_video">Recording video…</string>
     <string name="video_recorded">Video recorded successfully</string>
-    <string name="recording_audio">Recording audio...</string>
+    <string name="recording_audio">Recording audio…</string>
     <string name="audio_recorded">Audio recorded successfully</string>
+
+    <!-- Voice mode -->
     <string name="voice_mode_title">Step 2: Choose how to process your voice</string>
     <string name="voice_mode_subtitle">Choose processing mode:</string>
     <string name="voice_mode_full">Change Language &amp; Voice</string>
@@ -31,10 +51,297 @@
     <string name="voice_mode_quick_text">Quick Text</string>
     <string name="voice_mode_full_process">Full Process</string>
     <string name="voice_mode_action_done">Done</string>
-    <string name="voice_mode_action_processing">Processing...</string>
+    <string name="voice_mode_action_processing">Processing…</string>
     <string name="voice_mode_action_send">Send</string>
-    <string name="ai_chat_title">AI Assistant</string>
-    <string name="ai_chat_welcome">Hi! I\'m your AI assistant. Ask me anything - I can help with writing, questions, translations, and more!</string>
-    <string name="ai_chat_hint">Type your message...</string>
-</resources>
 
+    <!-- AI Chat -->
+    <string name="ai_chat_title">AI Assistant</string>
+    <string name="ai_chat_welcome">Hi! I\'m your AI assistant. Ask me anything — I can help with writing, questions, translations, and more!</string>
+    <string name="ai_chat_hint">Type your message…</string>
+
+    <!-- Bottom navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_camera">Camera</string>
+    <string name="nav_mic">Mic</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_add">Add</string>
+    <string name="add_media_title">Upload</string>
+    <string name="add_video">Upload Video</string>
+    <string name="add_voice">Upload Voice</string>
+    <string name="add_video_desc">Pick video from gallery to translate</string>
+    <string name="add_voice_desc">Pick audio from device to process</string>
+
+    <!-- Internet required -->
+    <string name="internet_required_ai_chat">Your AI assistant is ready to help — connect to the internet to start the conversation.</string>
+    <string name="internet_required_dictionary">A world of words awaits. Connect to Wi‑Fi or mobile data to look up definitions and translations.</string>
+    <string name="internet_required_search">Connect to explore. Search needs an internet connection to find what you\'re looking for.</string>
+    <string name="internet_required_generic">This feature requires an internet connection. Please connect to Wi‑Fi or mobile data to continue.</string>
+    <string name="internet_required_action_settings">Settings</string>
+    <string name="internet_restored_tap_done">📶 Internet restored. Tap Done to process.</string>
+    <string name="internet_restored_tap_process_video">📶 Internet restored. Tap Process Video to try again.</string>
+    <string name="internet_offline_message">📶 %s\nTap Done again when internet is restored.</string>
+    <string name="cant_reach_server">Can\'t reach server. Check Wi‑Fi or mobile data.</string>
+
+    <!-- Main / Home -->
+    <string name="welcome_back">Welcome back</string>
+    <string name="guest_user">Guest User</string>
+    <string name="good_morning">Good morning</string>
+    <string name="good_afternoon">Good afternoon</string>
+    <string name="good_evening">Good evening</string>
+    <string name="upgrade_to_premium">Upgrade to Premium</string>
+    <string name="unlock_all_features">Unlock all features &amp; remove limits</string>
+    <string name="upgrade_premium_toast">Upgrade to Premium for unlimited features!</string>
+    <string name="your_activity">Your Activity</string>
+    <string name="videos">Videos</string>
+    <string name="voice_msgs">Voice Msgs</string>
+    <string name="ai_chats">AI Chats</string>
+    <string name="features">Features</string>
+    <string name="video">Video</string>
+    <string name="record_translate_videos">Record &amp; translate videos</string>
+    <string name="voice">Voice</string>
+    <string name="voice_input_cloning">Voice input &amp; cloning</string>
+    <string name="ai_chat">AI Chat</string>
+    <string name="smart_ai_assistant">Smart AI assistant</string>
+    <string name="themes">Themes</string>
+    <string name="customize_keyboard">Customize keyboard</string>
+    <string name="quick_actions">Quick Actions</string>
+    <string name="enable_keyboard">Enable Keyboard</string>
+    <string name="tap_to_enable_keyboard">Tap to enable deltavoice</string>
+    <string name="account">Account</string>
+    <string name="manage_profile_login">Manage profile &amp; login</string>
+    <string name="subscription">Subscription</string>
+    <string name="free_plan">Free Plan</string>
+    <string name="premium">Premium</string>
+
+    <!-- Permissions flow -->
+    <string name="all_permissions_granted">All permissions granted! Enjoy deltavoice.</string>
+    <string name="some_features_limited">Some features may be limited without permissions.</string>
+
+    <!-- Account -->
+    <string name="not_signed_in">Not signed in</string>
+    <string name="sign_in_sign_up">Sign In / Sign Up</string>
+    <string name="current_plan">Current Plan</string>
+    <string name="free">Free</string>
+    <string name="free_plan_includes">Free plan includes:</string>
+    <string name="free_plan_details">• 10 voice translations per day\n• 3 video translations per day\n• 50 AI chat messages per day\n• Basic themes</string>
+    <string name="upgrade_to_premium_btn">Upgrade to Premium</string>
+    <string name="account_actions">Account Actions</string>
+    <string name="edit_profile">Edit Profile</string>
+    <string name="change_password">Change Password</string>
+    <string name="sign_out">Sign Out</string>
+    <string name="delete_account">Delete Account</string>
+    <string name="sign_in">Sign in</string>
+    <string name="edit_profile_title">Edit profile</string>
+    <string name="upgrade_premium_title">Upgrade to Premium</string>
+    <string name="premium_features">Premium features include:\n\n• Unlimited voice translations\n• Unlimited video translations\n• Unlimited AI chat messages\n• All premium themes</string>
+    <string name="welcome_to_premium">Welcome to Premium!</string>
+    <string name="sign_out_title">Sign out</string>
+    <string name="sign_out_confirm">Are you sure you want to sign out?</string>
+    <string name="delete_account_title">Delete account</string>
+    <string name="delete_account_confirm">Are you sure you want to delete your account? This action cannot be undone and all your data will be lost.</string>
+    <string name="delete">Delete</string>
+    <string name="signed_in_success">Signed in successfully!</string>
+    <string name="enter_email_password">Please enter email and password</string>
+    <string name="account_created">Account created successfully!</string>
+    <string name="enter_valid_credentials">Please enter valid email and password (min 6 chars)</string>
+    <string name="profile_updated">Profile updated</string>
+    <string name="signed_out_success">Signed out successfully</string>
+    <string name="account_deleted">Account deleted</string>
+    <string name="password_change_coming_soon">Password change coming soon</string>
+    <string name="please_sign_in_first">Please sign in first</string>
+
+    <!-- Video config -->
+    <string name="video_title">Video</string>
+    <string name="record_translate_videos_subtitle">Record &amp; translate videos</string>
+    <string name="processing_options">Processing options</string>
+    <string name="target_language">Target language</string>
+    <string name="voice_style">Voice style</string>
+    <string name="record_process_video_hint">Record and process video on this page.</string>
+    <string name="upload">Upload</string>
+    <string name="record">Record</string>
+    <string name="video_recorded_tap_process">Video recorded. Tap Process to translate.</string>
+    <string name="process_video">Process video</string>
+    <string name="processed_videos">Processed videos</string>
+    <string name="please_select_video">Please select a video file</string>
+    <string name="video_ready">Video ready for processing</string>
+    <string name="failed_open_file">Failed to open file: %s</string>
+    <string name="record_upload_first">Record or upload a video first</string>
+    <string name="video_file_not_found">Video file not found</string>
+    <string name="processing_video">Processing video…</string>
+    <string name="no_audio_in_video">No audio in video</string>
+    <string name="done_tap_download">Done! Tap download on any video.</string>
+    <string name="video_mux_failed">Video mux failed. Download or share audio.</string>
+    <string name="processing_no_audio">Processing produced no audio</string>
+    <string name="failed_error">Failed: %s</string>
+    <string name="error_message">Error: %s</string>
+    <string name="file_not_found">File not found</string>
+    <string name="saved_to">Saved to: %s</string>
+    <string name="please_select_video_or_image">Please select a video or image file</string>
+    <string name="file_ready_processing">File ready for processing</string>
+    <string name="failed_start_recording">Failed to start recording: %s</string>
+    <string name="video_saved">Video saved: %s</string>
+    <string name="error_stopping_recording">Error stopping recording: %s</string>
+    <string name="no_video_recorded">❌ No video recorded. Please record first.</string>
+    <string name="video_file_not_found_record_again">❌ Video file not found. Please record again.</string>
+    <string name="processing_video_to">⏳ Processing video to %1$s with %2$s voice…</string>
+    <string name="failed_extract_audio">❌ Failed to extract audio from video</string>
+    <string name="video_ready_tap_preview">✓ Video ready! Tap ▶ to preview, Send to share.</string>
+    <string name="audio_ready_video_mux_failed">✓ Audio ready (video mux failed). Send to share audio.</string>
+    <string name="recording_config_failed">Recording configuration failed</string>
+    <string name="camera_config_failed">Camera configuration failed</string>
+    <string name="failed_open_camera">Failed to open camera</string>
+
+    <!-- Video recording -->
+    <string name="video_recording">Video Recording</string>
+    <string name="ready_to_record">Ready to record video with audio</string>
+    <string name="start_recording">Start Recording</string>
+    <string name="stop_recording">Stop Recording</string>
+
+    <!-- Voice config -->
+    <string name="voice_input_cloning_subtitle">Voice input &amp; cloning</string>
+    <string name="processing_mode">Processing mode</string>
+    <string name="record_process_voice_hint">Record and process voice on this page.</string>
+    <string name="process">Process</string>
+    <string name="recording_ready">Recording ready</string>
+    <string name="processed_voices">Processed voices</string>
+    <string name="please_select_audio">Please select an audio file</string>
+    <string name="audio_ready">Audio ready for processing</string>
+    <string name="failed_start">Failed to start: %s</string>
+    <string name="error_stopping">Error stopping: %s</string>
+    <string name="no_audio_to_play">No audio to play</string>
+    <string name="playback_error">Playback error: %s</string>
+    <string name="record_upload_first_voice">Record or upload first</string>
+    <string name="recording_not_found">Recording not found</string>
+    <string name="ready_tap_download">Ready! Tap download on any voice</string>
+    <string name="no_audio_produced">No audio produced. Try text-only mode.</string>
+    <string name="text_copied_clipboard">Text copied to clipboard!</string>
+    <string name="no_text_detected">No text detected. Try recording again.</string>
+    <string name="please_try_again">Please try again</string>
+    <string name="no_processed_audio_download">No processed audio to download</string>
+    <string name="download_failed">Download failed: %s</string>
+
+    <!-- AI Chat config -->
+    <string name="type_message_hint">Type your message…</string>
+
+    <!-- Settings -->
+    <string name="settings">Settings</string>
+    <string name="app_language">App language</string>
+    <string name="app_language_desc">Choose the language for the app interface</string>
+    <string name="system_default">System default</string>
+    <string name="select_app_language">Select app language</string>
+    <string name="keyboard">Keyboard</string>
+    <string name="sound_on_keypress">Sound on keypress</string>
+    <string name="sound_on_keypress_desc">Play sound when typing</string>
+    <string name="haptic_feedback">Haptic feedback</string>
+    <string name="haptic_feedback_desc">Vibrate on keypress</string>
+    <string name="auto_capitalize">Auto-capitalize</string>
+    <string name="auto_capitalize_desc">Capitalize first letter of sentences</string>
+    <string name="keyboard_height">Keyboard height</string>
+    <string name="normal">Normal</string>
+    <string name="custom_height">Custom height</string>
+    <string name="predictive_text">Predictive text</string>
+    <string name="predictive_text_desc">Show word suggestions while typing</string>
+    <string name="auto_correction">Auto-correction</string>
+    <string name="auto_correction_desc">Suggest corrections for misspelled words</string>
+    <string name="voice_ai">Voice &amp; AI</string>
+    <string name="default_voice">Default voice</string>
+    <string name="aria">Aria</string>
+    <string name="default_language">Default language</string>
+    <string name="english">English</string>
+    <string name="privacy">Privacy</string>
+    <string name="permissions">Permissions</string>
+    <string name="manage_permissions">Manage app permissions</string>
+    <string name="clear_all_data">Clear all data</string>
+    <string name="clear_data_desc">Delete cached files and recordings</string>
+    <string name="about">About</string>
+    <string name="app_version_label">App version</string>
+    <string name="version_number">1.0.0</string>
+    <string name="privacy_policy">Privacy Policy</string>
+    <string name="terms_of_service">Terms of Service</string>
+
+    <!-- Dictionary -->
+    <string name="dictionary">Dictionary</string>
+    <string name="search">Search</string>
+
+    <!-- Keyboard service toasts & messages -->
+    <string name="please_wait_processing">Please wait, processing…</string>
+    <string name="ready_tap_done_process">Ready – tap Done to process</string>
+    <string name="no_recording_found">No recording found. Please record first.</string>
+    <string name="recording_empty">Recording is empty. Please try again.</string>
+    <string name="no_audio_to_play_short">No audio to play</string>
+    <string name="audio_file_not_found">Audio file not found</string>
+    <string name="error_playing_audio">Error playing audio: %s</string>
+    <string name="no_audio_data_received">No audio data received</string>
+    <string name="invalid_audio_format">Invalid audio format</string>
+    <string name="audio_empty_too_small">Audio data is empty or too small</string>
+    <string name="failed_save_audio">Failed to save audio file</string>
+    <string name="no_processed_audio_send">No processed audio to send</string>
+    <string name="no_recording_found_short">No recording found</string>
+    <string name="recording_file_not_found">Recording file not found</string>
+    <string name="sent_to_chat">✓ Sent to chat</string>
+    <string name="error_sharing">Error sharing: %s</string>
+    <string name="stop_voice_input_first">Stop voice input first</string>
+    <string name="apps">Apps</string>
+    <string name="inserted">Inserted: %s</string>
+    <string name="finish_voice_input_first">Finish voice input first</string>
+    <string name="done">Done</string>
+    <string name="failed_try_again">Failed. Try again.</string>
+    <string name="processing">Processing…</string>
+    <string name="could_not_complete">Could not complete. Try again.</string>
+    <string name="no_text_to_translate">No text to translate</string>
+    <string name="no_text_to_change_tone">No text to change tone</string>
+    <string name="please_type_word_search">Please type a word to search</string>
+    <string name="copied">📋 Copied: %s</string>
+    <string name="copied_short">📋 Copied!</string>
+    <string name="inserted_short">✓ Inserted!</string>
+    <string name="chat_cleared">Chat cleared</string>
+    <string name="keyboard_lang">Keyboard: %s</string>
+    <string name="please_type_message">Please type a message</string>
+    <string name="translating">Translating…</string>
+    <string name="translation_complete">Translation complete</string>
+    <string name="translation_failed">Translation failed: %s</string>
+    <string name="translation_error">Translation error: %s</string>
+    <string name="no_text_to_convert">No text to convert</string>
+    <string name="converting_text_voice">Converting text to voice…</string>
+    <string name="playing_converted_voice">Playing converted voice</string>
+    <string name="no_audio_returned">No audio returned</string>
+    <string name="voice_conversion_failed">Voice conversion failed: %s</string>
+    <string name="voice_conversion_error">Voice conversion error: %s</string>
+    <string name="creating_voice_clone">Creating voice clone…</string>
+    <string name="voice_clone_created">Voice clone created: %s</string>
+    <string name="voice_clone_failed">Voice clone failed</string>
+    <string name="insert_result">Insert Result</string>
+    <string name="from_lang">From: %s</string>
+    <string name="to_lang">To: %s</string>
+    <string name="lang_switch">🔄 %1$s → %2$s</string>
+
+    <!-- Content descriptions -->
+    <string name="back">Back</string>
+    <string name="full_conversion">Full conversion</string>
+    <string name="voice_only">Voice only</string>
+    <string name="text_only">Text only</string>
+    <string name="play">Play</string>
+    <string name="download">Download</string>
+    <string name="send">Send</string>
+    <string name="more_options">More options</string>
+    <string name="video_recording_desc">Video Recording</string>
+    <string name="home">Home</string>
+    <string name="ai_writing_tools">AI Writing Tools</string>
+    <string name="clipboard">Clipboard</string>
+    <string name="upload_audio">Upload audio file</string>
+    <string name="return_to_icons">Return to icons</string>
+    <string name="space">space</string>
+    <string name="back_to_keyboard">← Back to keyboard</string>
+    <string name="preview_process_video">Preview &amp; Process Video</string>
+
+    <!-- Themes -->
+    <string name="upgrade_premium_unlock_theme">Upgrade to Premium to unlock this theme!</string>
+    <string name="theme_changed">Theme changed to %s</string>
+
+    <!-- Search -->
+    <string name="type_something_search">Type something to search</string>
+    <string name="could_not_open_search">Could not open search</string>
+
+    <!-- AI writing tools (calculator layout) -->
+    <string name="del">⌫ Del</string>
+</resources>

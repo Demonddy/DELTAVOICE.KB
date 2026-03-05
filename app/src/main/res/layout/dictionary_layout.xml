@@ -163,19 +163,23 @@
     </HorizontalScrollView>
 
     <!-- Results Area (Scrollable) -->
-    <ScrollView
-        android:id="@+id/dict_results_scroll"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="100dp"
-        android:background="@drawable/dict_results_background"
-        android:padding="12dp"
         android:layout_marginBottom="8dp">
 
-        <LinearLayout
-            android:id="@+id/dict_results_container"
+        <ScrollView
+            android:id="@+id/dict_results_scroll"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_height="match_parent"
+            android:background="@drawable/dict_results_background"
+            android:padding="12dp">
+
+            <LinearLayout
+                android:id="@+id/dict_results_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
 
             <!-- Word Title -->
             <TextView
@@ -250,9 +254,17 @@
                 android:textColor="#6B7280"
                 android:gravity="center" />
 
-        </LinearLayout>
+            </LinearLayout>
 
-    </ScrollView>
+        </ScrollView>
+
+        <!-- Shimmer overlay for loading state -->
+        <com.deltavoice.ui.ShimmerView
+            android:id="@+id/dict_shimmer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+    </FrameLayout>
 
     <!-- Mini Keyboard for typing -->
     <LinearLayout

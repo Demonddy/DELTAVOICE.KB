@@ -11,6 +11,9 @@ import android.widget.Switch
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
+import java.util.Locale
 
 /**
  * Activity for app settings
@@ -28,6 +31,15 @@ class SettingsActivity : AppCompatActivity() {
         private const val KEY_KEYBOARD_HEIGHT_CUSTOM = "keyboard_height_custom"
         private const val KEY_PREDICTIVE_TEXT = "predictive_text"
         private const val KEY_AUTO_CORRECTION = "auto_correction"
+        
+        /** Supported app locales: empty = system default, then en, es, fr, de */
+        private val APP_LOCALES = listOf(
+            "" to "system_default",
+            "en" to "English",
+            "es" to "Español",
+            "fr" to "Français",
+            "de" to "Deutsch"
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -82,6 +94,12 @@ class SettingsActivity : AppCompatActivity() {
         autoCorrectionSwitch.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean(KEY_AUTO_CORRECTION, isChecked).apply()
         }
+        
+        // App language setting
+        findViewById<LinearLayout>(R.id.setting_app_language).setOnClickListener {
+            showAppLanguageDialog()
+        }
+        updateAppLanguageDisplay()
         
         // Default voice setting
         findViewById<LinearLayout>(R.id.setting_default_voice).setOnClickListener {
@@ -163,6 +181,49 @@ class SettingsActivity : AppCompatActivity() {
                 .setNegativeButton("Cancel", null)
                 .show()
         }
+    }
+    
+    private fun updateAppLanguageDisplay() {
+        val displayLocale = Locale.getDefault()
+        val currentLocales = AppCompatDelegate.getApplicationLocales()
+        val displayText = if (currentLocales.isEmpty) {
+            getString(R.string.system_default)
+        } else {
+            val locale = currentLocales[0]
+            locale?.getDisplayName(displayLocale) ?: getString(R.string.system_default)
+        }
+        findViewById<android.widget.TextView>(R.id.current_app_language).text = displayText
+    }
+    
+    private fun showAppLanguageDialog() {
+        val displayLocale = Locale.getDefault()
+        val currentLocales = AppCompatDelegate.getApplicationLocales()
+        val currentTag = if (currentLocales.isEmpty) "" else currentLocales[0]?.toLanguageTag() ?: ""
+        
+        val options = APP_LOCALES.map { (tag, _) ->
+            if (tag.isEmpty()) getString(R.string.system_default)
+            else Locale.forLanguageTag(tag).getDisplayName(displayLocale)
+        }.toTypedArray()
+        
+        var selectedIndex = APP_LOCALES.indexOfFirst { it.first == currentTag }.coerceAtLeast(0)
+        
+        AlertDialog.Builder(this, R.style.Theme_DeltaVoice_Dialog)
+            .setTitle(getString(R.string.select_app_language))
+            .setSingleChoiceItems(options, selectedIndex) { _, which ->
+                selectedIndex = which
+            }
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val (tag, _) = APP_LOCALES[selectedIndex]
+                val newLocales = if (tag.isEmpty()) {
+                    LocaleListCompat.getEmptyLocaleList()
+                } else {
+                    LocaleListCompat.forLanguageTags(tag)
+                }
+                AppCompatDelegate.setApplicationLocales(newLocales)
+                // Activity is recreated automatically by setApplicationLocales
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
     
     private fun showVoiceSelectionDialog() {

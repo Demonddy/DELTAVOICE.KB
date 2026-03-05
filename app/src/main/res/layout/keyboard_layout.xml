@@ -16,29 +16,14 @@
         android:gravity="center"
         android:padding="4dp">
 
-        <!-- AI Button with Badge -->
-        <RelativeLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_margin="4dp">
-            <ImageButton
-                android:id="@+id/btn_ai_main"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:src="@drawable/ic_ai_mode"
-                android:background="@drawable/ai_circle_button"
-                android:contentDescription="@string/ai_keyboard_mode"
-                android:padding="8dp" />
-        </RelativeLayout>
-
-        <!-- Calculator Button -->
+        <!-- More Options (⋮) - Calculator & Dictionary hidden under -->
         <ImageButton
-            android:id="@+id/btn_calculator"
+            android:id="@+id/btn_more"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:src="@drawable/ic_calculator"
+            android:src="@drawable/ic_more_vert"
             android:background="@drawable/ai_circle_button"
-            android:contentDescription="Calculator"
+            android:contentDescription="More options"
             android:layout_margin="4dp"
             android:padding="8dp" />
 
@@ -53,14 +38,14 @@
             android:layout_margin="4dp"
             android:padding="8dp" />
 
-        <!-- List Button -->
+        <!-- Home Button -->
         <ImageButton
             android:id="@+id/btn_list"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:src="@drawable/ic_list"
+            android:src="@drawable/ic_home"
             android:background="@drawable/ai_circle_button"
-            android:contentDescription="List"
+            android:contentDescription="Home"
             android:layout_margin="4dp"
             android:padding="8dp" />
 
@@ -97,25 +82,14 @@
             android:layout_margin="4dp"
             android:padding="8dp" />
 
-        <!-- Globe Button -->
-        <ImageButton
-            android:id="@+id/btn_globe"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@drawable/ic_globe"
-            android:background="@drawable/ai_circle_button"
-            android:contentDescription="Language"
-            android:layout_margin="4dp"
-            android:padding="8dp" />
-
-        <!-- App Grid Button -->
+        <!-- Clipboard Button -->
         <ImageButton
             android:id="@+id/btn_app_grid"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:src="@drawable/ic_app_grid"
+            android:src="@drawable/ic_clipboard"
             android:background="@drawable/ai_circle_button"
-            android:contentDescription="Apps"
+            android:contentDescription="Clipboard"
             android:layout_margin="4dp"
             android:padding="8dp" />
     </LinearLayout>
@@ -161,7 +135,7 @@
             android:id="@+id/predictions_return_btn"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:src="@android:drawable/ic_menu_revert"
+            android:src="@drawable/ic_arrow_back"
             android:background="@drawable/ai_circle_button"
             android:tint="#FFFFFF"
             android:contentDescription="Return to icons"
@@ -234,7 +208,7 @@
                 android:id="@+id/btn_recording_back"
                 android:layout_width="32dp"
                 android:layout_height="32dp"
-                android:src="@android:drawable/ic_menu_revert"
+                android:src="@drawable/ic_arrow_back"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Back"
                 android:tint="#FFFFFF" />
@@ -243,7 +217,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Voice input"
+                android:text="@string/voice_input"
                 android:textSize="18sp"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"
@@ -301,7 +275,7 @@
             android:id="@+id/recording_status_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Tap to record"
+            android:text="@string/tap_to_record"
             android:textSize="16sp"
             android:textColor="#AAAAAA"
             android:gravity="center"
@@ -319,56 +293,68 @@
         android:visibility="gone">
 
         <!-- Audio Player Bar -->
-        <LinearLayout
-            android:id="@+id/audio_player_container"
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="52dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="@drawable/audio_player_background"
-            android:paddingStart="6dp"
-            android:paddingEnd="16dp"
             android:layout_marginBottom="16dp">
 
-            <ImageButton
-                android:id="@+id/btn_play_recording"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:src="@drawable/ic_play"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Play recording"
-                android:padding="8dp"
-                android:tint="#3B82F6" />
+            <LinearLayout
+                android:id="@+id/audio_player_container"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/audio_player_background"
+                android:paddingStart="6dp"
+                android:paddingEnd="16dp">
 
-            <!-- Audio waveform visualization placeholder -->
-            <View
-                android:id="@+id/audio_waveform"
-                android:layout_width="0dp"
-                android:layout_height="24dp"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:background="#2A3140" />
+                <ImageButton
+                    android:id="@+id/btn_play_recording"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@drawable/ic_play"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Play recording"
+                    android:padding="8dp"
+                    android:tint="#3B82F6" />
 
-            <TextView
-                android:id="@+id/audio_duration_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="0:00"
-                android:textColor="#9CA3AF"
-                android:textSize="13sp"
-                android:layout_marginEnd="6dp" />
+                <!-- Audio waveform visualization placeholder -->
+                <View
+                    android:id="@+id/audio_waveform"
+                    android:layout_width="0dp"
+                    android:layout_height="24dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="#2A3140" />
 
-            <ImageButton
-                android:id="@+id/btn_send_raw_recording"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:src="@drawable/ic_send"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Send recorded voice without processing"
-                android:padding="6dp"
-                android:tint="#10B981" />
-        </LinearLayout>
+                <TextView
+                    android:id="@+id/audio_duration_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0:00"
+                    android:textColor="#9CA3AF"
+                    android:textSize="13sp"
+                    android:layout_marginEnd="6dp" />
+
+                <ImageButton
+                    android:id="@+id/btn_send_raw_recording"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/ic_send"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Send recorded voice without processing"
+                    android:padding="6dp"
+                    android:tint="#10B981" />
+            </LinearLayout>
+
+            <!-- Shimmer overlay when processing -->
+            <com.deltavoice.ui.ShimmerView
+                android:id="@+id/voice_processing_shimmer"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
+        </FrameLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -381,7 +367,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Step 2: Choose how to process your voice"
+                android:text="@string/voice_mode_title"
                 android:textSize="16sp"
                 android:textColor="#E5E7EB" />
 
@@ -398,7 +384,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Choose processing mode:"
+            android:text="@string/voice_mode_subtitle"
             android:textSize="13sp"
             android:textColor="#A3A3A3"
             android:paddingBottom="12dp" />
@@ -432,7 +418,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Change Language\n&amp; Voice"
+                    android:text="@string/voice_mode_full"
                     android:textColor="#EDEFF4"
                     android:textSize="11sp"
                     android:textStyle="bold"
@@ -443,7 +429,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Full conversion"
+                    android:text="@string/voice_mode_full_desc"
                     android:textColor="#B8BCC7"
                     android:textSize="9sp"
                     android:gravity="center"
@@ -473,7 +459,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Translate My\nSame Voice"
+                    android:text="@string/voice_mode_voice_only"
                     android:textColor="#EDEFF4"
                     android:textSize="11sp"
                     android:textStyle="bold"
@@ -484,7 +470,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Voice cloning"
+                    android:text="@string/voice_mode_voice_only_desc"
                     android:textColor="#B8BCC7"
                     android:textSize="9sp"
                     android:gravity="center"
@@ -514,7 +500,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Transcript &amp;\nTranslate"
+                    android:text="@string/voice_mode_text_only"
                     android:textColor="#EDEFF4"
                     android:textSize="11sp"
                     android:textStyle="bold"
@@ -525,7 +511,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Text output"
+                    android:text="@string/voice_mode_text_only_desc"
                     android:textColor="#B8BCC7"
                     android:textSize="9sp"
                     android:gravity="center"
@@ -605,7 +591,7 @@
             android:layout_width="match_parent"
             android:layout_height="52dp"
             android:layout_marginTop="16dp"
-            android:text="  Done"
+            android:text="@string/voice_mode_action_done"
             android:drawableStart="@drawable/ic_ai_mode"
             android:drawablePadding="10dp"
             android:background="@drawable/voice_mode_button_purple"
@@ -644,7 +630,7 @@
                 android:id="@+id/btn_video_back"
                 android:layout_width="32dp"
                 android:layout_height="32dp"
-                android:src="@android:drawable/ic_menu_revert"
+                android:src="@drawable/ic_arrow_back"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Back"
                 android:tint="#FFFFFF" />
@@ -653,7 +639,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Video Recording"
+                android:text="@string/video_recording"
                 android:textSize="16sp"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"
@@ -683,7 +669,7 @@
                 android:id="@+id/video_status_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Tap to start recording"
+                android:text="@string/tap_to_start_recording"
                 android:textSize="14sp"
                 android:textColor="#AAAAAA"
                 android:layout_marginBottom="12dp" />
@@ -753,7 +739,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Preview &amp; Process Video"
+                android:text="@string/preview_process_video"
                 android:textSize="16sp"
                 android:textColor="#E5E7EB"
                 android:textStyle="bold" />
@@ -810,7 +796,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Choose processing options:"
+            android:text="@string/processing_options"
             android:textSize="13sp"
             android:textColor="#A3A3A3"
             android:paddingBottom="8dp" />
@@ -885,7 +871,7 @@
             android:id="@+id/btn_process_video"
             android:layout_width="match_parent"
             android:layout_height="52dp"
-            android:text="  Process Video"
+            android:text="@string/process_video"
             android:drawableStart="@drawable/ic_ai_mode"
             android:drawablePadding="10dp"
             android:background="@drawable/voice_mode_button_purple"
@@ -926,7 +912,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="AI Assistant"
+                android:text="@string/ai_chat_title"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
                 android:textStyle="bold"
@@ -976,7 +962,7 @@
                             android:id="@+id/ai_welcome_text"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Hi! I'm your AI assistant. Ask me anything - I can help with writing, questions, translations, and more!"
+                            android:text="@string/ai_chat_welcome"
                             android:textColor="#E5E7EB"
                             android:textSize="14sp"
                             android:lineSpacingMultiplier="1.3" />
@@ -994,15 +980,18 @@
             android:background="#1A1F2E"
             android:padding="8dp">
 
-            <!-- Input Bar -->
+            <!-- Input Bar - expands vertically for multi-line text -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="44dp"
+                android:layout_height="wrap_content"
+                android:minHeight="44dp"
                 android:orientation="horizontal"
                 android:background="@drawable/ai_chat_input_background"
                 android:gravity="center_vertical"
                 android:paddingStart="12dp"
                 android:paddingEnd="4dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
                 android:layout_marginBottom="8dp">
 
                 <TextView
@@ -1014,8 +1003,8 @@
                     android:textColorHint="#6B7280"
                     android:textColor="#FFFFFF"
                     android:textSize="14sp"
-                    android:maxLines="1"
-                    android:ellipsize="end" />
+                    android:maxLines="8"
+                    android:lineSpacingMultiplier="1.2" />
 
                 <ImageButton
                     android:id="@+id/ai_chat_clear_btn"
@@ -1161,7 +1150,7 @@
                     android:layout_width="0dp"
                     android:layout_height="@dimen/ai_chat_bottom_row_height"
                     android:layout_weight="1.2"
-                    android:text="Send"
+                    android:text="@string/send"
                     android:textSize="12sp"
                     android:textColor="#FFFFFF"
                     android:background="@drawable/voice_mode_button_purple"
@@ -1180,6 +1169,61 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:visibility="gone" />
+
+    <!-- More Options Container (Calculator, Dictionary - replaces keyboard when three-dots tapped) -->
+    <LinearLayout
+        android:id="@+id/more_options_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#0F0F10"
+        android:padding="16dp"
+        android:visibility="gone"
+        android:gravity="center">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="12dp">
+
+            <!-- Calculator (hidden from main row) -->
+            <ImageButton
+                android:id="@+id/btn_more_calculator"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:src="@drawable/ic_calculator"
+                android:background="@drawable/ai_circle_button"
+                android:contentDescription="Calculator"
+                android:padding="12dp"
+                android:layout_margin="8dp" />
+
+            <!-- Dictionary (hidden from main row) -->
+            <ImageButton
+                android:id="@+id/btn_more_dictionary"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:src="@drawable/ic_dictionary"
+                android:background="@drawable/ai_circle_button"
+                android:contentDescription="Dictionary"
+                android:padding="12dp"
+                android:layout_margin="8dp" />
+        </LinearLayout>
+
+        <!-- Back to keyboard -->
+        <Button
+            android:id="@+id/btn_more_back"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:minWidth="120dp"
+            android:text="@string/back_to_keyboard"
+            android:textSize="14sp"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/key_dark_background"
+            android:layout_marginTop="8dp"
+            android:contentDescription="Back to keyboard" />
+    </LinearLayout>
 
     <!-- Keyboard Layout -->
     <LinearLayout

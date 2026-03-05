@@ -4,37 +4,50 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="24dp"
-    android:minWidth="300dp"
+    android:minWidth="320dp"
+    android:background="@color/background_card"
     android:gravity="center">
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Video Recording"
+        android:textColor="@color/text_primary"
         android:textSize="20sp"
         android:textStyle="bold"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="8dp" />
 
     <TextView
         android:id="@+id/status_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Ready to record"
+        android:text="Ready to record video with audio"
+        android:textColor="@color/text_secondary"
         android:textSize="14sp"
         android:layout_marginBottom="24dp" />
 
     <Button
         android:id="@+id/record_button"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="52dp"
         android:text="Start Recording"
-        android:layout_marginBottom="8dp" />
+        android:background="@drawable/voice_mode_button_purple"
+        android:textColor="@color/text_primary"
+        android:textAllCaps="false"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp" />
 
     <Button
         android:id="@+id/stop_button"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Stop Recording" />
+        android:layout_height="52dp"
+        android:text="Stop Recording"
+        android:background="@drawable/voice_mode_button_green"
+        android:textColor="@color/text_primary"
+        android:textAllCaps="false"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
 
 </LinearLayout>
-

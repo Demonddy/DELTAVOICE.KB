@@ -7,10 +7,12 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Base64
 import android.view.View
+import android.view.LayoutInflater
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.ImageButton
@@ -18,6 +20,7 @@ import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -28,6 +31,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -49,18 +53,20 @@ class VoiceConfigActivity : AppCompatActivity() {
     private lateinit var audioDuration: TextView
     private lateinit var btnPlay: ImageButton
     private lateinit var btnProcess: Button
-    private lateinit var btnDownload: Button
-    private lateinit var btnShare: Button
+    private lateinit var processedVoicesList: LinearLayout
+    private lateinit var processedVoicesLabel: TextView
 
     private var selectedMode = VoiceProcessIntent.MODE_FULL
     private var audioFilePath: String? = null
-    private var processedAudioFilePath: String? = null
-    private var isProcessedReady = false
+    private val processedVoices = mutableListOf<ProcessedVoiceItem>()
+
+    private data class ProcessedVoiceItem(val filePath: String, val label: String, val duration: String)
     private var mediaRecorder: android.media.MediaRecorder? = null
     private var mediaPlayer: MediaPlayer? = null
     private var isRecording = false
     private var isPlaying = false
     private var isProcessing = false
+    private var currentPlayingPlayButton: ImageButton? = null
 
     private val completeVoiceWorkflowService = CompleteVoiceWorkflowService()
     private val activityScope = CoroutineScope(Dispatchers.Main)
@@ -78,6 +84,49 @@ class VoiceConfigActivity : AppCompatActivity() {
 
     companion object {
         private const val PERMISSION_REQUEST_RECORD = 100
+        const val EXTRA_OPEN_UPLOAD = "open_upload"
+    }
+
+    private val uploadAudioLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri == null) return@registerForActivityResult
+        activityScope.launch {
+            try {
+                val mimeType = contentResolver.getType(uri) ?: ""
+                if (!mimeType.startsWith("audio/")) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@VoiceConfigActivity, "Please select an audio file", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+                val ext = when {
+                    mimeType.contains("mpeg") || mimeType.contains("mp3") -> ".mp3"
+                    mimeType.contains("m4a") || mimeType.contains("aac") -> ".m4a"
+                    mimeType.contains("ogg") -> ".ogg"
+                    mimeType.contains("wav") -> ".wav"
+                    else -> ".mp3"
+                }
+                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                val audioDir = File(cacheDir, "recordings")
+                if (!audioDir.exists()) audioDir.mkdirs()
+                val destFile = File(audioDir, "UPLOAD_$timestamp$ext")
+                withContext(Dispatchers.IO) {
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        FileOutputStream(destFile).use { output -> input.copyTo(output) }
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    audioFilePath = destFile.absolutePath
+                    recordingSection.visibility = View.VISIBLE
+                    recordingStatus.text = "Audio uploaded"
+                    audioDuration.text = getAudioDuration(destFile.absolutePath)
+                    Toast.makeText(this@VoiceConfigActivity, "Audio ready for processing", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@VoiceConfigActivity, "Failed to open file: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,8 +144,8 @@ class VoiceConfigActivity : AppCompatActivity() {
         audioDuration = findViewById(R.id.audio_duration)
         btnPlay = findViewById(R.id.btn_play_recording)
         btnProcess = findViewById(R.id.btn_process_voice)
-        btnDownload = findViewById(R.id.btn_download_voice)
-        btnShare = findViewById(R.id.btn_share_voice)
+        processedVoicesList = findViewById(R.id.processed_voices_list)
+        processedVoicesLabel = findViewById(R.id.processed_voices_label)
 
         findViewById<ImageButton>(R.id.btn_back).setOnClickListener { finish() }
 
@@ -113,6 +162,8 @@ class VoiceConfigActivity : AppCompatActivity() {
         cardVoiceOnly.setOnClickListener { updateCardSelection(cardVoiceOnly) }
         cardTextOnly.setOnClickListener { updateCardSelection(cardTextOnly) }
 
+        val btnUpload = findViewById<Button>(R.id.btn_upload_voice)
+        btnUpload.setOnClickListener { uploadAudioLauncher.launch("audio/*") }
         btnRecord.setOnClickListener {
             if (isRecording) {
                 stopRecording()
@@ -124,8 +175,14 @@ class VoiceConfigActivity : AppCompatActivity() {
 
         btnPlay.setOnClickListener { togglePlayback() }
         btnProcess.setOnClickListener { processVoice() }
-        btnDownload.setOnClickListener { downloadProcessedAudio() }
-        btnShare.setOnClickListener { shareProcessedAudio() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (intent.getBooleanExtra(EXTRA_OPEN_UPLOAD, false)) {
+            intent.removeExtra(EXTRA_OPEN_UPLOAD)
+            uploadAudioLauncher.launch("audio/*")
+        }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -193,7 +250,7 @@ class VoiceConfigActivity : AppCompatActivity() {
             }
             mediaRecorder = null
             isRecording = false
-            btnRecord.text = "  Record voice"
+            btnRecord.text = "  Record"
             recordingSection.visibility = View.VISIBLE
             recordingStatus.text = "Recording ready"
             updateAudioDuration(audioFilePath)
@@ -223,7 +280,7 @@ class VoiceConfigActivity : AppCompatActivity() {
     }
 
     private fun togglePlayback() {
-        val path = if (isProcessedReady && processedAudioFilePath != null) processedAudioFilePath else audioFilePath
+        val path = audioFilePath
         if (path.isNullOrBlank()) {
             Toast.makeText(this, "No audio to play", Toast.LENGTH_SHORT).show()
             return
@@ -232,6 +289,8 @@ class VoiceConfigActivity : AppCompatActivity() {
             mediaPlayer?.apply { stop(); release() }
             mediaPlayer = null
             isPlaying = false
+            currentPlayingPlayButton?.setImageResource(R.drawable.ic_play)
+            currentPlayingPlayButton = null
             btnPlay.setImageResource(R.drawable.ic_play)
         } else {
             try {
@@ -255,7 +314,7 @@ class VoiceConfigActivity : AppCompatActivity() {
     private fun processVoice() {
         val path = audioFilePath
         if (path.isNullOrBlank()) {
-            Toast.makeText(this, "Record first", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Record or upload first", Toast.LENGTH_SHORT).show()
             return
         }
         val file = File(path)
@@ -295,12 +354,16 @@ class VoiceConfigActivity : AppCompatActivity() {
                                 val bytes = Base64.decode(base64, Base64.DEFAULT)
                                 val outFile = File(cacheDir, "processed_voice_${System.currentTimeMillis()}.mp3")
                                 withContext(Dispatchers.IO) { outFile.writeBytes(bytes) }
-                                processedAudioFilePath = outFile.absolutePath
-                                isProcessedReady = true
-                                btnDownload.visibility = View.VISIBLE
-                                btnShare.visibility = View.VISIBLE
-                                updateAudioDuration(processedAudioFilePath)
-                                Toast.makeText(this@VoiceConfigActivity, "Ready! Tap Download or Share", Toast.LENGTH_SHORT).show()
+                                val duration = withContext(Dispatchers.IO) { getAudioDuration(outFile.absolutePath) }
+                                val voiceName = voiceStyles.getOrNull(spinnerVoice.selectedItemPosition)?.first ?: "Voice"
+                                val item = ProcessedVoiceItem(
+                                    filePath = outFile.absolutePath,
+                                    label = "$voiceName #${processedVoices.size + 1}",
+                                    duration = duration
+                                )
+                                processedVoices.add(item)
+                                updateProcessedVoicesList()
+                                Toast.makeText(this@VoiceConfigActivity, "Ready! Tap download on any voice", Toast.LENGTH_SHORT).show()
                             } ?: run {
                                 Toast.makeText(this@VoiceConfigActivity, "No audio produced. Try text-only mode.", Toast.LENGTH_SHORT).show()
                             }
@@ -329,9 +392,43 @@ class VoiceConfigActivity : AppCompatActivity() {
         }
     }
 
-    private fun downloadProcessedAudio() {
-        val path = processedAudioFilePath
-        if (path.isNullOrBlank()) {
+    private fun getAudioDuration(path: String): String {
+        if (path.isBlank()) return "0:00"
+        return try {
+            val mp = MediaPlayer()
+            mp.setDataSource(path)
+            mp.prepare()
+            val sec = (mp.duration / 1000) % 60
+            val min = (mp.duration / 1000) / 60
+            mp.release()
+            String.format("%d:%02d", min, sec)
+        } catch (e: Exception) {
+            "0:00"
+        }
+    }
+
+    private fun updateProcessedVoicesList() {
+        processedVoicesList.removeAllViews()
+        if (processedVoices.isEmpty()) {
+            processedVoicesLabel.visibility = View.GONE
+            processedVoicesList.visibility = View.GONE
+            return
+        }
+        processedVoicesLabel.visibility = View.VISIBLE
+        processedVoicesList.visibility = View.VISIBLE
+        for (item in processedVoices) {
+            val row = LayoutInflater.from(this).inflate(R.layout.item_processed_voice, processedVoicesList, false)
+            row.findViewById<TextView>(R.id.voice_label).text = item.label
+            row.findViewById<TextView>(R.id.voice_duration).text = item.duration
+            row.findViewById<ImageButton>(R.id.btn_download_voice).setOnClickListener { downloadProcessedAudio(item.filePath) }
+            val playBtn = row.findViewById<ImageButton>(R.id.btn_play_voice)
+            playBtn.setOnClickListener { playProcessedAudio(item.filePath, playBtn) }
+            processedVoicesList.addView(row)
+        }
+    }
+
+    private fun downloadProcessedAudio(path: String) {
+        if (path.isBlank()) {
             Toast.makeText(this, "No processed audio to download", Toast.LENGTH_SHORT).show()
             return
         }
@@ -358,27 +455,38 @@ class VoiceConfigActivity : AppCompatActivity() {
         }
     }
 
-    private fun shareProcessedAudio() {
-        val path = processedAudioFilePath
-        if (path.isNullOrBlank()) {
-            Toast.makeText(this, "No processed audio to share", Toast.LENGTH_SHORT).show()
-            return
-        }
+    private fun playProcessedAudio(path: String, playButton: ImageButton) {
+        if (path.isBlank()) return
         val file = File(path)
         if (!file.exists()) {
             Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show()
             return
         }
+        if (isPlaying) {
+            mediaPlayer?.apply { stop(); release() }
+            mediaPlayer = null
+            isPlaying = false
+            currentPlayingPlayButton?.setImageResource(R.drawable.ic_play)
+            btnPlay.setImageResource(R.drawable.ic_play)
+        }
         try {
-            val uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", file)
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "audio/mpeg"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            mediaPlayer = MediaPlayer().apply {
+                setDataSource(path)
+                prepare()
+                setOnCompletionListener {
+                    this@VoiceConfigActivity.isPlaying = false
+                    currentPlayingPlayButton?.setImageResource(R.drawable.ic_play)
+                    currentPlayingPlayButton = null
+                    btnPlay.setImageResource(R.drawable.ic_play)
+                }
+                start()
             }
-            startActivity(Intent.createChooser(shareIntent, "Share via"))
+            isPlaying = true
+            currentPlayingPlayButton = playButton
+            playButton.setImageResource(R.drawable.ic_pause)
+            btnPlay.setImageResource(R.drawable.ic_pause)
         } catch (e: Exception) {
-            Toast.makeText(this, "Share failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Playback error: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 

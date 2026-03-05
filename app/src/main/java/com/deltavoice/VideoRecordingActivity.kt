@@ -48,6 +48,7 @@ class VideoRecordingActivity : AppCompatActivity() {
         stopButton = findViewById(R.id.stop_button)
 
         stopButton.isEnabled = false
+        stopButton.visibility = View.GONE
 
         recordButton.setOnClickListener {
             if (checkPermissions()) {
@@ -63,12 +64,17 @@ class VideoRecordingActivity : AppCompatActivity() {
     }
 
     /**
-     * Check if camera and storage permissions are granted
+     * Check if camera, audio, and storage permissions are granted
      */
     private fun checkPermissions(): Boolean {
         val hasCamera = ContextCompat.checkSelfPermission(
             this,
             Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+
+        val hasAudio = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.RECORD_AUDIO
         ) == PackageManager.PERMISSION_GRANTED
 
         val hasStorage = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -80,14 +86,17 @@ class VideoRecordingActivity : AppCompatActivity() {
             ) == PackageManager.PERMISSION_GRANTED
         }
 
-        return hasCamera && hasStorage
+        return hasCamera && hasAudio && hasStorage
     }
 
     /**
-     * Request camera and storage permissions
+     * Request camera, audio, and storage permissions
      */
     private fun requestPermissions() {
-        val permissions = mutableListOf(Manifest.permission.CAMERA)
+        val permissions = mutableListOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO
+        )
         
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -141,9 +150,11 @@ class VideoRecordingActivity : AppCompatActivity() {
             }
 
             mediaRecorder?.apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
                 setVideoSource(MediaRecorder.VideoSource.CAMERA)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                 setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                 setVideoEncodingBitRate(10000000)
                 setVideoSize(1280, 720)
                 setMaxDuration(MAX_DURATION_MS)
@@ -161,7 +172,9 @@ class VideoRecordingActivity : AppCompatActivity() {
                 isRecording = true
                 statusText.text = getString(R.string.recording_video)
                 recordButton.isEnabled = false
+                recordButton.visibility = View.GONE
                 stopButton.isEnabled = true
+                stopButton.visibility = View.VISIBLE
             }
         } catch (e: IOException) {
             e.printStackTrace()
@@ -186,7 +199,9 @@ class VideoRecordingActivity : AppCompatActivity() {
             isRecording = false
             statusText.text = getString(R.string.video_recorded)
             recordButton.isEnabled = true
+            recordButton.visibility = View.VISIBLE
             stopButton.isEnabled = false
+            stopButton.visibility = View.GONE
 
             videoFile?.let { file ->
                 setResult(RESULT_OK, android.content.Intent().putExtra(EXTRA_VIDEO_PATH, file.absolutePath))

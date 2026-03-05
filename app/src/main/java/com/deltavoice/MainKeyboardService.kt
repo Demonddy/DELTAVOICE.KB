@@ -54,6 +54,7 @@ import android.os.HandlerThread
 import android.os.Looper
 import android.Manifest
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.DrawableCompat
 import com.deltavoice.api.VoiceToTextService
 import com.deltavoice.api.TextToSpeechService
 import com.deltavoice.api.TranslationService
@@ -68,7 +69,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.app.AlertDialog
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.content.Context
 import java.io.File
 import java.io.IOException
@@ -87,6 +90,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private lateinit var aiMainButton: ImageButton
     private lateinit var keyboardContainer: LinearLayout
     private lateinit var aiFeaturesContainer: LinearLayout
+    private lateinit var moreOptionsContainer: View
     private lateinit var voiceRecordingContainer: LinearLayout
     private lateinit var voiceProcessingStep2Container: LinearLayout
     private lateinit var keyboardSpinnerLanguage: Spinner
@@ -99,6 +103,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private lateinit var sendRawRecordingButton: ImageButton
     private lateinit var audioDurationText: android.widget.TextView
     private var rootView: View? = null
+
+    // Network callback for "internet restored" when Process button was blocked
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var networkRequest: NetworkRequest? = null
     
     // Playback
     private var playbackMediaPlayer: MediaPlayer? = null
@@ -128,8 +136,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         private const val KEY_FEEDBACK_PREFS_CACHE_MS = 1000L
         private const val PREDICTION_PREFS_CACHE_MS = 1000L
         private const val BACKSPACE_REPEAT_START_DELAY_MS = 220L
-        private const val BACKSPACE_REPEAT_INTERVAL_MS = 30L
-        private const val KEY_PRESS_ANIM_DURATION_MS = 55L
+        private const val BACKSPACE_REPEAT_INTERVAL_MS = 80L  // ~12 chars/sec
+        private const val KEY_PRESS_ANIM_DURATION_MS = 35L    // Snappy for 12-20 chars/sec feel
     }
 
     private val languages = listOf(
@@ -322,9 +330,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     // Coroutine scope for async operations
     private val serviceScope = CoroutineScope(Dispatchers.Main)
 
-    // Emoji picker
-    private lateinit var emojiPickerContainer: View
-    private lateinit var emojiGridFull: GridLayout
+    // Emoji picker (nullable for defensive null checks if layout missing)
+    private var emojiPickerContainer: View? = null
+    private var emojiGridFull: GridLayout? = null
     private var currentEmojiCategory = EmojiData.Category.SMILEYS
     private val recentEmojis = mutableListOf<String>()
     private var isEmojiPickerVisible = false
@@ -437,9 +445,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         
         // Initialize UI components
         voiceButton = view.findViewById(R.id.btn_voice)
-        aiMainButton = view.findViewById(R.id.btn_ai_main)
+        aiMainButton = view.findViewById(R.id.btn_more)  // btn_ai_main not in layout; btn_more toggles AI mode
         keyboardContainer = view.findViewById(R.id.keyboard_container)
         aiFeaturesContainer = view.findViewById(R.id.ai_features_container)
+        moreOptionsContainer = view.findViewById(R.id.more_options_container)
         voiceRecordingContainer = view.findViewById(R.id.voice_recording_container)
         voiceProcessingStep2Container = view.findViewById(R.id.voice_processing_step2_container)
         keyboardSpinnerLanguage = view.findViewById(R.id.keyboard_spinner_language)
@@ -535,12 +544,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     .remove(VideoUploadActivity.KEY_PENDING_PATH)
                     .apply()
                 path?.let { showVideoPreviewWithPath(it) }
-                // Bring keyboard back instantly to processing panel (not app)
+                // Bring keyboard back to processing panel (not app) - delay for activity transition
                 Handler(Looper.getMainLooper()).postDelayed({
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                         requestShowSelf(InputMethodManager.SHOW_FORCED)
                     }
-                }, 100)
+                }, 150)
             }
         }
         audioUploadReceiver = object : BroadcastReceiver() {
@@ -553,12 +562,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     .remove(AudioUploadActivity.KEY_PENDING_PATH)
                     .apply()
                 path?.let { showVoiceProcessingWithPath(it) }
-                // Bring keyboard back instantly to processing panel (not app)
+                // Bring keyboard back to processing panel (not app) - delay for activity transition
                 Handler(Looper.getMainLooper()).postDelayed({
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                         requestShowSelf(InputMethodManager.SHOW_FORCED)
                     }
-                }, 100)
+                }, 150)
             }
         }
         val videoFilter = IntentFilter(VideoUploadActivity.ACTION_VIDEO_UPLOADED)
@@ -928,29 +937,80 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     /**
-     * Show a network error notification with option to open settings
+     * Show a network error notification. Keeps Process button as "Done" so user can
+     * tap again when internet is restored. Registers NetworkCallback to notify when
+     * connectivity returns.
      */
     private fun showNetworkErrorWithSettings(message: String) {
         android.util.Log.e("DeltaVoice", "Network error: $message")
         
-        // Show toast with clear message
-        Toast.makeText(this, "📶 $message\nTap globe icon → Settings to fix", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "📶 $message\nTap Done again when internet is restored.", Toast.LENGTH_LONG).show()
         
-        // Update UI to show network error
         audioDurationText.text = "📶 No Internet"
         
-        // Create a clickable notification popup
+        // Keep button as "Done" so user can retry when internet is restored
         rootView?.let { view ->
-            // Show a helper banner in the processing UI
             val actionBtn = view.findViewById<Button>(R.id.keyboard_button_action)
             actionBtn?.apply {
                 isEnabled = true
-                text = "  Open Settings"
-                setOnClickListener {
-                    openNetworkSettings()
+                text = "  Done"
+                background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_purple)
+                setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_ai_mode, 0, 0, 0)
+                compoundDrawables.forEach { drawable -> drawable?.setTint(Color.WHITE) }
+                // Listener stays as set in setupProcessingUI - will call processRecordedVoice on tap
+            }
+        }
+        
+        registerNetworkRestoredCallback()
+    }
+
+    /**
+     * Register callback to notify when internet is restored (API 24+)
+     */
+    private fun registerNetworkRestoredCallback() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return
+        unregisterNetworkRestoredCallback()
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        networkRequest = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
+                if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+                    Handler(Looper.getMainLooper()).post {
+                        when {
+                            isVoiceUiActive() -> {
+                                Toast.makeText(this@MainKeyboardService, "📶 Internet restored. Tap Done to process.", Toast.LENGTH_SHORT).show()
+                                audioDurationText.text = "Ready – tap Done to process"
+                            }
+                            isVideoPreviewVisible -> {
+                                Toast.makeText(this@MainKeyboardService, "📶 Internet restored. Tap Process Video to try again.", Toast.LENGTH_SHORT).show()
+                            }
+                            else -> return@post
+                        }
+                        unregisterNetworkRestoredCallback()
+                    }
                 }
             }
         }
+        try {
+            cm.registerNetworkCallback(networkRequest!!, networkCallback!!)
+        } catch (e: Exception) {
+            android.util.Log.w("DeltaVoice", "Could not register network callback", e)
+        }
+    }
+
+    private fun unregisterNetworkRestoredCallback() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return
+        networkCallback?.let { callback ->
+            try {
+                val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                networkRequest?.let { cm.unregisterNetworkCallback(callback) }
+            } catch (e: Exception) { /* ignore */ }
+        }
+        networkCallback = null
+        networkRequest = null
     }
     
     /**
@@ -1074,7 +1134,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun hideRecordingUI() {
         // Hide recording UI, show keyboard keys
         voiceRecordingContainer.visibility = View.GONE
-        emojiPickerContainer.visibility = View.GONE
+        emojiPickerContainer?.visibility = View.GONE
         isEmojiPickerVisible = false
         calculatorContainer.visibility = View.GONE
         isCalculatorVisible = false
@@ -1134,9 +1194,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     
     private fun hideVoiceProcessingUI() {
         // Hide processing UI, show keyboard keys
+        unregisterNetworkRestoredCallback()
         stopRecordingPlayback()
         voiceProcessingStep2Container.visibility = View.GONE
-        emojiPickerContainer.visibility = View.GONE
+        emojiPickerContainer?.visibility = View.GONE
         isEmojiPickerVisible = false
         calculatorContainer.visibility = View.GONE
         isCalculatorVisible = false
@@ -1573,9 +1634,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         aiMainButton.isFocusable = false
         aiMainButton.isFocusableInTouchMode = false
         
-        // AI Main Button - Toggle AI features container
+        // AI Main Button (three dots) - Show Calculator & Dictionary
         aiMainButton.setOnClickListener {
-            toggleKeyboardMode()
+            playKeyFeedback(it)
+            showMoreOptions()
         }
         
         // Voice Input Button - Click to show recording UI (ready to record)
@@ -1626,24 +1688,24 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun setupAIFeatureButtons() {
         val view = rootView ?: return
-        // Get AI feature buttons from layout
-        val calculatorButton = view.findViewById<ImageButton>(R.id.btn_calculator)
+        // Get AI feature buttons from layout (calculator/dictionary are in more_options_container)
+        val calculatorButton = view.findViewById<ImageButton>(R.id.btn_more_calculator)
         val cameraButton = view.findViewById<ImageButton>(R.id.btn_camera)
         val listButton = view.findViewById<ImageButton>(R.id.btn_list)
         val textTButton = view.findViewById<ImageButton>(R.id.btn_text_t)
         val kbPlusButton = view.findViewById<ImageButton>(R.id.btn_kb_plus)
-        val globeButton = view.findViewById<ImageButton>(R.id.btn_globe)
+        val dictionaryButton = view.findViewById<ImageButton>(R.id.btn_more_dictionary)
         val appGridButton = view.findViewById<ImageButton>(R.id.btn_app_grid)
         
         // Prevent focus on all AI buttons
-        listOf(calculatorButton, cameraButton, listButton, textTButton, kbPlusButton, globeButton, appGridButton)
+        listOf(calculatorButton, cameraButton, listButton, textTButton, kbPlusButton, dictionaryButton, appGridButton)
             .forEach { button ->
                 button?.isFocusable = false
                 button?.isFocusableInTouchMode = false
             }
         
-        // Globe button - Dictionary
-        globeButton?.setOnClickListener {
+        // Dictionary button (in more options)
+        dictionaryButton?.setOnClickListener {
             toggleDictionary()
         }
         
@@ -1674,6 +1736,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         appGridButton?.setOnClickListener {
             Toast.makeText(this, "Apps", Toast.LENGTH_SHORT).show()
         }
+
+        // Back to keyboard (from more options)
+        view.findViewById<Button>(R.id.btn_more_back)?.setOnClickListener {
+            playKeyFeedback(it)
+            hideMoreOptions()
+        }
     }
 
     /**
@@ -1682,6 +1750,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun setupEmojiPicker(view: View) {
         emojiPickerContainer = view.findViewById(R.id.emoji_picker_include)
         emojiGridFull = view.findViewById(R.id.emoji_grid_full)
+        if (emojiPickerContainer == null || emojiGridFull == null) return  // Defensive: skip if layout missing
         
         // Load recent emojis from SharedPreferences
         loadRecentEmojis()
@@ -1756,7 +1825,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Load emojis for a specific category into the grid
      */
     private fun loadEmojiCategory(category: EmojiData.Category) {
-        emojiGridFull.removeAllViews()
+        val grid = emojiGridFull ?: return
+        grid.removeAllViews()
         
         val emojis = if (category == EmojiData.Category.RECENT) {
             recentEmojis.toList()
@@ -1778,12 +1848,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 width = GridLayout.LayoutParams.MATCH_PARENT
             }
             placeholder.layoutParams = params
-            emojiGridFull.addView(placeholder)
+            grid.addView(placeholder)
             return
         }
         
         // Configure grid
-        emojiGridFull.columnCount = 8
+        grid.columnCount = 8
 
         // Create emoji buttons
         emojis.forEach { emoji ->
@@ -1806,7 +1876,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
             
             button.layoutParams = params
-            emojiGridFull.addView(button)
+            grid.addView(button)
         }
     }
     
@@ -1851,7 +1921,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun showEmojiPicker() {
         keyboardContainer.visibility = View.GONE
-        emojiPickerContainer.visibility = View.VISIBLE
+        emojiPickerContainer?.visibility = View.VISIBLE
         isEmojiPickerVisible = true
         // Refresh current category
         loadEmojiCategory(currentEmojiCategory)
@@ -1862,7 +1932,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Hide the emoji picker
      */
     private fun hideEmojiPicker() {
-        emojiPickerContainer.visibility = View.GONE
+        emojiPickerContainer?.visibility = View.GONE
         keyboardContainer.visibility = View.VISIBLE
         isEmojiPickerVisible = false
     }
@@ -2309,6 +2379,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         targetBeforeLen: Int? = null,
         targetAfterLen: Int? = null
     ) {
+        if (!isNetworkAvailable()) {
+            Toast.makeText(this, getString(R.string.internet_required_ai_chat), Toast.LENGTH_LONG).show()
+            return
+        }
         hideAiWritingTools()
         showAiChat()
 
@@ -3217,6 +3291,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             Toast.makeText(this, "Please type a word to search", Toast.LENGTH_SHORT).show()
             return
         }
+        if (!isNetworkAvailable()) {
+            Toast.makeText(this, getString(R.string.internet_required_dictionary), Toast.LENGTH_LONG).show()
+            return
+        }
         
         // Show loading state
         showDictLoading()
@@ -3360,23 +3438,15 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     /**
-     * Get language name from code
+     * Get language name from code, displayed in the user's device language.
+     * Uses Locale.getDisplayName() so e.g. "English" shows as "Inglés" when the app is in Spanish.
      */
     private fun getLanguageName(code: String): String {
-        return when (code) {
-            "en" -> "English"
-            "ar" -> "العربية"
-            "es" -> "Español"
-            "fr" -> "Français"
-            "de" -> "Deutsch"
-            "it" -> "Italiano"
-            "pt" -> "Português"
-            "ru" -> "Русский"
-            "zh" -> "中文"
-            "ja" -> "日本語"
-            "ko" -> "한국어"
-            "hi" -> "हिंदी"
-            else -> code.uppercase()
+        return try {
+            val locale = Locale.forLanguageTag(code.replace("_", "-"))
+            locale.getDisplayName(Locale.getDefault())
+        } catch (_: Exception) {
+            code.uppercase(Locale.ROOT)
         }
     }
     
@@ -3831,13 +3901,14 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun showDictionary() {
         hideTopBarsForOverlay()
         keyboardContainer.visibility = View.GONE
-        emojiPickerContainer.visibility = View.GONE
+        emojiPickerContainer?.visibility = View.GONE
         isEmojiPickerVisible = false
         calculatorContainer.visibility = View.GONE
         isCalculatorVisible = false
         aiWritingToolsContainer.visibility = View.GONE
         isAiWritingToolsVisible = false
         aiFeaturesContainer.visibility = View.GONE
+        moreOptionsContainer.visibility = View.GONE
         voiceRecordingContainer.visibility = View.GONE
         voiceProcessingStep2Container.visibility = View.GONE
         dictionaryContainer.visibility = View.VISIBLE
@@ -3858,6 +3929,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             view.findViewById<TextView>(R.id.dict_part_of_speech)?.visibility = View.GONE
             view.findViewById<TextView>(R.id.dict_definition)?.visibility = View.GONE
             view.findViewById<TextView>(R.id.dict_example)?.visibility = View.GONE
+        }
+        // Proactive internet notice when offline
+        if (!isNetworkAvailable()) {
+            Toast.makeText(this, getString(R.string.internet_required_dictionary), Toast.LENGTH_LONG).show()
         }
     }
     
@@ -4146,15 +4221,23 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
 
     /**
-     * Create AI chat special key
+     * Create AI chat special key (e.g. backspace). Uses icon for delete key for visibility.
      */
     private fun createAiChatSpecialKey(label: String, isLandscape: Boolean = false, onClick: () -> Unit): Button {
         val keyHeightPx = resources.getDimensionPixelSize(R.dimen.ai_chat_key_height)
-        val textSize = if (isLandscape) 13f else 15f
         val margin = if (isLandscape) 1 else 2
+        val isBackspace = label == "⌫"
         return Button(this).apply {
-            text = label
-            this.textSize = textSize
+            if (isBackspace) {
+                val icon = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.ic_backspace)?.mutate()
+                icon?.let { DrawableCompat.setTint(it, Color.WHITE) }
+                setCompoundDrawablesWithIntrinsicBounds(icon, null, null, null)
+                compoundDrawablePadding = 0
+                text = ""
+            } else {
+                text = label
+                textSize = if (isLandscape) 13f else 15f
+            }
             setTextColor(Color.parseColor("#FFFFFF"))
             background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.dict_key_special)
             isAllCaps = false
@@ -4267,6 +4350,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val message = aiChatInputText.toString().trim()
         if (message.isEmpty()) {
             Toast.makeText(this, "Please type a message", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (!isNetworkAvailable()) {
+            Toast.makeText(this, getString(R.string.internet_required_ai_chat), Toast.LENGTH_LONG).show()
             return
         }
         
@@ -4681,7 +4768,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         hideTopBarsForOverlay()
         // AI chat uses its own mini keyboard layout.
         keyboardContainer.visibility = View.GONE
-        emojiPickerContainer.visibility = View.GONE
+        emojiPickerContainer?.visibility = View.GONE
         isEmojiPickerVisible = false
         calculatorContainer.visibility = View.GONE
         isCalculatorVisible = false
@@ -4713,6 +4800,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 addChatMessage("Hello! 👋 I'm your AI assistant.\n\nI can help you with:\n• Writing messages & emails\n• Answering questions\n• Translations\n• And much more!\n\nHow can I help you today?", isUser = false)
             }
             prefs.edit().putBoolean("ai_chat_intro_shown", true).apply()
+        }
+        // Proactive internet notice when offline
+        if (!isNetworkAvailable()) {
+            Toast.makeText(this, getString(R.string.internet_required_ai_chat), Toast.LENGTH_LONG).show()
         }
     }
     
@@ -4936,6 +5027,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Hide video preview UI
      */
     private fun hideVideoPreview() {
+        unregisterNetworkRestoredCallback()
         videoPlayer?.stopPlayback()
         videoPreviewContainer?.visibility = View.GONE
         keyboardContainer.visibility = View.VISIBLE
@@ -5358,14 +5450,25 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                         }
                         processedVideoAudioFilePath = processedAudioFile.absolutePath
                         
-                        // Convert MP3 to AAC so MediaMuxer can handle it
-                        val aacAudioFile = convertMp3ToAac(processedAudioFile)
+                        // Get AAC audio for muxing (MediaMuxer requires AAC; MP3 cannot be muxed into MP4)
+                        var aacAudioFile = convertMp3ToAac(processedAudioFile)
+                        if (aacAudioFile == null) {
+                            android.util.Log.w("DeltaVoice", "Local MP3->AAC failed, trying VideoProcessingHelper")
+                            aacAudioFile = VideoProcessingHelper.convertMp3ToAac(processedAudioFile, cacheDir)
+                            if (aacAudioFile == processedAudioFile) aacAudioFile = null  // Helper returns original on fail
+                        }
                         
-                        // Mux original video visuals + processed audio into final video
-                        val muxedVideo = muxVideoWithProcessedAudio(videoFile, aacAudioFile)
+                        var muxedVideo: File? = null
+                        if (aacAudioFile != null) {
+                            muxedVideo = muxVideoWithProcessedAudio(videoFile, aacAudioFile)
+                            if (muxedVideo == null) {
+                                android.util.Log.w("DeltaVoice", "Local mux failed, trying VideoProcessingHelper")
+                                muxedVideo = VideoProcessingHelper.muxVideoWithProcessedAudio(videoFile, aacAudioFile, cacheDir)
+                            }
+                        }
                         
                         // Clean up intermediate audio files
-                        if (aacAudioFile != processedAudioFile) {
+                        if (aacAudioFile != null && aacAudioFile != processedAudioFile) {
                             try { aacAudioFile.delete() } catch (_: Exception) {}
                         }
                         
@@ -5546,6 +5649,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 audioExtractor.release()
                 return@withContext null
             }
+            val audioMime = audioFormat.getString(android.media.MediaFormat.KEY_MIME) ?: ""
+            if (audioMime.contains("mpeg", ignoreCase = true) && !audioMime.contains("mp4a", ignoreCase = true)) {
+                android.util.Log.e("DeltaVoice", "Mux: Audio is MP3 (not AAC). MediaMuxer MPEG-4 requires AAC. Run convertMp3ToAac first.")
+                videoExtractor.release()
+                audioExtractor.release()
+                return@withContext null
+            }
             audioExtractor.selectTrack(audioTrackIndex)
 
             // Create output muxer
@@ -5600,10 +5710,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
     /**
      * Convert raw MP3 bytes to an M4A/AAC container so MediaMuxer can handle it.
-     * MediaMuxer's MPEG-4 output only accepts AAC audio; raw MP3 tracks cannot be muxed directly.
-     * Falls back: if decoding/re-encoding fails, returns the original file for best-effort mux.
+     * MediaMuxer's MPEG-4 output only accepts AAC; raw MP3 cannot be muxed into MP4.
+     * Returns null on failure so caller never passes MP3 to muxer.
      */
-    private suspend fun convertMp3ToAac(mp3File: File): File = withContext(Dispatchers.IO) {
+    private suspend fun convertMp3ToAac(mp3File: File): File? = withContext(Dispatchers.IO) {
         try {
             val aacFile = File(cacheDir, "converted_audio_${System.currentTimeMillis()}.m4a")
 
@@ -5621,16 +5731,28 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 }
             }
             if (trackIndex == -1 || inputFormat == null) {
+                android.util.Log.e("DeltaVoice", "convertMp3ToAac: No audio track in file")
                 extractor.release()
-                return@withContext mp3File
+                return@withContext null
             }
             extractor.selectTrack(trackIndex)
 
-            val sampleRate = inputFormat.getInteger(android.media.MediaFormat.KEY_SAMPLE_RATE)
-            val channelCount = inputFormat.getInteger(android.media.MediaFormat.KEY_CHANNEL_COUNT)
+            val inputMime = inputFormat.getString(android.media.MediaFormat.KEY_MIME) ?: "audio/mpeg"
+            // If already AAC, use directly (API may return M4A)
+            if (inputMime.contains("mp4a", ignoreCase = true) || inputMime == "audio/mp4a-latm") {
+                extractor.release()
+                android.util.Log.d("DeltaVoice", "Audio already AAC, using directly")
+                return@withContext mp3File
+            }
+
+            val sampleRate = try {
+                inputFormat.getInteger(android.media.MediaFormat.KEY_SAMPLE_RATE)
+            } catch (_: Exception) { 44100 }
+            val channelCount = try {
+                inputFormat.getInteger(android.media.MediaFormat.KEY_CHANNEL_COUNT)
+            } catch (_: Exception) { 1 }
 
             // Setup decoder
-            val inputMime = inputFormat.getString(android.media.MediaFormat.KEY_MIME) ?: "audio/mpeg"
             val decoder = android.media.MediaCodec.createDecoderByType(inputMime)
             decoder.configure(inputFormat, null, null, 0)
             decoder.start()
@@ -5671,7 +5793,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     }
                 }
 
-                // Drain decoder -> feed encoder
+                // Drain decoder -> feed encoder (chunked: decoder output can exceed encoder input buffer)
                 if (!decoderDone) {
                     val outIdx = decoder.dequeueOutputBuffer(bufferInfo, timeoutUs)
                     if (outIdx >= 0) {
@@ -5679,12 +5801,25 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                         val isEos = bufferInfo.flags and android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
 
                         if (bufferInfo.size > 0) {
-                            val encInIdx = encoder.dequeueInputBuffer(timeoutUs)
-                            if (encInIdx >= 0) {
+                            decoded.position(bufferInfo.offset)
+                            decoded.limit(bufferInfo.offset + bufferInfo.size)
+                            var pending = bufferInfo.size
+                            var feedOffset = 0
+                            val bytesPerSample = (channelCount * 2).coerceAtLeast(1)
+
+                            while (pending > 0) {
+                                val encInIdx = encoder.dequeueInputBuffer(timeoutUs)
+                                if (encInIdx < 0) break
                                 val encBuf = encoder.getInputBuffer(encInIdx)!!
                                 encBuf.clear()
+                                val toCopy = minOf(pending, encBuf.capacity())
+                                decoded.limit(decoded.position() + toCopy)
                                 encBuf.put(decoded)
-                                encoder.queueInputBuffer(encInIdx, 0, bufferInfo.size, bufferInfo.presentationTimeUs, 0)
+                                val pts = if (sampleRate > 0) bufferInfo.presentationTimeUs + (feedOffset * 1_000_000L / (sampleRate * bytesPerSample))
+                                    else bufferInfo.presentationTimeUs
+                                encoder.queueInputBuffer(encInIdx, 0, toCopy, pts, 0)
+                                feedOffset += toCopy
+                                pending -= toCopy
                             }
                         }
                         decoder.releaseOutputBuffer(outIdx, false)
@@ -5725,8 +5860,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             android.util.Log.d("DeltaVoice", "MP3 -> AAC conversion done: ${aacFile.length()} bytes")
             aacFile
         } catch (e: Exception) {
-            android.util.Log.e("DeltaVoice", "MP3->AAC conversion failed: ${e.message}, falling back to original", e)
-            mp3File
+            android.util.Log.e("DeltaVoice", "MP3->AAC conversion failed: ${e.message}", e)
+            null
         }
     }
 
@@ -5804,27 +5939,29 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Hide all overlay components
      */
     private fun hideAllOverlays() {
-        emojiPickerContainer.visibility = View.GONE
+        emojiPickerContainer?.visibility = View.GONE
         isEmojiPickerVisible = false
-        
+
         calculatorContainer.visibility = View.GONE
         isCalculatorVisible = false
-        
+
         dictionaryContainer.visibility = View.GONE
         isDictionaryVisible = false
-        
+
         aiChatContainer.visibility = View.GONE
         isAiChatVisible = false
-        
+
         aiWritingToolsContainer.visibility = View.GONE
         isAiWritingToolsVisible = false
-        
+
+        moreOptionsContainer.visibility = View.GONE
+
         voiceRecordingContainer.visibility = View.GONE
         voiceProcessingStep2Container.visibility = View.GONE
-        
+
         videoRecordingContainer?.visibility = View.GONE
         isVideoRecordingVisible = false
-        
+
         videoPreviewContainer?.visibility = View.GONE
         isVideoPreviewVisible = false
     }
@@ -6072,8 +6209,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
 
     /**
-     * Apply lightweight scale animation and execute action. Action runs immediately on release;
-     * feedback (haptic/sound) runs after. No ripple, no coroutine - UI thread only.
+     * Apply lightweight scale animation and execute action. Fires on ACTION_DOWN for immediate
+     * response (12-20 chars/sec). Feedback deferred to next frame to avoid blocking.
      */
     private fun setKeyPressWithAnimation(button: Button, action: () -> Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -6086,14 +6223,14 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         button.setOnTouchListener { v, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
+                    action()
+                    Handler(Looper.getMainLooper()).post { playKeyFeedback(v) }
                     v.animate().scaleX(0.94f).scaleY(0.94f)
                         .setDuration(KEY_PRESS_ANIM_DURATION_MS)
                         .setInterpolator(LinearInterpolator()).start()
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    action()
-                    playKeyFeedback(v)
                     v.animate().scaleX(1f).scaleY(1f)
                         .setDuration(KEY_PRESS_ANIM_DURATION_MS)
                         .setInterpolator(LinearInterpolator()).start()
@@ -6685,6 +6822,22 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
 
     /**
+     * Show more options (Calculator & Dictionary), hide keyboard
+     */
+    private fun showMoreOptions() {
+        keyboardContainer.visibility = View.GONE
+        moreOptionsContainer.visibility = View.VISIBLE
+    }
+
+    /**
+     * Hide more options, show keyboard
+     */
+    private fun hideMoreOptions() {
+        moreOptionsContainer.visibility = View.GONE
+        keyboardContainer.visibility = View.VISIBLE
+    }
+
+    /**
      * Toggle between Normal and AI keyboard modes
      */
     private fun toggleKeyboardMode() {
@@ -7107,32 +7260,25 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     /**
-     * Show translation language selection dialog
+     * Show translation language selection dialog.
+     * Language names are displayed in the user's device language.
      */
     private fun showTranslationLanguageSelector() {
         val languages = listOf(
-            Locale.ENGLISH to "English",
-            Locale("es") to "Spanish",
-            Locale("fr") to "French",
-            Locale("de") to "German",
-            Locale("it") to "Italian",
-            Locale("pt") to "Portuguese",
-            Locale("ru") to "Russian",
-            Locale("ja") to "Japanese",
-            Locale("ko") to "Korean",
-            Locale("zh") to "Chinese",
-            Locale("ar") to "Arabic",
-            Locale("hi") to "Hindi"
+            Locale.ENGLISH, Locale("es"), Locale("fr"), Locale("de"), Locale("it"),
+            Locale("pt"), Locale("ru"), Locale("ja"), Locale("ko"), Locale("zh"),
+            Locale("ar"), Locale("hi")
         )
-        
-        val languageNames = languages.map { it.second }.toTypedArray()
+        val displayLocale = Locale.getDefault()
+        val languageNames = languages.map { it.getDisplayName(displayLocale) }.toTypedArray()
         
         android.app.AlertDialog.Builder(this)
-            .setTitle("Select Translation Language")
+            .setTitle(getString(R.string.select_translation_language))
             .setItems(languageNames) { _, which ->
-                targetTranslationLanguage = languages[which].first
-                translateButton.text = "Translate to: ${languages[which].second}"
-                Toast.makeText(this, "Translation target set to ${languages[which].second}", Toast.LENGTH_SHORT).show()
+                targetTranslationLanguage = languages[which]
+                val name = languages[which].getDisplayName(displayLocale)
+                translateButton.text = getString(R.string.translate_to, name)
+                Toast.makeText(this, getString(R.string.translation_target_set, name), Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()

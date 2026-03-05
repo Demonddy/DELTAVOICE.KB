@@ -3,7 +3,10 @@ package com.deltavoice
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -16,6 +19,7 @@ import java.util.Locale
 /**
  * Activity to pick audio from device for keyboard voice processing.
  * Launched by MainKeyboardService; broadcasts the file path when done.
+ * Finishes instantly with no animation so user returns directly to keyboard processing panel.
  */
 class AudioUploadActivity : AppCompatActivity() {
 
@@ -23,7 +27,7 @@ class AudioUploadActivity : AppCompatActivity() {
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri == null) {
-            finish()
+            finishInstantly()
             return@registerForActivityResult
         }
         handlePickedUri(uri)
@@ -34,6 +38,11 @@ class AudioUploadActivity : AppCompatActivity() {
         pickMedia.launch("audio/*")
     }
 
+    private fun finishInstantly() {
+        overridePendingTransition(0, 0)
+        finish()
+    }
+
     private fun handlePickedUri(uri: Uri) {
         try {
             val mimeType = contentResolver.getType(uri) ?: ""
@@ -41,7 +50,7 @@ class AudioUploadActivity : AppCompatActivity() {
 
             if (!isAudio) {
                 Toast.makeText(this, "Please select an audio file", Toast.LENGTH_SHORT).show()
-                finish()
+                finishInstantly()
                 return
             }
 
@@ -69,15 +78,17 @@ class AudioUploadActivity : AppCompatActivity() {
             getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .edit()
                 .putString(KEY_PENDING_PATH, path)
-                .apply()
+                .commit()  // Must be synchronous so keyboard receiver reads path before broadcast
 
-            sendBroadcast(Intent(ACTION_AUDIO_UPLOADED))
+            sendBroadcast(Intent(ACTION_AUDIO_UPLOADED).setPackage(packageName))
             Toast.makeText(this, "Audio ready for processing", Toast.LENGTH_SHORT).show()
+            // Delay finish so keyboard can request show and user returns to keyboard, not app
+            Handler(Looper.getMainLooper()).postDelayed({ finishInstantly() }, 350)
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "Failed to open file: ${e.message}", Toast.LENGTH_SHORT).show()
+            finishInstantly()
         }
-        finish()
     }
 
     companion object {

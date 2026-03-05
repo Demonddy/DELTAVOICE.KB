@@ -7,7 +7,7 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.Settings
-import android.widget.Button
+import android.view.LayoutInflater
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
@@ -16,6 +16,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.android.material.bottomsheet.BottomSheetDialog
 
 /**
  * Main launcher activity - Professional homepage for deltavoice keyboard
@@ -53,6 +54,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         
         setupUI()
+        setupBottomNav()
         updateStats()
     }
     
@@ -71,15 +73,15 @@ class MainActivity : AppCompatActivity() {
         }
         
         // Update user name
-        val userName = prefs.getString(KEY_USER_NAME, "Guest User")
+        val userName = prefs.getString(KEY_USER_NAME, getString(R.string.guest_user))
         findViewById<TextView>(R.id.user_name).text = userName
         
-        // Greeting based on time of day
+        // Greeting based on time of day (uses device language)
         val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
         val greeting = when {
-            hour < 12 -> "Good morning"
-            hour < 17 -> "Good afternoon"
-            else -> "Good evening"
+            hour < 12 -> getString(R.string.good_morning)
+            hour < 17 -> getString(R.string.good_afternoon)
+            else -> getString(R.string.good_evening)
         }
         findViewById<TextView>(R.id.greeting_text).text = greeting
         
@@ -92,7 +94,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<LinearLayout>(R.id.premium_banner).setOnClickListener {
             // Navigate to subscription page
             startActivity(Intent(this, AccountActivity::class.java))
-            Toast.makeText(this, "Upgrade to Premium for unlimited features!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.upgrade_premium_toast), Toast.LENGTH_SHORT).show()
         }
         
         // Feature Cards - each navigates to dedicated config page
@@ -129,7 +131,62 @@ class MainActivity : AppCompatActivity() {
         
         // Update subscription status
         val isPremium = prefs.getBoolean(KEY_IS_PREMIUM, false)
-        findViewById<TextView>(R.id.subscription_status).text = if (isPremium) "Premium" else "Free Plan"
+        findViewById<TextView>(R.id.subscription_status).text = if (isPremium) getString(R.string.premium) else getString(R.string.free_plan)
+    }
+
+    /**
+     * Setup bottom navigation bar: Home, Camera, Add (Video/Voice), Mic, Search
+     */
+    private fun setupBottomNav() {
+        // Home - already on homepage, scroll to top or no-op
+        findViewById<FrameLayout>(R.id.nav_home).setOnClickListener {
+            // Already on home; could scroll to top if needed
+        }
+
+        // Camera - open video recording/config
+        findViewById<FrameLayout>(R.id.nav_camera).setOnClickListener {
+            startActivity(Intent(this, VideoRecordingActivity::class.java))
+        }
+
+        // Add (center) - show bottom sheet to choose Video or Voice
+        findViewById<FrameLayout>(R.id.nav_add).setOnClickListener {
+            showAddMediaBottomSheet()
+        }
+
+        // Mic - open voice config
+        findViewById<FrameLayout>(R.id.nav_mic).setOnClickListener {
+            startActivity(Intent(this, VoiceConfigActivity::class.java))
+        }
+
+        // Search - open search screen
+        findViewById<FrameLayout>(R.id.nav_search).setOnClickListener {
+            startActivity(Intent(this, SearchActivity::class.java))
+        }
+
+        BottomNavHelper.setActiveItem(this, R.id.nav_home)
+    }
+
+    /**
+     * Show bottom sheet to choose Video or Voice update
+     */
+    private fun showAddMediaBottomSheet() {
+        val dialog = BottomSheetDialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.bottom_sheet_add_media, null)
+        dialog.setContentView(view)
+
+        view.findViewById<LinearLayout>(R.id.option_video).setOnClickListener {
+            dialog.dismiss()
+            // Video: open VideoConfigActivity and launch upload picker
+            startActivity(Intent(this, VideoConfigActivity::class.java).putExtra(VideoConfigActivity.EXTRA_OPEN_UPLOAD, true))
+        }
+
+        view.findViewById<LinearLayout>(R.id.option_voice).setOnClickListener {
+            dialog.dismiss()
+            // Voice: open VoiceConfigActivity and launch upload picker
+            startActivity(Intent(this, VoiceConfigActivity::class.java).putExtra(VoiceConfigActivity.EXTRA_OPEN_UPLOAD, true))
+        }
+
+        dialog.show()
     }
     
     /**
@@ -190,9 +247,9 @@ class MainActivity : AppCompatActivity() {
             
             if (allGranted) {
                 markPermissionsGranted()
-                Toast.makeText(this, "All permissions granted! Enjoy deltavoice.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.all_permissions_granted), Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(this, "Some features may be limited without permissions.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, getString(R.string.some_features_limited), Toast.LENGTH_LONG).show()
             }
         }
     }

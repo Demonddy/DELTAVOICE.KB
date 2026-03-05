@@ -20,7 +20,7 @@
             android:layout_gravity="start"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:contentDescription="Back"
-            android:src="@android:drawable/ic_menu_revert"
+            android:src="@drawable/ic_arrow_back"
             android:tint="@color/text_primary"
             android:layout_marginBottom="16dp" />
 
@@ -137,20 +137,44 @@
                 android:textSize="12sp"
                 android:layout_marginBottom="16dp" />
 
-            <Button
-                android:id="@+id/btn_record_video"
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:text="  Record video"
-                android:drawableStart="@drawable/ic_camera"
-                android:drawablePadding="10dp"
-                android:background="@drawable/voice_mode_button_purple"
-                android:textColor="@color/text_primary"
-                android:textAllCaps="false"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:gravity="center"
-                android:layout_marginBottom="12dp" />
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="12dp">
+
+                <Button
+                    android:id="@+id/btn_upload_video"
+                    android:layout_width="0dp"
+                    android:layout_height="52dp"
+                    android:layout_weight="1"
+                    android:text="  Upload"
+                    android:drawableStart="@drawable/ic_upload"
+                    android:drawablePadding="10dp"
+                    android:background="@drawable/voice_mode_button_purple"
+                    android:textColor="@color/text_primary"
+                    android:textAllCaps="false"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:layout_marginEnd="6dp" />
+
+                <Button
+                    android:id="@+id/btn_record_video"
+                    android:layout_width="0dp"
+                    android:layout_height="52dp"
+                    android:layout_weight="1"
+                    android:text="  Record"
+                    android:drawableStart="@drawable/ic_camera"
+                    android:drawablePadding="10dp"
+                    android:background="@drawable/voice_mode_button_purple"
+                    android:textColor="@color/text_primary"
+                    android:textAllCaps="false"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:layout_marginStart="6dp" />
+            </LinearLayout>
 
             <!-- Processing section (visible after recording) -->
             <LinearLayout
@@ -181,45 +205,25 @@
                     android:textAllCaps="false"
                     android:textSize="14sp"
                     android:gravity="center"
-                    android:layout_marginBottom="8dp" />
+                    android:layout_marginBottom="12dp" />
+
+                <TextView
+                    android:id="@+id/processed_videos_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Processed videos"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp"
+                    android:visibility="gone" />
 
                 <LinearLayout
+                    android:id="@+id/processed_videos_list"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <Button
-                        android:id="@+id/btn_download_video"
-                        android:layout_width="0dp"
-                        android:layout_height="48dp"
-                        android:layout_weight="1"
-                        android:text="  Download"
-                        android:drawableStart="@drawable/ic_download"
-                        android:drawablePadding="8dp"
-                        android:background="@drawable/voice_mode_button_green"
-                        android:textColor="@color/text_primary"
-                        android:textAllCaps="false"
-                        android:textSize="14sp"
-                        android:gravity="center"
-                        android:layout_marginEnd="4dp"
-                        android:visibility="gone" />
-
-                    <Button
-                        android:id="@+id/btn_share_video"
-                        android:layout_width="0dp"
-                        android:layout_height="48dp"
-                        android:layout_weight="1"
-                        android:text="  Share"
-                        android:drawableStart="@drawable/ic_send"
-                        android:drawablePadding="8dp"
-                        android:background="@drawable/voice_mode_button_green"
-                        android:textColor="@color/text_primary"
-                        android:textAllCaps="false"
-                        android:textSize="14sp"
-                        android:gravity="center"
-                        android:layout_marginStart="4dp"
-                        android:visibility="gone" />
-                </LinearLayout>
+                    android:orientation="vertical"
+                    android:visibility="gone" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>

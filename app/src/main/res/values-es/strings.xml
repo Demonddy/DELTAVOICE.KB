@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App identity -->
+    <string name="app_name">deltavoice</string>
+    <string name="keyboard_name">deltavoice</string>
+    <string name="app_version">deltavoice v1.0.0</string>
+
+    <!-- Keyboard & Voice -->
+    <string name="voice_input">Entrada de voz</string>
+    <string name="text_to_speech">Texto a voz</string>
+    <string name="record_video">Grabar video</string>
+    <string name="tap_to_record">Toca para grabar</string>
+    <string name="tap_to_start_recording">Toca para iniciar la grabación</string>
+    <string name="recording_tap_to_pause">Toca para pausar</string>
+
+    <!-- Language & Translation -->
+    <string name="select_language">Seleccionar idioma</string>
+    <string name="translate_text">Traducir texto</string>
+    <string name="select_translation_language">Seleccionar idioma de traducción</string>
+    <string name="translate_to">Traducir a: %s</string>
+    <string name="translation_target_set">Idioma de traducción: %s</string>
+
+    <!-- AI Chat -->
+    <string name="ai_chat_title">Asistente IA</string>
+    <string name="ai_chat_welcome">¡Hola! Soy tu asistente IA. Pregúntame lo que quieras — puedo ayudar con redacción, preguntas, traducciones y más.</string>
+    <string name="ai_chat_hint">Escribe tu mensaje…</string>
+
+    <!-- Bottom navigation -->
+    <string name="nav_home">Inicio</string>
+    <string name="nav_camera">Cámara</string>
+    <string name="nav_mic">Mic</string>
+    <string name="nav_search">Buscar</string>
+    <string name="nav_add">Añadir</string>
+    <string name="add_media_title">Subir</string>
+    <string name="add_video">Subir video</string>
+    <string name="add_voice">Subir audio</string>
+    <string name="add_video_desc">Elige un video de la galería para traducir</string>
+    <string name="add_voice_desc">Elige un audio del dispositivo para procesar</string>
+
+    <!-- Internet required -->
+    <string name="internet_required_ai_chat">Tu asistente IA está listo — conecta a internet para iniciar la conversación.</string>
+    <string name="internet_required_dictionary">Un mundo de palabras te espera. Conecta a Wi‑Fi o datos móviles para buscar definiciones y traducciones.</string>
+    <string name="internet_required_search">Conecta para explorar. La búsqueda requiere conexión a internet.</string>
+    <string name="internet_required_generic">Esta función requiere conexión a internet. Conecta a Wi‑Fi o datos móviles para continuar.</string>
+    <string name="internet_required_action_settings">Ajustes</string>
+    <string name="cant_reach_server">No se puede conectar. Revisa Wi‑Fi o datos móviles.</string>
+
+    <!-- Main / Home -->
+    <string name="welcome_back">Bienvenido de nuevo</string>
+    <string name="guest_user">Usuario invitado</string>
+    <string name="good_morning">Buenos días</string>
+    <string name="good_afternoon">Buenas tardes</string>
+    <string name="good_evening">Buenas noches</string>
+    <string name="upgrade_to_premium">Actualizar a Premium</string>
+    <string name="unlock_all_features">Desbloquea todas las funciones y elimina límites</string>
+    <string name="upgrade_premium_toast">¡Actualiza a Premium para funciones ilimitadas!</string>
+    <string name="your_activity">Tu actividad</string>
+    <string name="videos">Videos</string>
+    <string name="voice_msgs">Mensajes de voz</string>
+    <string name="ai_chats">Chats IA</string>
+    <string name="features">Funciones</string>
+    <string name="video">Video</string>
+    <string name="record_translate_videos">Graba y traduce videos</string>
+    <string name="voice">Voz</string>
+    <string name="voice_input_cloning">Entrada de voz y clonación</string>
+    <string name="ai_chat">Chat IA</string>
+    <string name="smart_ai_assistant">Asistente IA inteligente</string>
+    <string name="themes">Temas</string>
+    <string name="customize_keyboard">Personalizar teclado</string>
+    <string name="quick_actions">Acciones rápidas</string>
+    <string name="enable_keyboard">Activar teclado</string>
+    <string name="tap_to_enable_keyboard">Toca para activar deltavoice</string>
+    <string name="account">Cuenta</string>
+    <string name="manage_profile_login">Gestionar perfil e inicio de sesión</string>
+    <string name="subscription">Suscripción</string>
+    <string name="free_plan">Plan gratuito</string>
+    <string name="premium">Premium</string>
+
+    <!-- Settings -->
+    <string name="settings">Ajustes</string>
+    <string name="app_language">Idioma de la app</string>
+    <string name="app_language_desc">Elige el idioma de la interfaz</string>
+    <string name="system_default">Predeterminado del sistema</string>
+    <string name="select_app_language">Seleccionar idioma de la app</string>
+    <string name="keyboard">Teclado</string>
+    <string name="english">Inglés</string>
+    <string name="privacy">Privacidad</string>
+    <string name="permissions">Permisos</string>
+    <string name="manage_permissions">Gestionar permisos de la app</string>
+    <string name="about">Acerca de</string>
+    <string name="app_version_label">Versión de la app</string>
+    <string name="privacy_policy">Política de privacidad</string>
+    <string name="terms_of_service">Términos de servicio</string>
+
+    <!-- Common -->
+    <string name="done">Listo</string>
+    <string name="send">Enviar</string>
+    <string name="upload">Subir</string>
+    <string name="record">Grabar</string>
+    <string name="process">Procesar</string>
+    <string name="search">Buscar</string>
+    <string name="back">Atrás</string>
+    <string name="home">Inicio</string>
+</resources>

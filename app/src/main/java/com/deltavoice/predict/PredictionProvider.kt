@@ -1,5 +1,7 @@
 package com.deltavoice.predict
 
+import android.os.Handler
+import android.os.Looper
 import com.deltavoice.PredictiveWordList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -10,11 +12,13 @@ import kotlinx.coroutines.withContext
 /**
  * Singleton prediction provider. Isolates prediction logic from UI.
  * Ensures <15ms via background dispatch. Loads dictionaries on first use.
+ * Compute runs on Default; callback posted to Main - never blocks key press path.
  */
 object PredictionProvider {
 
     private val engine = PredictiveTextEngine()
-    private val scope = CoroutineScope(Dispatchers.Main)
+    private val scope = CoroutineScope(Dispatchers.Default)
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var loadJob: Job? = null
 
     private val supportedLangs = listOf(
@@ -23,16 +27,15 @@ object PredictionProvider {
 
     init {
         loadJob = scope.launch {
-            withContext(Dispatchers.Default) {
-                supportedLangs.forEach { lang ->
-                    engine.loadDictionary(lang, PredictiveWordList.getWordsForLanguage(lang))
-                }
+            supportedLangs.forEach { lang ->
+                engine.loadDictionary(lang, PredictiveWordList.getWordsForLanguage(lang))
             }
         }
     }
 
     /**
-     * Get predictions. Non-blocking; callback on Main.
+     * Get predictions. Non-blocking; compute on Default, callback posted to Main.
+     * Never blocks UI thread or key press path.
      */
     fun getPredictions(
         prefix: String,
@@ -51,7 +54,8 @@ object PredictionProvider {
                 limit = limit,
                 includeCorrections = includeCorrections
             )
-            onResult(result.suggestions)
+            val suggestions = result.suggestions
+            mainHandler.post { onResult(suggestions) }
         }
     }
 

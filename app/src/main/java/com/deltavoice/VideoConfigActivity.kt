@@ -1,8 +1,10 @@
 package com.deltavoice
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Base64
+import android.view.LayoutInflater
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -13,13 +15,13 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.FileProvider
 import com.deltavoice.api.CompleteVoiceWorkflowService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -36,12 +38,14 @@ class VideoConfigActivity : AppCompatActivity() {
     private lateinit var processingSection: LinearLayout
     private lateinit var videoStatus: TextView
     private lateinit var btnProcess: Button
-    private lateinit var btnDownload: Button
-    private lateinit var btnShare: Button
+    private lateinit var processedVideosList: LinearLayout
+    private lateinit var processedVideosLabel: TextView
 
     private var videoFilePath: String? = null
-    private var processedAudioPath: String? = null  // Processed audio (MP3)
-    private var isProcessedReady = false
+    private var processedAudioPath: String? = null
+    private val processedVideos = mutableListOf<ProcessedVideoItem>()
+
+    private data class ProcessedVideoItem(val filePath: String, val label: String, val isVideo: Boolean)
     private var isProcessing = false
 
     private val completeVoiceWorkflowService = CompleteVoiceWorkflowService()
@@ -69,6 +73,44 @@ class VideoConfigActivity : AppCompatActivity() {
         }
     }
 
+    private val uploadVideoLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri == null) return@registerForActivityResult
+        activityScope.launch {
+            try {
+                val mimeType = contentResolver.getType(uri) ?: ""
+                if (!mimeType.startsWith("video/")) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@VideoConfigActivity, "Please select a video file", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                val videoDir = File(cacheDir, "videos")
+                if (!videoDir.exists()) videoDir.mkdirs()
+                val destFile = File(videoDir, "UPLOAD_$timestamp.mp4")
+                withContext(Dispatchers.IO) {
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        FileOutputStream(destFile).use { output -> input.copyTo(output) }
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    videoFilePath = destFile.absolutePath
+                    processingSection.visibility = View.VISIBLE
+                    videoStatus.text = "Video uploaded. Tap Process to translate."
+                    Toast.makeText(this@VideoConfigActivity, "Video ready for processing", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@VideoConfigActivity, "Failed to open file: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    companion object {
+        const val EXTRA_OPEN_UPLOAD = "open_upload"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_video_config)
@@ -79,8 +121,8 @@ class VideoConfigActivity : AppCompatActivity() {
         processingSection = findViewById(R.id.video_processing_section)
         videoStatus = findViewById(R.id.video_status)
         btnProcess = findViewById(R.id.btn_process_video)
-        btnDownload = findViewById(R.id.btn_download_video)
-        btnShare = findViewById(R.id.btn_share_video)
+        processedVideosList = findViewById(R.id.processed_videos_list)
+        processedVideosLabel = findViewById(R.id.processed_videos_label)
 
         findViewById<ImageButton>(R.id.btn_back).setOnClickListener { finish() }
 
@@ -92,19 +134,26 @@ class VideoConfigActivity : AppCompatActivity() {
         voiceAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item_dark)
         spinnerVoice.adapter = voiceAdapter
 
+        val btnUpload = findViewById<Button>(R.id.btn_upload_video)
+        btnUpload.setOnClickListener { uploadVideoLauncher.launch("video/*") }
         btnRecord.setOnClickListener {
             recordVideoLauncher.launch(Intent(this, VideoRecordingActivity::class.java))
         }
-
         btnProcess.setOnClickListener { processVideo() }
-        btnDownload.setOnClickListener { downloadProcessedVideo() }
-        btnShare.setOnClickListener { shareProcessedVideo() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (intent.getBooleanExtra(EXTRA_OPEN_UPLOAD, false)) {
+            intent.removeExtra(EXTRA_OPEN_UPLOAD)
+            uploadVideoLauncher.launch("video/*")
+        }
     }
 
     private fun processVideo() {
         val path = videoFilePath
         if (path.isNullOrBlank()) {
-            Toast.makeText(this, "Record a video first", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Record or upload a video first", Toast.LENGTH_SHORT).show()
             return
         }
         val videoFile = File(path)
@@ -149,15 +198,47 @@ class VideoConfigActivity : AppCompatActivity() {
                     val base64 = response.convertedAudioBase64?.takeIf { it.isNotBlank() }
                     if (base64 != null) {
                         val audioBytes = Base64.decode(base64, Base64.DEFAULT)
-                        val outFile = File(cacheDir, "processed_video_${langName.replace(" ", "_")}_${System.currentTimeMillis()}.mp3")
-                        withContext(Dispatchers.IO) { outFile.writeBytes(audioBytes) }
-                        processedAudioPath = outFile.absolutePath
-                        isProcessedReady = true
+                        val mp3File = File(cacheDir, "processed_audio_${System.currentTimeMillis()}.mp3")
+                        withContext(Dispatchers.IO) { mp3File.writeBytes(audioBytes) }
+                        processedAudioPath = mp3File.absolutePath
+
                         withContext(Dispatchers.Main) {
-                            btnDownload.visibility = View.VISIBLE
-                            btnShare.visibility = View.VISIBLE
-                            videoStatus.text = "Ready! Download or share the translated audio."
-                            Toast.makeText(this@VideoConfigActivity, "Done! Download or share the audio.", Toast.LENGTH_LONG).show()
+                            videoStatus.text = "Muxing video..."
+                        }
+
+                        val aacFile = VideoProcessingHelper.convertMp3ToAac(mp3File, cacheDir)
+                        val muxedVideo = VideoProcessingHelper.muxVideoWithProcessedAudio(videoFile, aacFile, cacheDir)
+
+                        if (aacFile != mp3File) {
+                            try { aacFile.delete() } catch (_: Exception) {}
+                        }
+
+                        if (muxedVideo != null && muxedVideo.exists()) {
+                            val voiceName = voiceStyles.getOrNull(spinnerVoice.selectedItemPosition)?.first ?: "Video"
+                            val item = ProcessedVideoItem(
+                                filePath = muxedVideo.absolutePath,
+                                label = "$voiceName #${processedVideos.size + 1}",
+                                isVideo = true
+                            )
+                            processedVideos.add(item)
+                            withContext(Dispatchers.Main) {
+                                updateProcessedVideosList()
+                                videoStatus.text = "Ready! Tap download on any video."
+                                Toast.makeText(this@VideoConfigActivity, "Done! Tap download on any video.", Toast.LENGTH_LONG).show()
+                            }
+                        } else {
+                            val voiceName = voiceStyles.getOrNull(spinnerVoice.selectedItemPosition)?.first ?: "Audio"
+                            val item = ProcessedVideoItem(
+                                filePath = mp3File.absolutePath,
+                                label = "$voiceName #${processedVideos.size + 1} (audio)",
+                                isVideo = false
+                            )
+                            processedVideos.add(item)
+                            withContext(Dispatchers.Main) {
+                                updateProcessedVideosList()
+                                videoStatus.text = "Video mux failed. Tap download on any audio."
+                                Toast.makeText(this@VideoConfigActivity, "Video mux failed. Download or share audio.", Toast.LENGTH_LONG).show()
+                            }
                         }
                     } else {
                         withContext(Dispatchers.Main) {
@@ -177,14 +258,30 @@ class VideoConfigActivity : AppCompatActivity() {
                 isProcessing = false
                 withContext(Dispatchers.Main) {
                     btnProcess.isEnabled = true
-                    if (!isProcessedReady) videoStatus.text = "Video recorded. Tap Process to translate."
+                    if (processedVideos.isEmpty()) videoStatus.text = "Video recorded. Tap Process to translate."
                 }
             }
         }
     }
 
-    private fun downloadProcessedVideo() {
-        val path = processedAudioPath ?: return
+    private fun updateProcessedVideosList() {
+        processedVideosList.removeAllViews()
+        if (processedVideos.isEmpty()) {
+            processedVideosLabel.visibility = View.GONE
+            processedVideosList.visibility = View.GONE
+            return
+        }
+        processedVideosLabel.visibility = View.VISIBLE
+        processedVideosList.visibility = View.VISIBLE
+        for (item in processedVideos) {
+            val row = LayoutInflater.from(this).inflate(R.layout.item_processed_video, processedVideosList, false)
+            row.findViewById<TextView>(R.id.video_label).text = item.label
+            row.findViewById<ImageButton>(R.id.btn_download_video).setOnClickListener { downloadProcessedVideo(item.filePath) }
+            processedVideosList.addView(row)
+        }
+    }
+
+    private fun downloadProcessedVideo(path: String) {
         val file = File(path)
         if (!file.exists()) {
             Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show()
@@ -192,7 +289,8 @@ class VideoConfigActivity : AppCompatActivity() {
         }
         activityScope.launch {
             val saved = withContext(Dispatchers.IO) {
-                val name = "DeltaVoice_video_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.mp3"
+                val ext = if (path.endsWith(".mp4")) "mp4" else "mp3"
+                val name = "DeltaVoice_video_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.$ext"
                 val destDir = getExternalFilesDir(android.os.Environment.DIRECTORY_DOCUMENTS) ?: cacheDir
                 val dest = File(destDir, name)
                 file.copyTo(dest, overwrite = true)
@@ -201,26 +299,6 @@ class VideoConfigActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 Toast.makeText(this@VideoConfigActivity, "Saved to: $saved", Toast.LENGTH_LONG).show()
             }
-        }
-    }
-
-    private fun shareProcessedVideo() {
-        val path = processedAudioPath ?: return
-        val file = File(path)
-        if (!file.exists()) {
-            Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show()
-            return
-        }
-        try {
-            val uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", file)
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "audio/mpeg"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            startActivity(Intent.createChooser(shareIntent, "Share audio"))
-        } catch (e: Exception) {
-            Toast.makeText(this, "Share failed: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 }

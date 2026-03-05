@@ -14,7 +14,11 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.deltavoice.ui.ShimmerView
+import android.graphics.Color
 import com.deltavoice.config.SupabaseConfig
+import com.deltavoice.util.NetworkUtils
+import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -50,6 +54,12 @@ class AIChatConfigActivity : AppCompatActivity() {
 
         addWelcomeMessage()
 
+        chatInput.post {
+            if (!NetworkUtils.isConnected(this)) {
+                showInternetRequiredSnackbar(R.string.internet_required_ai_chat)
+            }
+        }
+
         chatInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -65,12 +75,23 @@ class AIChatConfigActivity : AppCompatActivity() {
         addMessage("Hi! I'm your AI assistant. Ask me anything - writing, questions, translations, and more!", false)
     }
 
+    /** Scroll chat to bottom without triggering focus changes (prevents keyboard flicker). */
+    private fun scrollToBottom(keepInputFocus: Boolean = false) {
+        chatScroll.post {
+            val scrollRange = (chatMessages.height - chatScroll.height).coerceAtLeast(0)
+            chatScroll.smoothScrollTo(0, scrollRange)
+            if (keepInputFocus) chatInput.requestFocus()
+        }
+    }
+
     private fun addMessage(text: String, isUser: Boolean) {
         val bubble = TextView(this).apply {
             this.text = text
             setPadding(48, 24, 48, 24)
             textSize = 15f
             setLineSpacing(4f, 1.2f)
+            isFocusable = false
+            isFocusableInTouchMode = false
         }
 
         val params = LinearLayout.LayoutParams(
@@ -98,28 +119,85 @@ class AIChatConfigActivity : AppCompatActivity() {
         bubble.layoutParams = params
         chatMessages.addView(bubble)
 
-        chatScroll.post { chatScroll.fullScroll(View.FOCUS_DOWN) }
+        scrollToBottom(keepInputFocus = true)
     }
+
+    private var loadingBubbleView: android.view.View? = null
 
     private fun sendMessage() {
         val message = chatInput.text.toString().trim()
         if (message.isBlank()) return
+
+        if (!NetworkUtils.isConnected(this)) {
+            showInternetRequiredSnackbar(R.string.internet_required_ai_chat)
+            return
+        }
 
         chatInput.setText("")
         addMessage(message, true)
         conversationHistory.add("user" to message)
         btnSend.isEnabled = false
 
+        addLoadingMessage()
+
         activityScope.launch {
             val response = withContext(Dispatchers.IO) {
                 callAiApi(message)
             }
             mainHandler.post {
+                removeLoadingMessage()
                 val reply = response ?: getFallbackResponse(message)
                 addMessage(reply, false)
                 conversationHistory.add("assistant" to reply)
                 btnSend.isEnabled = true
             }
+        }
+    }
+
+    private fun addLoadingMessage() {
+        val bubble = android.widget.LinearLayout(this).apply {
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = 12
+                bottomMargin = 12
+                gravity = Gravity.START
+                marginStart = 24
+                marginEnd = 64
+            }
+            setBackgroundResource(R.drawable.ai_chat_bubble_ai)
+            setPadding(48, 24, 48, 24)
+            tag = "loading"
+            isFocusable = false
+            isFocusableInTouchMode = false
+        }
+        val shimmerView = ShimmerView(this).apply {
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                (80 * resources.displayMetrics.density).toInt(),
+                (24 * resources.displayMetrics.density).toInt()
+            )
+            baseColor = Color.parseColor("#2A2F3E")
+            cornerRadius = 4f * resources.displayMetrics.density
+            isFocusable = false
+            isFocusableInTouchMode = false
+        }
+        bubble.addView(shimmerView)
+        shimmerView.startShimmer()
+        chatMessages.addView(bubble)
+        loadingBubbleView = bubble
+        scrollToBottom(keepInputFocus = true)
+    }
+
+    private fun removeLoadingMessage() {
+        loadingBubbleView?.let { view ->
+            if (view is android.view.ViewGroup) {
+                for (i in 0 until view.childCount) {
+                    (view.getChildAt(i) as? ShimmerView)?.stopShimmer()
+                }
+            }
+            chatMessages.removeView(view)
+            loadingBubbleView = null
         }
     }
 
@@ -173,6 +251,27 @@ class AIChatConfigActivity : AppCompatActivity() {
             }
             null
         }
+    }
+
+    private fun showInternetRequiredSnackbar(messageResId: Int) {
+        val snackbar = Snackbar.make(
+            findViewById(android.R.id.content),
+            getString(messageResId),
+            Snackbar.LENGTH_LONG
+        ).apply {
+            setAction(R.string.internet_required_action_settings) {
+                try {
+                    startActivity(android.content.Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS)
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                } catch (_: Exception) {
+                    startActivity(android.content.Intent(android.provider.Settings.ACTION_SETTINGS)
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                }
+            }
+            setActionTextColor(Color.parseColor("#A78BFA"))
+        }
+        snackbar.view.setBackgroundColor(Color.parseColor("#1F2937"))
+        snackbar.show()
     }
 
     private fun getFallbackResponse(message: String): String {
