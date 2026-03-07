@@ -87,44 +87,15 @@ class VoiceConfigActivity : AppCompatActivity() {
         const val EXTRA_OPEN_UPLOAD = "open_upload"
     }
 
-    private val uploadAudioLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        if (uri == null) return@registerForActivityResult
-        activityScope.launch {
-            try {
-                val mimeType = contentResolver.getType(uri) ?: ""
-                if (!mimeType.startsWith("audio/")) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@VoiceConfigActivity, "Please select an audio file", Toast.LENGTH_SHORT).show()
-                    }
-                    return@launch
-                }
-                val ext = when {
-                    mimeType.contains("mpeg") || mimeType.contains("mp3") -> ".mp3"
-                    mimeType.contains("m4a") || mimeType.contains("aac") -> ".m4a"
-                    mimeType.contains("ogg") -> ".ogg"
-                    mimeType.contains("wav") -> ".wav"
-                    else -> ".mp3"
-                }
-                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                val audioDir = File(cacheDir, "recordings")
-                if (!audioDir.exists()) audioDir.mkdirs()
-                val destFile = File(audioDir, "UPLOAD_$timestamp$ext")
-                withContext(Dispatchers.IO) {
-                    contentResolver.openInputStream(uri)?.use { input ->
-                        FileOutputStream(destFile).use { output -> input.copyTo(output) }
-                    }
-                }
-                withContext(Dispatchers.Main) {
-                    audioFilePath = destFile.absolutePath
-                    recordingSection.visibility = View.VISIBLE
-                    recordingStatus.text = "Audio uploaded"
-                    audioDuration.text = getAudioDuration(destFile.absolutePath)
-                    Toast.makeText(this@VoiceConfigActivity, "Audio ready for processing", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@VoiceConfigActivity, "Failed to open file: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
+    private val uploadAudioLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val path = result.data?.getStringExtra(AudioUploadActivity.EXTRA_RESULT_PATH)
+            if (!path.isNullOrBlank()) {
+                audioFilePath = path
+                recordingSection.visibility = View.VISIBLE
+                recordingStatus.text = "Audio uploaded"
+                audioDuration.text = getAudioDuration(path)
+                Toast.makeText(this, "Audio ready for processing", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -163,7 +134,12 @@ class VoiceConfigActivity : AppCompatActivity() {
         cardTextOnly.setOnClickListener { updateCardSelection(cardTextOnly) }
 
         val btnUpload = findViewById<Button>(R.id.btn_upload_voice)
-        btnUpload.setOnClickListener { uploadAudioLauncher.launch("audio/*") }
+        btnUpload.setOnClickListener {
+            val intent = Intent(this, AudioUploadActivity::class.java).apply {
+                putExtra(AudioUploadActivity.EXTRA_LAUNCHED_FROM, AudioUploadActivity.LAUNCHED_FROM_APP)
+            }
+            uploadAudioLauncher.launch(intent)
+        }
         btnRecord.setOnClickListener {
             if (isRecording) {
                 stopRecording()
@@ -181,7 +157,10 @@ class VoiceConfigActivity : AppCompatActivity() {
         super.onResume()
         if (intent.getBooleanExtra(EXTRA_OPEN_UPLOAD, false)) {
             intent.removeExtra(EXTRA_OPEN_UPLOAD)
-            uploadAudioLauncher.launch("audio/*")
+            val launchIntent = Intent(this, AudioUploadActivity::class.java).apply {
+                putExtra(AudioUploadActivity.EXTRA_LAUNCHED_FROM, AudioUploadActivity.LAUNCHED_FROM_APP)
+            }
+            uploadAudioLauncher.launch(launchIntent)
         }
     }
 

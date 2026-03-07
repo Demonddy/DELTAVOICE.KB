@@ -1,0 +1,42 @@
+# Burp Suite / mitmproxy Checklist — DeltaVoice API Testing
+
+Use with Burp Suite or mitmproxy as system/device proxy.
+Ensure device trusts proxy CA (install Burp/mitmproxy cert).
+
+## Endpoints to Intercept
+
+1. Supabase
+   - https://yvizvsojpwgvaisoahda.supabase.co/functions/v1/*
+   - voice-to-text, translate-text, ai-chat, writing-tool, complete-voice-workflow
+
+2. Convex
+   - https://kindred-curlew-363.eu-west-1.convex.site/complete-voice-workflow
+
+3. OpenAI (if used directly)
+   - https://api.openai.com/v1/chat/completions
+
+4. Dictionary API
+   - https://api.dictionaryapi.dev/api/v2/entries/en/*
+
+5. Google Search
+   - https://www.google.com/search?q=*
+
+## Test Items
+
+[ ] MITM possible (no cert pinning) — request should succeed through proxy
+[ ] Authorization header present (Bearer + Supabase anon key)
+[ ] Request body contains user voice/text — verify encryption in transit (TLS)
+[ ] Response contains translated text / AI response — verify no unnecessary PII
+[ ] Replay attack — capture request, replay; check if server rejects
+[ ] Parameter tampering — modify request body; check validation
+
+## Expected (Current State)
+
+- MITM: LIKELY SUCCESS (no pinning)
+- Auth: Bearer token in header
+- TLS: HTTPS only; proxy can decrypt if cert installed
+
+## After Pinning (Target State)
+
+- MITM: Should fail with SSL/certificate error
+- Connection refused or pinning violation

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- IME root: semi-transparent gradient for blur-through effect -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="135"
+        android:startColor="#80A18CD1"
+        android:endColor="#80FBC2EB"
+        android:type="linear" />
+</shape>

@@ -3,7 +3,6 @@ package com.deltavoice
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -17,11 +16,14 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Activity to pick video/image from gallery for keyboard video processing.
- * Launched by MainKeyboardService; broadcasts the file path when done.
- * Finishes instantly with no animation so user returns directly to keyboard processing panel.
+ * Activity to pick video from gallery. Differentiates by launch source:
+ * - Launched from keyboard: broadcasts path, delays finish, user returns to keyboard processing panel.
+ * - Launched from app: returns path via setResult, finishes immediately, user stays in app.
  */
 class VideoUploadActivity : AppCompatActivity() {
+
+    private val launchedFrom: String
+        get() = intent?.getStringExtra(EXTRA_LAUNCHED_FROM) ?: LAUNCHED_FROM_KEYBOARD
 
     private val pickMedia = registerForActivityResult(
         ActivityResultContracts.GetContent()
@@ -83,16 +85,21 @@ class VideoUploadActivity : AppCompatActivity() {
             }
 
             val path = destFile.absolutePath
-
-            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                .edit()
-                .putString(KEY_PENDING_PATH, path)
-                .commit()  // Must be synchronous so keyboard receiver reads path before broadcast
-
-            sendBroadcast(Intent(ACTION_VIDEO_UPLOADED).setPackage(packageName))
             Toast.makeText(this, "File ready for processing", Toast.LENGTH_SHORT).show()
-            // Delay finish so keyboard can request show and user returns to keyboard, not app
-            Handler(Looper.getMainLooper()).postDelayed({ finishInstantly() }, 350)
+
+            if (launchedFrom == LAUNCHED_FROM_APP) {
+                // From app: return path, finish immediately, user stays in app
+                setResult(RESULT_OK, Intent().putExtra(EXTRA_RESULT_PATH, path))
+                finishInstantly()
+            } else {
+                // From keyboard: broadcast, delay finish, user returns to keyboard
+                getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    .edit()
+                    .putString(KEY_PENDING_PATH, path)
+                    .commit()
+                sendBroadcast(Intent(ACTION_VIDEO_UPLOADED).setPackage(packageName))
+                Handler(Looper.getMainLooper()).postDelayed({ finishInstantly() }, 500)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "Failed to open file: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -104,5 +111,9 @@ class VideoUploadActivity : AppCompatActivity() {
         const val ACTION_VIDEO_UPLOADED = "com.deltavoice.VIDEO_UPLOADED"
         const val PREFS_NAME = "video_upload_prefs"
         const val KEY_PENDING_PATH = "pending_video_path"
+        const val EXTRA_LAUNCHED_FROM = "launched_from"
+        const val LAUNCHED_FROM_KEYBOARD = "keyboard"
+        const val LAUNCHED_FROM_APP = "app"
+        const val EXTRA_RESULT_PATH = "result_path"
     }
 }

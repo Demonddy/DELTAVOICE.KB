@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Network Security Configuration — DeltaVoice
+  See SECURE_CONFIG_GUIDANCE.md for certificate pinning setup.
+-->
+<network-security-config>
+    <!-- Disable cleartext (HTTP) for all connections -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+
+    <!--
+    Certificate pinning: Uncomment and add pins after obtaining from your API hosts.
+    Get pins: openssl s_client -servername DOMAIN -connect DOMAIN:443 2>/dev/null | \
+      openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | \
+      openssl dgst -sha256 -binary | openssl enc -base64
+
+    Domains: yvizvsojpwgvaisoahda.supabase.co, kindred-curlew-363.eu-west-1.convex.site,
+             api.openai.com, api.dictionaryapi.dev
+    -->
+    <!--
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">yvizvsojpwgvaisoahda.supabase.co</domain>
+        <domain includeSubdomains="true">kindred-curlew-363.eu-west-1.convex.site</domain>
+        <pin-set expiration="2027-01-01">
+            <pin digest="SHA-256">REPLACE_WITH_ACTUAL_PIN</pin>
+            <pin digest="SHA-256">REPLACE_WITH_BACKUP_PIN</pin>
+        </pin-set>
+    </domain-config>
+    -->
+</network-security-config>

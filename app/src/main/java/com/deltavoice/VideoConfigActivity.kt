@@ -73,36 +73,14 @@ class VideoConfigActivity : AppCompatActivity() {
         }
     }
 
-    private val uploadVideoLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        if (uri == null) return@registerForActivityResult
-        activityScope.launch {
-            try {
-                val mimeType = contentResolver.getType(uri) ?: ""
-                if (!mimeType.startsWith("video/")) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@VideoConfigActivity, "Please select a video file", Toast.LENGTH_SHORT).show()
-                    }
-                    return@launch
-                }
-                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                val videoDir = File(cacheDir, "videos")
-                if (!videoDir.exists()) videoDir.mkdirs()
-                val destFile = File(videoDir, "UPLOAD_$timestamp.mp4")
-                withContext(Dispatchers.IO) {
-                    contentResolver.openInputStream(uri)?.use { input ->
-                        FileOutputStream(destFile).use { output -> input.copyTo(output) }
-                    }
-                }
-                withContext(Dispatchers.Main) {
-                    videoFilePath = destFile.absolutePath
-                    processingSection.visibility = View.VISIBLE
-                    videoStatus.text = "Video uploaded. Tap Process to translate."
-                    Toast.makeText(this@VideoConfigActivity, "Video ready for processing", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@VideoConfigActivity, "Failed to open file: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
+    private val uploadVideoLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val path = result.data?.getStringExtra(VideoUploadActivity.EXTRA_RESULT_PATH)
+            if (!path.isNullOrBlank()) {
+                videoFilePath = path
+                processingSection.visibility = View.VISIBLE
+                videoStatus.text = "Video uploaded. Tap Process to translate."
+                Toast.makeText(this, "Video ready for processing", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -135,7 +113,12 @@ class VideoConfigActivity : AppCompatActivity() {
         spinnerVoice.adapter = voiceAdapter
 
         val btnUpload = findViewById<Button>(R.id.btn_upload_video)
-        btnUpload.setOnClickListener { uploadVideoLauncher.launch("video/*") }
+        btnUpload.setOnClickListener {
+            val intent = Intent(this, VideoUploadActivity::class.java).apply {
+                putExtra(VideoUploadActivity.EXTRA_LAUNCHED_FROM, VideoUploadActivity.LAUNCHED_FROM_APP)
+            }
+            uploadVideoLauncher.launch(intent)
+        }
         btnRecord.setOnClickListener {
             recordVideoLauncher.launch(Intent(this, VideoRecordingActivity::class.java))
         }
@@ -146,7 +129,10 @@ class VideoConfigActivity : AppCompatActivity() {
         super.onResume()
         if (intent.getBooleanExtra(EXTRA_OPEN_UPLOAD, false)) {
             intent.removeExtra(EXTRA_OPEN_UPLOAD)
-            uploadVideoLauncher.launch("video/*")
+            val launchIntent = Intent(this, VideoUploadActivity::class.java).apply {
+                putExtra(VideoUploadActivity.EXTRA_LAUNCHED_FROM, VideoUploadActivity.LAUNCHED_FROM_APP)
+            }
+            uploadVideoLauncher.launch(launchIntent)
         }
     }
 

@@ -4,25 +4,38 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="#0F0F10"
+    android:background="@drawable/glass_root_background"
     android:padding="8dp">
 
-    <!-- AI Features Row (Top Row with Circular Buttons) -->
-    <LinearLayout
-        android:id="@+id/ai_features_row"
+    <!-- Liquid Glass Top Bar: more_vert, videocam, home, AI, KB, mic, clipboard -->
+    <FrameLayout
+        android:id="@+id/top_bar_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:padding="4dp">
+        android:layout_marginBottom="8dp"
+        android:background="@drawable/glass_panel_background"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:minHeight="60dp">
+
+        <LinearLayout
+            android:id="@+id/ai_features_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="4dp">
 
         <!-- More Options (⋮) - Calculator & Dictionary hidden under -->
         <ImageButton
             android:id="@+id/btn_more"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:src="@drawable/ic_more_vert"
             android:background="@drawable/ai_circle_button"
+            android:tint="#FFFFFF"
             android:contentDescription="More options"
             android:layout_margin="4dp"
             android:padding="8dp" />
@@ -30,10 +43,11 @@
         <!-- Camera/Video Button -->
         <ImageButton
             android:id="@+id/btn_camera"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:src="@drawable/ic_camera"
             android:background="@drawable/ai_circle_button"
+            android:tint="#FFFFFF"
             android:contentDescription="Video Recording"
             android:layout_margin="4dp"
             android:padding="8dp" />
@@ -41,10 +55,11 @@
         <!-- Home Button -->
         <ImageButton
             android:id="@+id/btn_list"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:src="@drawable/ic_home"
             android:background="@drawable/ai_circle_button"
+            android:tint="#FFFFFF"
             android:contentDescription="Home"
             android:layout_margin="4dp"
             android:padding="8dp" />
@@ -52,10 +67,11 @@
         <!-- AI Chat Button -->
         <ImageButton
             android:id="@+id/btn_text_t"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:src="@drawable/ic_ai_chat"
             android:background="@drawable/ai_circle_button"
+            android:tint="#FFFFFF"
             android:contentDescription="AI Chat"
             android:layout_margin="4dp"
             android:padding="8dp" />
@@ -63,10 +79,11 @@
         <!-- KB+ Button (AI Writing Tools) -->
         <ImageButton
             android:id="@+id/btn_kb_plus"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:src="@drawable/ic_kb_plus"
             android:background="@drawable/ai_circle_button"
+            android:tint="#FFFFFF"
             android:contentDescription="AI Writing Tools"
             android:layout_margin="4dp"
             android:padding="8dp" />
@@ -74,10 +91,11 @@
         <!-- Microphone Button -->
         <ImageButton
             android:id="@+id/btn_voice"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:src="@drawable/ic_mic"
             android:background="@drawable/ai_circle_button"
+            android:tint="#FFFFFF"
             android:contentDescription="@string/voice_input"
             android:layout_margin="4dp"
             android:padding="8dp" />
@@ -85,14 +103,16 @@
         <!-- Clipboard Button -->
         <ImageButton
             android:id="@+id/btn_app_grid"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:src="@drawable/ic_clipboard"
             android:background="@drawable/ai_circle_button"
+            android:tint="#FFFFFF"
             android:contentDescription="Clipboard"
             android:layout_margin="4dp"
             android:padding="8dp" />
-    </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
 
     <!-- Predictive text suggestions (replaces icons when typing) -->
     <LinearLayout
@@ -1225,13 +1245,23 @@
             android:contentDescription="Back to keyboard" />
     </LinearLayout>
 
-    <!-- Keyboard Layout -->
+    <!-- Liquid Glass Keyboard Panel -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/glass_keyboard_panel_background"
+        android:padding="8dp"
+        android:paddingBottom="16dp">
+
     <LinearLayout
         android:id="@+id/keyboard_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="6dp">
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp">
 
         <!-- Numbers Row: 1 2 3 4 5 6 7 8 9 0 -->
         <LinearLayout
@@ -1286,5 +1316,7 @@
         </LinearLayout>
 
     </LinearLayout>
+
+    </FrameLayout>
 
 </LinearLayout>

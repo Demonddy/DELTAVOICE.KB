@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Backup rules — DeltaVoice
+  Excludes sensitive SharedPreferences from ADB backup.
+  See SECURITY_MITIGATION_REPORT.md (V5).
+-->
+<full-backup-content>
+    <!-- Exclude prefs containing PII (user_email, user_name) -->
+    <exclude domain="sharedpref" path="deltavoice_prefs.xml" />
+</full-backup-content>

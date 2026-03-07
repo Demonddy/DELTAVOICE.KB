@@ -15,6 +15,7 @@ import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.deltavoice.api.CompleteVoiceWorkflowService
 import kotlinx.coroutines.CoroutineScope
@@ -342,7 +343,7 @@ class VoiceProcessModeActivity : AppCompatActivity() {
         }
         val audioFile = File(audioPath)
         if (!audioFile.exists()) {
-            Toast.makeText(this, "Audio file not found", Toast.LENGTH_SHORT).show()
+            showShareErrorDialog()
             return
         }
         try {
@@ -364,8 +365,17 @@ class VoiceProcessModeActivity : AppCompatActivity() {
             }
             startActivity(chooserIntent)
         } catch (e: Exception) {
-            Toast.makeText(this, "Error sharing: ${e.message}", Toast.LENGTH_LONG).show()
+            android.util.Log.e("VoiceProcessMode", "Share failed", e)
+            showShareErrorDialog()
         }
+    }
+
+    private fun showShareErrorDialog() {
+        AlertDialog.Builder(this, R.style.Theme_DeltaVoice_Dialog)
+            .setTitle(R.string.share_failed_title)
+            .setMessage(R.string.share_failed_message)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
     }
 
     private fun setupAudioPlayer() {

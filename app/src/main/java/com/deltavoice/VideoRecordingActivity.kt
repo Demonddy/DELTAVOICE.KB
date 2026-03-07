@@ -2,7 +2,6 @@ package com.deltavoice
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.media.CamcorderProfile
 import android.media.MediaRecorder
 import android.os.Bundle
 import android.os.Environment
@@ -14,7 +13,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import java.io.File
-import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -77,10 +75,9 @@ class VideoRecordingActivity : AppCompatActivity() {
             Manifest.permission.RECORD_AUDIO
         ) == PackageManager.PERMISSION_GRANTED
 
-        val hasStorage = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            true // No storage permission needed for API 33+
-        } else {
-            ContextCompat.checkSelfPermission(
+        val hasStorage = when {
+            android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q -> true
+            else -> ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE
             ) == PackageManager.PERMISSION_GRANTED
@@ -90,18 +87,17 @@ class VideoRecordingActivity : AppCompatActivity() {
     }
 
     /**
-     * Request camera, audio, and storage permissions
+     * Request camera and audio permissions.
+     * Storage only needed pre-API 29 for public dirs.
      */
     private fun requestPermissions() {
         val permissions = mutableListOf(
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO
         )
-        
-        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
             permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
         }
-
         ActivityCompat.requestPermissions(
             this,
             permissions.toTypedArray(),
@@ -149,16 +145,16 @@ class VideoRecordingActivity : AppCompatActivity() {
                 MediaRecorder()
             }
 
+            val outputPath = videoFile?.absolutePath ?: throw IllegalStateException("Video file is null")
             mediaRecorder?.apply {
                 setAudioSource(MediaRecorder.AudioSource.MIC)
                 setVideoSource(MediaRecorder.VideoSource.CAMERA)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                 setVideoEncoder(MediaRecorder.VideoEncoder.H264)
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setVideoEncodingBitRate(10000000)
-                setVideoSize(1280, 720)
+                setVideoEncodingBitRate(4_000_000)
                 setMaxDuration(MAX_DURATION_MS)
-                setOutputFile(videoFile?.absolutePath)
+                setOutputFile(outputPath)
 
                 setOnInfoListener { _, what, _ ->
                     if (what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED) {
@@ -166,7 +162,25 @@ class VideoRecordingActivity : AppCompatActivity() {
                     }
                 }
 
-                prepare()
+                try {
+                    setVideoSize(1280, 720)
+                    prepare()
+                } catch (_: Exception) {
+                    reset()
+                    setAudioSource(MediaRecorder.AudioSource.MIC)
+                    setVideoSource(MediaRecorder.VideoSource.CAMERA)
+                    setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                    setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+                    setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                    setVideoEncodingBitRate(2_000_000)
+                    setVideoSize(640, 480)
+                    setMaxDuration(MAX_DURATION_MS)
+                    setOutputFile(outputPath)
+                    setOnInfoListener { _, what, _ ->
+                        if (what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED) stopRecording()
+                    }
+                    prepare()
+                }
                 start()
 
                 isRecording = true
@@ -176,10 +190,11 @@ class VideoRecordingActivity : AppCompatActivity() {
                 stopButton.isEnabled = true
                 stopButton.visibility = View.VISIBLE
             }
-        } catch (e: IOException) {
-            e.printStackTrace()
-            Toast.makeText(this, "Failed to start recording: ${e.message}", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            android.util.Log.e("VideoRecording", "Start recording failed", e)
+            Toast.makeText(this, "Failed to start recording: ${e.message}", Toast.LENGTH_LONG).show()
             releaseMediaRecorder()
+            videoFile = null
         }
     }
 
@@ -216,20 +231,22 @@ class VideoRecordingActivity : AppCompatActivity() {
     }
 
     /**
-     * Create a video file with timestamp
+     * Create a video file with timestamp.
+     * Uses app-specific dir (no permission needed on API 29+); falls back to cacheDir if null.
      */
     private fun createVideoFile(): File {
         val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         val videoFileName = "VIDEO_$timeStamp.mp4"
-        
+
         val storageDir = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            // Use app-specific directory for Android 10+
             getExternalFilesDir(Environment.DIRECTORY_MOVIES)
         } else {
+            @Suppress("DEPRECATION")
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
         }
-
-        return File(storageDir, videoFileName)
+        val dir = storageDir ?: cacheDir
+        dir.mkdirs()
+        return File(dir, videoFileName)
     }
 
     /**

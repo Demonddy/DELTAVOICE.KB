@@ -53,6 +53,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
 import android.Manifest
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.DrawableCompat
 import com.deltavoice.api.VoiceToTextService
@@ -72,6 +73,8 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import java.io.File
 import java.io.IOException
@@ -130,14 +133,19 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private var backspaceRepeatRunnable: Runnable? = null
     private var isBackspaceRepeating: Boolean = false
     private companion object {
+        // Performance targets: backspace 30-45 chars/sec when held, typing 12-15 chars/sec
         private const val PREDICTION_DELAY_NORMAL_MS = 140L
         private const val PREDICTION_DELAY_FAST_MS = 320L
-        private const val FAST_TYPING_INTERVAL_MS = 85L
+        private const val FAST_TYPING_INTERVAL_MS = 90L   // 12-15 chars/sec = 67-83ms between taps
         private const val KEY_FEEDBACK_PREFS_CACHE_MS = 1000L
         private const val PREDICTION_PREFS_CACHE_MS = 1000L
-        private const val BACKSPACE_REPEAT_START_DELAY_MS = 220L
-        private const val BACKSPACE_REPEAT_INTERVAL_MS = 80L  // ~12 chars/sec
-        private const val KEY_PRESS_ANIM_DURATION_MS = 35L    // Snappy for 12-20 chars/sec feel
+        private const val BACKSPACE_REPEAT_START_DELAY_MS = 150L  // ms before repeat starts
+        private const val BACKSPACE_REPEAT_INTERVAL_MS = 22L     // ~45 chars/sec when held
+        private const val KEY_PRESS_ANIM_DURATION_MS = 35L
+        private const val CLIPBOARD_PREFS = "clipboard_prefs"
+        private const val CLIPBOARD_HISTORY_KEY = "clipboard_history"
+        private const val CLIPBOARD_MAX_ITEMS = 20
+        private const val CLIPBOARD_DELIMITER = "\u001E"
     }
 
     private val languages = listOf(
@@ -382,6 +390,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     // AI Writing Tools
     private lateinit var aiWritingToolsContainer: View
     private var isAiWritingToolsVisible = false
+
+    // Clipboard (Gboard-style)
+    private val clipboardHistory = mutableListOf<String>()
+    private var clipboardManager: ClipboardManager? = null
+    private var clipboardListener: ClipboardManager.OnPrimaryClipChangedListener? = null
+    private var isClipboardVisible = false
     
     private val dictLanguages = listOf(
         "en" to "English",
@@ -515,10 +529,39 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     override fun onStartInputView(info: android.view.inputmethod.EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         rootView?.let { applyOrientationOptimizations(it) }
+        // Apply pending upload state so user lands on Step 2 (voice) or Preview & Process (video)
+        if (pendingShowVoiceFromUpload && !recordingFilePath.isNullOrBlank()) {
+            pendingShowVoiceFromUpload = false
+            showVoiceProcessingUI()
+        }
+        if (pendingShowVideoFromUpload && !videoFilePath.isNullOrBlank()) {
+            pendingShowVideoFromUpload = false
+            showVideoPreview()
+        }
         // Reload saved language and rebuild layout when keyboard is shown
         loadKeyboardLanguagePreference()
         spaceBarButton?.text = currentKeyboardLanguageName
         rebuildKeyboardLayout()
+        // Enable background blur and transparency (API 31+)
+        applyBlurAndTransparency()
+    }
+
+    /**
+     * Apply window blur and transparency for Liquid Glass effect.
+     * Blur requires API 31+; transparency works on all versions.
+     * Note: InputMethodService.window returns a Dialog (SoftInputWindow); use .window to get the actual Window.
+     */
+    private fun applyBlurAndTransparency() {
+        val w = (window as? android.app.Dialog)?.window ?: return
+        w.setBackgroundDrawableResource(R.drawable.transparent_background)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            applyBlurRadius(w)
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun applyBlurRadius(window: android.view.Window) {
+        window.setBackgroundBlurRadius(80)
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
@@ -531,6 +574,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
     private var videoUploadReceiver: BroadcastReceiver? = null
     private var audioUploadReceiver: BroadcastReceiver? = null
+    private var pendingShowVoiceFromUpload = false
+    private var pendingShowVideoFromUpload = false
 
     override fun onCreate() {
         super.onCreate()
@@ -543,13 +588,21 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     .edit()
                     .remove(VideoUploadActivity.KEY_PENDING_PATH)
                     .apply()
-                path?.let { showVideoPreviewWithPath(it) }
-                // Bring keyboard back to processing panel (not app) - delay for activity transition
-                Handler(Looper.getMainLooper()).postDelayed({
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                        requestShowSelf(InputMethodManager.SHOW_FORCED)
-                    }
-                }, 150)
+                path?.let { p ->
+                    videoFilePath = p
+                    pendingShowVideoFromUpload = true
+                    if (rootView?.isAttachedToWindow == true) showVideoPreview()
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            requestShowSelf(InputMethodManager.SHOW_FORCED)
+                        }
+                    }, 100)
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            requestShowSelf(InputMethodManager.SHOW_FORCED)
+                        }
+                    }, 450)
+                }
             }
         }
         audioUploadReceiver = object : BroadcastReceiver() {
@@ -561,13 +614,21 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     .edit()
                     .remove(AudioUploadActivity.KEY_PENDING_PATH)
                     .apply()
-                path?.let { showVoiceProcessingWithPath(it) }
-                // Bring keyboard back to processing panel (not app) - delay for activity transition
-                Handler(Looper.getMainLooper()).postDelayed({
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                        requestShowSelf(InputMethodManager.SHOW_FORCED)
-                    }
-                }, 150)
+                path?.let { p ->
+                    recordingFilePath = p
+                    pendingShowVoiceFromUpload = true
+                    if (rootView?.isAttachedToWindow == true) showVoiceProcessingUI()
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            requestShowSelf(InputMethodManager.SHOW_FORCED)
+                        }
+                    }, 100)
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            requestShowSelf(InputMethodManager.SHOW_FORCED)
+                        }
+                    }, 450)
+                }
             }
         }
         val videoFilter = IntentFilter(VideoUploadActivity.ACTION_VIDEO_UPLOADED)
@@ -581,6 +642,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             @Suppress("DEPRECATION")
             registerReceiver(audioUploadReceiver, audioFilter)
         }
+        // Clipboard history: capture copies from any app
+        clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        loadClipboardHistory()
+        clipboardListener = ClipboardManager.OnPrimaryClipChangedListener { syncCurrentClipboardToHistory() }
+        clipboardManager?.addPrimaryClipChangedListener(clipboardListener!!)
     }
 
     /**
@@ -599,7 +665,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun applyLandscapeOptimizations(view: View) {
         val dp = resources.displayMetrics.density
-        val iconSizePx = (40 * dp).toInt()  // Match predictions row icons (40dp)
+        val iconSizePx = (36 * dp).toInt()  // Liquid Glass top bar (36dp)
         
         // Compact icon row
         view.findViewById<View>(R.id.ai_features_row)?.let { row ->
@@ -643,7 +709,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun applyPortraitOptimizations(view: View) {
         val dp = resources.displayMetrics.density
-        val iconSizePx = (40 * dp).toInt()
+        val iconSizePx = (36 * dp).toInt()  // Liquid Glass top bar (36dp)
 
         view.findViewById<View>(R.id.ai_features_row)?.let { row ->
             (row as? ViewGroup)?.let { group ->
@@ -679,11 +745,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
 
     private fun hideTopBarsForOverlay() {
+        rootView?.findViewById<View>(R.id.top_bar_container)?.visibility = View.GONE
         rootView?.findViewById<View>(R.id.ai_features_row)?.visibility = View.GONE
         rootView?.findViewById<View>(R.id.predictions_container)?.visibility = View.GONE
     }
 
     private fun showTopBarsAfterOverlay() {
+        rootView?.findViewById<View>(R.id.top_bar_container)?.visibility = View.VISIBLE
         rootView?.findViewById<View>(R.id.ai_features_row)?.visibility = View.VISIBLE
         rootView?.findViewById<View>(R.id.predictions_container)?.visibility = View.GONE
     }
@@ -1154,6 +1222,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun launchAudioUploadPicker() {
         val intent = Intent(this, AudioUploadActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY)
+            putExtra(AudioUploadActivity.EXTRA_LAUNCHED_FROM, AudioUploadActivity.LAUNCHED_FROM_KEYBOARD)
         }
         startActivity(intent)
     }
@@ -1173,6 +1242,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         hideAllOverlays()
         keyboardContainer.visibility = View.GONE
         voiceProcessingStep2Container.visibility = View.VISIBLE
+        
+        // Default to "Change Language & Voice" (complete) when showing Step 2
+        updateKeyboardModeSelection("complete")
         
         // Reset processed audio state when showing UI
         clearProcessedAudio()
@@ -1506,15 +1578,16 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Share an audio file directly to the current chat, or fall back to share chooser.
      */
     private fun shareAudioFile(audioFile: File, chooserTitle: String, onComplete: () -> Unit = {}) {
-        // Try direct insertion into current chat first
+        if (!audioFile.exists()) {
+            Toast.makeText(this, getString(R.string.share_failed_message), Toast.LENGTH_LONG).show()
+            return
+        }
         if (trySendContentDirectly(audioFile, "audio/mpeg")) {
             Toast.makeText(this, "✓ Sent to chat", Toast.LENGTH_SHORT).show()
             onComplete()
             Handler(mainLooper).postDelayed({ try { audioFile.delete() } catch (_: Exception) { } }, 45000)
             return
         }
-
-        // Fallback: share chooser
         try {
             val uri = androidx.core.content.FileProvider.getUriForFile(
                 this, "${packageName}.fileprovider", audioFile
@@ -1526,14 +1599,16 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 clipData = android.content.ClipData.newUri(contentResolver, "audio", uri)
             }
-            startActivity(Intent.createChooser(shareIntent, chooserTitle).apply {
+            val chooserIntent = Intent.createChooser(shareIntent, chooserTitle).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            })
+            }
+            startActivity(chooserIntent)
             onComplete()
             Handler(mainLooper).postDelayed({ try { audioFile.delete() } catch (_: Exception) { } }, 45000)
         } catch (e: Exception) {
-            Toast.makeText(this, "Error sharing: ${e.message}", Toast.LENGTH_LONG).show()
+            android.util.Log.e("DeltaVoice", "Share audio failed", e)
+            Toast.makeText(this, getString(R.string.share_failed_message), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -1541,15 +1616,16 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Share a video file directly to the current chat, or fall back to share chooser.
      */
     private fun shareVideoFile(videoFile: File, chooserTitle: String, onComplete: () -> Unit = {}) {
-        // Try direct insertion into current chat first
+        if (!videoFile.exists()) {
+            Toast.makeText(this, getString(R.string.share_failed_message), Toast.LENGTH_LONG).show()
+            return
+        }
         if (trySendContentDirectly(videoFile, "video/mp4")) {
             Toast.makeText(this, "✓ Sent to chat", Toast.LENGTH_SHORT).show()
             onComplete()
             Handler(mainLooper).postDelayed({ try { videoFile.delete() } catch (_: Exception) { } }, 45000)
             return
         }
-
-        // Fallback: share chooser
         try {
             val uri = androidx.core.content.FileProvider.getUriForFile(
                 this, "${packageName}.fileprovider", videoFile
@@ -1561,14 +1637,16 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 clipData = android.content.ClipData.newUri(contentResolver, "video", uri)
             }
-            startActivity(Intent.createChooser(shareIntent, chooserTitle).apply {
+            val chooserIntent = Intent.createChooser(shareIntent, chooserTitle).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            })
+            }
+            startActivity(chooserIntent)
             onComplete()
             Handler(mainLooper).postDelayed({ try { videoFile.delete() } catch (_: Exception) { } }, 45000)
         } catch (e: Exception) {
-            Toast.makeText(this, "Error sharing: ${e.message}", Toast.LENGTH_LONG).show()
+            android.util.Log.e("DeltaVoice", "Share video failed", e)
+            Toast.makeText(this, getString(R.string.share_failed_message), Toast.LENGTH_LONG).show()
         }
     }
     
@@ -1734,7 +1812,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             openAppHomepage()
         }
         appGridButton?.setOnClickListener {
-            Toast.makeText(this, "Apps", Toast.LENGTH_SHORT).show()
+            playKeyFeedback(it)
+            toggleClipboardPopup()
         }
 
         // Back to keyboard (from more options)
@@ -3960,7 +4039,119 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             showDictionary()
         }
     }
-    
+
+    // ==================== CLIPBOARD (Gboard-style) ====================
+
+    private fun toggleClipboardPopup() {
+        if (isVoiceUiActive()) {
+            Toast.makeText(this, "Finish voice input first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        rootView ?: return
+        val aiRow = rootView!!.findViewById<View>(R.id.ai_features_row)
+        val predictionsContainer = rootView!!.findViewById<View>(R.id.predictions_container)
+        if (aiRow == null || predictionsContainer == null) return
+        if (isClipboardVisible) {
+            showIconsHidePredictions(aiRow, predictionsContainer)
+            isClipboardVisible = false
+            return
+        }
+        showClipboardOnKeys()
+    }
+
+    private fun loadClipboardHistory() {
+        clipboardHistory.clear()
+        val prefs = getSharedPreferences(CLIPBOARD_PREFS, Context.MODE_PRIVATE)
+        val stored = prefs.getString(CLIPBOARD_HISTORY_KEY, null) ?: return
+        val items = stored.split(CLIPBOARD_DELIMITER).filter { it.isNotBlank() }
+        clipboardHistory.addAll(items)
+    }
+
+    private fun saveClipboardHistory() {
+        getSharedPreferences(CLIPBOARD_PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(CLIPBOARD_HISTORY_KEY, clipboardHistory.joinToString(CLIPBOARD_DELIMITER))
+            .apply()
+    }
+
+    private fun addToClipboardHistory(text: String) {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return
+        clipboardHistory.removeAll { it == trimmed }
+        clipboardHistory.add(0, trimmed)
+        while (clipboardHistory.size > CLIPBOARD_MAX_ITEMS) {
+            clipboardHistory.removeAt(clipboardHistory.size - 1)
+        }
+        saveClipboardHistory()
+    }
+
+    private fun syncCurrentClipboardToHistory() {
+        val clip = clipboardManager?.primaryClip ?: return
+        if (clip.itemCount == 0) return
+        val item = clip.getItemAt(0)
+        val text = item?.coerceToText(this)?.toString() ?: return
+        if (text.isNotBlank()) addToClipboardHistory(text)
+    }
+
+    private fun showClipboardOnKeys() {
+        val root = rootView ?: return
+        val aiRow = root.findViewById<View>(R.id.ai_features_row)
+        val predictionsContainer = root.findViewById<View>(R.id.predictions_container)
+        val predictionsRow = root.findViewById<LinearLayout>(R.id.predictions_row)
+        if (aiRow == null || predictionsContainer == null || predictionsRow == null) return
+
+        syncCurrentClipboardToHistory()
+        val items = clipboardHistory.toList()
+
+        isClipboardVisible = true
+        lastRenderedSuggestions = emptyList()
+        val topBar = (aiRow.parent as? View)
+        topBar?.visibility = View.GONE
+        aiRow.visibility = View.GONE
+        predictionsContainer.visibility = View.VISIBLE
+        predictionsRow.removeAllViews()
+
+        if (items.isEmpty()) {
+            val emptyChip = Button(this).apply {
+                text = "📋 No copied text yet"
+                textSize = 13f
+                setTextColor(Color.parseColor("#888888"))
+                setPadding(16.dpToPx(), 8.dpToPx(), 16.dpToPx(), 8.dpToPx())
+                background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.glass_key_background)
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+                isEnabled = false
+            }
+            predictionsRow.addView(emptyChip)
+        } else {
+            items.forEach { text ->
+                val displayText = if (text.length > 40) text.take(40) + "…" else text
+                val chip = Button(this).apply {
+                    this.text = displayText
+                    textSize = 13f
+                    setTextColor(Color.parseColor("#EDEFF4"))
+                    setPadding(12.dpToPx(), 8.dpToPx(), 12.dpToPx(), 8.dpToPx())
+                    background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.glass_key_background)
+                    layoutParams = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                    ).apply { marginEnd = 6.dpToPx() }
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
+                    setOnClickListener {
+                        playKeyFeedback(it)
+                        currentInputConnection?.commitText(text, 1)
+                        showIconsHidePredictions(aiRow, predictionsContainer)
+                        isClipboardVisible = false
+                    }
+                }
+                predictionsRow.addView(chip)
+            }
+        }
+    }
+
     // ==================== AI CHAT FUNCTIONS ====================
     
     /**
@@ -4988,6 +5179,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun launchVideoUploadPicker() {
         val intent = Intent(this, VideoUploadActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY)
+            putExtra(VideoUploadActivity.EXTRA_LAUNCHED_FROM, VideoUploadActivity.LAUNCHED_FROM_KEYBOARD)
         }
         startActivity(intent)
     }
@@ -5939,6 +6131,14 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Hide all overlay components
      */
     private fun hideAllOverlays() {
+        isClipboardVisible = false
+        rootView?.let { v ->
+            val topBar = v.findViewById<View>(R.id.top_bar_container)
+            val predictionsContainer = v.findViewById<View>(R.id.predictions_container)
+            topBar?.visibility = View.VISIBLE
+            predictionsContainer?.visibility = View.GONE
+        }
+
         emojiPickerContainer?.visibility = View.GONE
         isEmojiPickerVisible = false
 
@@ -6051,7 +6251,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val periodButton = createKeyButton(".", ".", weight = 1f)
         rowBottom.addView(periodButton)
 
-        val enterButton = createSpecialKeyButton("↵", "ENTER", weight = 1.2f)
+        val enterButton = createSpecialKeyButton("↵", "ENTER", weight = 1.2f, isEnterKey = true)
         rowBottom.addView(enterButton)
     }
 
@@ -6078,7 +6278,85 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             setIncludeFontPadding(true)
             setPadding(10, 12, 10, 12)
             minHeight = getKeyHeightDp().dpToPx()
-            background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.key_dark_background)
+            background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.glass_key_background)
+            
+            val layoutParams = LinearLayout.LayoutParams(
+                0,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                this.weight = weight
+                marginStart = 3.dpToPx()
+                marginEnd = 3.dpToPx()
+                topMargin = 3.dpToPx()
+                bottomMargin = 3.dpToPx()
+            }
+            this.layoutParams = layoutParams
+            
+            // Prevent focus
+            isFocusable = false
+            isFocusableInTouchMode = false
+
+            setKeyPressWithAnimation(this) { handleKeyPress(value) }
+        }
+        return button
+    }
+
+    /**
+     * Create a key button with number above letter (for QWERTY row)
+     */
+    private fun createKeyButtonWithNumber(number: String, letter: String): Button {
+        val button = Button(this).apply {
+            text = "$number\n${letter.lowercase()}"
+            textSize = 12f
+            setTextColor(Color.parseColor("#333333"))
+            gravity = Gravity.CENTER
+            isAllCaps = false
+            setIncludeFontPadding(true)
+            setLineSpacing(0f, 1.12f)
+            setPadding(12, 10, 12, 16)
+            minHeight = (getKeyHeightDp() + 4).dpToPx()
+            background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.glass_key_background)
+            
+            val layoutParams = LinearLayout.LayoutParams(
+                0,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                weight = 1f
+                marginStart = 3.dpToPx()
+                marginEnd = 3.dpToPx()
+                topMargin = 3.dpToPx()
+                bottomMargin = 3.dpToPx()
+            }
+            this.layoutParams = layoutParams
+            
+            // Prevent focus
+            isFocusable = false
+            isFocusableInTouchMode = false
+
+            setKeyPressWithAnimation(this) {
+                val key = if (isShiftPressed) letter else letter.lowercase()
+                handleKeyPress(key)
+            }
+        }
+        return button
+    }
+    
+    /**
+     * Create a special function key button (Liquid Glass styling)
+     * @param isEnterKey use glass_key_enter_background for return/enter key
+     */
+    private fun createSpecialKeyButton(label: String, value: String, weight: Float = 1f, isEnterKey: Boolean = false): Button {
+        val drawableRes = if (isEnterKey) R.drawable.glass_key_enter_background else R.drawable.glass_key_special_background
+        val button = Button(this).apply {
+            text = label
+            textSize = 14f
+            setTextColor(Color.parseColor("#F2F2F2"))
+            gravity = Gravity.CENTER
+            isAllCaps = false
+            setIncludeFontPadding(true)
+            setPadding(10, 12, 10, 12)
+            minHeight = getKeyHeightDp().dpToPx()
+            background = ContextCompat.getDrawable(this@MainKeyboardService, drawableRes)
             
             val layoutParams = LinearLayout.LayoutParams(
                 0,
@@ -6125,85 +6403,6 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             } else {
                 setKeyPressWithAnimation(this) { handleKeyPress(value) }
             }
-        }
-        return button
-    }
-    
-    /**
-     * Create a key button with number above letter (for QWERTY row)
-     */
-    private fun createKeyButtonWithNumber(number: String, letter: String): Button {
-        val button = Button(this).apply {
-            text = "$number\n${letter.lowercase()}"
-            textSize = 12f
-            setTextColor(Color.parseColor("#333333"))
-            gravity = Gravity.CENTER
-            isAllCaps = false
-            setIncludeFontPadding(true)
-            setLineSpacing(0f, 1.12f)
-            setPadding(12, 10, 12, 16)
-            minHeight = (getKeyHeightDp() + 4).dpToPx()
-            background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.key_dark_background)
-            
-            val layoutParams = LinearLayout.LayoutParams(
-                0,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                weight = 1f
-                marginStart = 3.dpToPx()
-                marginEnd = 3.dpToPx()
-                topMargin = 3.dpToPx()
-                bottomMargin = 3.dpToPx()
-            }
-            this.layoutParams = layoutParams
-            
-            // Prevent focus
-            isFocusable = false
-            isFocusableInTouchMode = false
-
-            setKeyPressWithAnimation(this) {
-                val key = if (isShiftPressed) letter else letter.lowercase()
-                handleKeyPress(key)
-            }
-        }
-        return button
-    }
-    
-    /**
-     * Create a special function key button (blue background for special keys)
-     */
-    private fun createSpecialKeyButton(label: String, value: String, weight: Float = 1f): Button {
-        val button = Button(this).apply {
-            text = label
-            textSize = 14f
-            setTextColor(Color.parseColor("#F2F2F2"))
-            gravity = Gravity.CENTER
-            isAllCaps = false
-            setIncludeFontPadding(true)
-            setPadding(10, 12, 10, 12)
-            minHeight = getKeyHeightDp().dpToPx()
-            background = ContextCompat.getDrawable(
-                this@MainKeyboardService,
-                R.drawable.key_function_background
-            )
-            
-            val layoutParams = LinearLayout.LayoutParams(
-                0,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                this.weight = weight
-                marginStart = 3.dpToPx()
-                marginEnd = 3.dpToPx()
-                topMargin = 3.dpToPx()
-                bottomMargin = 3.dpToPx()
-            }
-            this.layoutParams = layoutParams
-            
-            // Prevent focus
-            isFocusable = false
-            isFocusableInTouchMode = false
-
-            setKeyPressWithAnimation(this) { handleKeyPress(value) }
         }
         return button
     }
@@ -6443,7 +6642,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val autoCorrection = autoCorrectionEnabled
         
         val textBefore = currentInputConnection?.getTextBeforeCursor(100, 0)?.toString() ?: run {
-            showIconsHidePredictions(aiRow, predictionsContainer)
+            if (!isClipboardVisible) showIconsHidePredictions(aiRow, predictionsContainer)
             return
         }
         val currentWord = textBefore.takeLastWhile { c -> c.isLetter() || c == '\'' }
@@ -6451,7 +6650,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         if (currentWord.isEmpty()) {
             lastPredictionQuery = ""
             lastRenderedSuggestions = emptyList()
-            showIconsHidePredictions(aiRow, predictionsContainer)
+            if (!isClipboardVisible) showIconsHidePredictions(aiRow, predictionsContainer)
             return
         }
 
@@ -6471,8 +6670,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         ) { suggestions ->
             if (query != lastPredictionQuery) return@getPredictions
             if (suggestions.isNotEmpty()) {
+                isClipboardVisible = false
                 showPredictionsHideIcons(aiRow, predictionsContainer, predictionsRow, suggestions)
-            } else {
+            } else if (!isClipboardVisible) {
                 lastRenderedSuggestions = emptyList()
                 showIconsHidePredictions(aiRow, predictionsContainer)
             }
@@ -6480,6 +6680,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     private fun showPredictionsHideIcons(aiRow: View, predictionsContainer: View, predictionsRow: LinearLayout, suggestions: List<String>) {
+        val topBar = (aiRow.parent as? View)
         if (suggestions == lastRenderedSuggestions &&
             aiRow.visibility == View.GONE &&
             predictionsContainer.visibility == View.VISIBLE) {
@@ -6487,6 +6688,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
 
         lastRenderedSuggestions = suggestions.toList()
+        topBar?.visibility = View.GONE
         aiRow.visibility = View.GONE
         predictionsContainer.visibility = View.VISIBLE
         predictionsRow.removeAllViews()
@@ -6497,7 +6699,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 textSize = 14f
                 setTextColor(Color.parseColor("#EDEFF4"))
                 setPadding(16.dpToPx(), 8.dpToPx(), 16.dpToPx(), 8.dpToPx())
-                background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.key_dark_background)
+                background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.glass_key_background)
                 layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
@@ -6515,8 +6717,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     private fun showIconsHidePredictions(aiRow: View, predictionsContainer: View) {
+        val topBar = (aiRow.parent as? View)
         if (aiRow.visibility == View.VISIBLE && predictionsContainer.visibility == View.GONE) return
         lastRenderedSuggestions = emptyList()
+        isClipboardVisible = false
+        topBar?.visibility = View.VISIBLE
         aiRow.visibility = View.VISIBLE
         predictionsContainer.visibility = View.GONE
     }
@@ -6595,9 +6800,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun updateShiftButton() {
         shiftButton?.let { button ->
             if (isShiftPressed) {
-                button.setBackgroundColor(Color.parseColor("#5A5A5A"))
+                button.setBackgroundColor(Color.parseColor("#33FFFFFF"))
             } else {
-                button.background = ContextCompat.getDrawable(this, R.drawable.key_function_background)
+                button.background = ContextCompat.getDrawable(this, R.drawable.glass_key_special_background)
             }
         }
     }
@@ -7185,6 +7390,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         lastPredictionQuery = ""
         predictionRunnable?.let { predictionHandler.removeCallbacks(it) }
         rootView?.let { v ->
+            v.findViewById<View>(R.id.top_bar_container)?.visibility = View.VISIBLE
             v.findViewById<View>(R.id.ai_features_row)?.visibility = View.VISIBLE
             v.findViewById<View>(R.id.predictions_container)?.visibility = View.GONE
         }
@@ -8005,6 +8211,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         videoUploadReceiver = null
         audioUploadReceiver?.let { unregisterReceiver(it) }
         audioUploadReceiver = null
+        clipboardListener?.let { clipboardManager?.removePrimaryClipChangedListener(it) }
+        clipboardListener = null
+        clipboardManager = null
         // Release camera so status bar icon disappears
         releaseCameraAndStopThread()
         super.onDestroy()
