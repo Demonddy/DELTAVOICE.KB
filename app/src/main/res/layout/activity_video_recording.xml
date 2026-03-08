@@ -1,53 +1,95 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="24dp"
-    android:minWidth="320dp"
-    android:background="@color/background_card"
-    android:gravity="center">
+    android:layout_height="match_parent"
+    android:background="#0A0A0A">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Video Recording"
-        android:textColor="@color/text_primary"
-        android:textSize="20sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="8dp" />
-
-    <TextView
-        android:id="@+id/status_text"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Ready to record video with audio"
-        android:textColor="@color/text_secondary"
-        android:textSize="14sp"
-        android:layout_marginBottom="24dp" />
-
-    <Button
-        android:id="@+id/record_button"
+    <!-- Camera Preview - same as keyboard -->
+    <TextureView
+        android:id="@+id/camera_preview"
         android:layout_width="match_parent"
-        android:layout_height="52dp"
-        android:text="Start Recording"
-        android:background="@drawable/voice_mode_button_purple"
-        android:textColor="@color/text_primary"
-        android:textAllCaps="false"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="12dp" />
+        android:layout_height="match_parent" />
 
-    <Button
-        android:id="@+id/stop_button"
+    <!-- Header Overlay -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="52dp"
-        android:text="Stop Recording"
-        android:background="@drawable/voice_mode_button_green"
-        android:textColor="@color/text_primary"
-        android:textAllCaps="false"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:visibility="gone" />
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="12dp"
+        android:background="#80000000"
+        android:layout_gravity="top">
 
-</LinearLayout>
+        <ImageButton
+            android:id="@+id/btn_back"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_arrow_back"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Back"
+            android:tint="#FFFFFF" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Video Recording"
+            android:textSize="16sp"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:layout_marginStart="12dp" />
+
+        <TextView
+            android:id="@+id/recording_timer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="00:00"
+            android:textSize="14sp"
+            android:textColor="#FF5252"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <!-- Controls Overlay -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="24dp"
+        android:layout_gravity="bottom"
+        android:background="#80000000">
+
+        <TextView
+            android:id="@+id/status_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Ready to record video with audio"
+            android:textSize="14sp"
+            android:textColor="#AAAAAA"
+            android:layout_marginBottom="16dp" />
+
+        <Button
+            android:id="@+id/record_button"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="Start Recording"
+            android:background="@drawable/voice_mode_button_purple"
+            android:textColor="#FFFFFF"
+            android:textAllCaps="false"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp" />
+
+        <Button
+            android:id="@+id/stop_button"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="Stop Recording"
+            android:background="@drawable/voice_mode_button_green"
+            android:textColor="#FFFFFF"
+            android:textAllCaps="false"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+    </LinearLayout>
+</FrameLayout>
