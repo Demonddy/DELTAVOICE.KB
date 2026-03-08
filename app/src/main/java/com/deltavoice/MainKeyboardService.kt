@@ -76,7 +76,10 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ContentValues
 import android.content.Context
+import android.os.Environment
+import android.provider.MediaStore
 import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat
@@ -208,10 +211,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             displayName = "Русский"
         ),
         "ar" to KeyboardLayout(
-            numbers = listOf("١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", "٠"),
+            numbers = listOf("١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", "."),
             row1 = listOf("ض", "ص", "ث", "ق", "ف", "غ", "ع", "ه", "خ", "ح", "ج"),
-            row2 = listOf("ش", "س", "ي", "ب", "ل", "ا", "ت", "ن", "م", "ك", "ط"),
-            row3 = listOf("ئ", "ء", "ؤ", "ر", "لا", "ى", "ة", "و", "ز", "ظ"),
+            row2 = listOf("ش", "س", "ي", "ب", "ل", "أ", "ت", "ن", "م", "ك", "ط"),
+            row3 = listOf("ذ", "ء", "ؤ", "ر", "ئ", "ة", "و", "ز", "ظ", "د"),
             displayName = "العربية"
         ),
         "hi" to KeyboardLayout(
@@ -1609,7 +1612,36 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
 
     /**
+     * Save video to MediaStore so Messenger, WhatsApp, Telegram etc. can read it.
+     * MediaStore URIs are more reliably accepted by messaging apps than FileProvider cache URIs.
+     * Returns the content URI, or null if MediaStore save fails.
+     */
+    private fun saveVideoToMediaStore(videoFile: File): android.net.Uri? {
+        return try {
+            val values = ContentValues().apply {
+                put(MediaStore.Video.Media.DISPLAY_NAME, "translated_video_${System.currentTimeMillis()}.mp4")
+                put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Video.Media.RELATIVE_PATH, "${Environment.DIRECTORY_MOVIES}/DeltaVoice")
+                }
+            }
+            val uri = contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
+            if (uri != null) {
+                contentResolver.openOutputStream(uri)?.use { output ->
+                    videoFile.inputStream().use { input -> input.copyTo(output) }
+                }
+                uri
+            } else null
+        } catch (e: Exception) {
+            android.util.Log.w("DeltaVoice", "MediaStore save failed, will use FileProvider: ${e.message}")
+            null
+        }
+    }
+
+    /**
      * Share a video file directly to the current chat, or fall back to share chooser.
+     * Prefers MediaStore URI (best compatibility with Messenger, WhatsApp, Telegram).
+     * Falls back to FileProvider if MediaStore fails.
      */
     private fun shareVideoFile(videoFile: File, chooserTitle: String, onComplete: () -> Unit = {}) {
         if (!videoFile.exists()) {
@@ -1619,13 +1651,21 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         if (trySendContentDirectly(videoFile, "video/mp4")) {
             Toast.makeText(this, "✓ Sent to chat", Toast.LENGTH_SHORT).show()
             onComplete()
-            Handler(mainLooper).postDelayed({ try { videoFile.delete() } catch (_: Exception) { } }, 45000)
+            Handler(mainLooper).postDelayed({ try { videoFile.delete() } catch (_: Exception) { } }, 300000)
             return
         }
         try {
-            val uri = androidx.core.content.FileProvider.getUriForFile(
-                this, "${packageName}.fileprovider", videoFile
-            )
+            // Prefer MediaStore: messaging apps accept content://media/... URIs more reliably
+            var uri: android.net.Uri? = saveVideoToMediaStore(videoFile)
+            var fileToCleanup: File? = null
+            if (uri == null) {
+                val shareCopy = File(cacheDir, "share_video_${System.currentTimeMillis()}.mp4")
+                videoFile.copyTo(shareCopy, overwrite = true)
+                uri = androidx.core.content.FileProvider.getUriForFile(
+                    this, "${packageName}.fileprovider", shareCopy
+                )
+                fileToCleanup = shareCopy
+            }
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "video/mp4"
                 putExtra(Intent.EXTRA_STREAM, uri)
@@ -1639,7 +1679,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
             startActivity(chooserIntent)
             onComplete()
-            Handler(mainLooper).postDelayed({ try { videoFile.delete() } catch (_: Exception) { } }, 45000)
+            fileToCleanup?.let { f ->
+                Handler(mainLooper).postDelayed({ try { f.delete() } catch (_: Exception) { } }, 300000)
+            }
         } catch (e: Exception) {
             android.util.Log.e("DeltaVoice", "Share video failed", e)
             Toast.makeText(this, getString(R.string.share_failed_message), Toast.LENGTH_LONG).show()
@@ -2969,9 +3011,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             listOf("z", "x", "c", "v", "b", "n", "m")
         ),
         "ar" to Triple(
-            listOf("ض", "ص", "ث", "ق", "ف", "غ", "ع", "ه", "خ", "ح"),
-            listOf("ش", "س", "ي", "ب", "ل", "ا", "ت", "ن", "م", "ك"),
-            listOf("ئ", "ء", "ؤ", "ر", "ى", "ة", "و", "ز")
+            listOf("ض", "ص", "ث", "ق", "ف", "غ", "ع", "ه", "خ", "ح", "ج"),
+            listOf("ش", "س", "ي", "ب", "ل", "أ", "ت", "ن", "م", "ك", "ط"),
+            listOf("ذ", "ء", "ؤ", "ر", "ئ", "ة", "و", "ز", "ظ", "د")
         ),
         "ru" to Triple(
             listOf("й", "ц", "у", "к", "е", "н", "г", "ш", "щ", "з"),
@@ -3049,7 +3091,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         row2?.removeAllViews()
         row3?.removeAllViews()
         
-        val numbers = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+        val numbers = if (dictMiniKeyboardLanguage == "ar") {
+            listOf("١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", ".")
+        } else {
+            listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+        }
         val layout = dictMiniKeyboardLayouts[dictMiniKeyboardLanguage] 
             ?: dictMiniKeyboardLayouts["en"]!!
         
@@ -4303,7 +4349,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             row2?.removeAllViews()
             row3?.removeAllViews()
             
-            val numbers = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+            val numbers = if (aiChatKeyboardLanguage == "ar") {
+                listOf("١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", ".")
+            } else {
+                listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+            }
             val layout = dictMiniKeyboardLayouts[aiChatKeyboardLanguage] 
                 ?: dictMiniKeyboardLayouts["en"]!!
             
