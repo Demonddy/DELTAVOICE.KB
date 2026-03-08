@@ -32,6 +32,15 @@
             android:textSize="20sp"
             android:textStyle="bold"
             android:layout_marginStart="16dp" />
+
+        <ImageButton
+            android:id="@+id/btn_api_key"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_settings"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="API key settings"
+            android:tint="@color/text_primary" />
     </LinearLayout>
 
     <!-- Chat messages - not focusable to prevent stealing focus from input (avoids keyboard flicker) -->

@@ -80,7 +80,7 @@ class VideoConfigActivity : AppCompatActivity() {
                 videoFilePath = path
                 processingSection.visibility = View.VISIBLE
                 videoStatus.text = "Video uploaded. Tap Process to translate."
-                Toast.makeText(this, "Video ready for processing", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.ready_for_processing), Toast.LENGTH_SHORT).show()
             }
         }
     }

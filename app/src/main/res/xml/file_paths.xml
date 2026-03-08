@@ -1,22 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <!-- Internal cache: processed audio, video, recordings -->
-    <cache-path
-        name="cache"
-        path="." />
+    <!-- Cache directory for processed audio/video -->
+    <cache-path name="cache" path="." />
     
-    <!-- External cache -->
-    <external-cache-path
-        name="external_cache"
-        path="." />
+    <!-- External cache directory -->
+    <external-cache-path name="external_cache" path="." />
     
-    <!-- Internal files directory -->
-    <files-path
-        name="files"
-        path="." />
+    <!-- App files directory -->
+    <files-path name="files" path="." />
     
-    <!-- External files: Movies (recorded video), Documents (downloads) -->
-    <external-files-path
-        name="external_files"
-        path="." />
+    <!-- External files (Movies, Documents, etc.) - for recorded videos -->
+    <external-files-path name="external_files" path="." />
 </paths>

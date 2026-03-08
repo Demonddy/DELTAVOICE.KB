@@ -71,14 +71,16 @@
             android:name=".VideoUploadActivity"
             android:theme="@style/Theme.DeltaVoice.Translucent"
             android:excludeFromRecents="true"
-            android:exported="false" />
+            android:exported="false"
+            android:taskAffinity="" />
 
         <!-- Audio Upload Activity - file picker for keyboard voice processing -->
         <activity
             android:name=".AudioUploadActivity"
             android:theme="@style/Theme.DeltaVoice.Translucent"
             android:excludeFromRecents="true"
-            android:exported="false" />
+            android:exported="false"
+            android:taskAffinity="" />
 
         <!-- Voice Process Mode Activity -->
         <activity

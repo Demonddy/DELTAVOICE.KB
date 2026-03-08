@@ -85,7 +85,7 @@ class VideoUploadActivity : AppCompatActivity() {
             }
 
             val path = destFile.absolutePath
-            Toast.makeText(this, "File ready for processing", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.ready_for_processing), Toast.LENGTH_SHORT).show()
 
             if (launchedFrom == LAUNCHED_FROM_APP) {
                 // From app: return path, finish immediately, user stays in app
@@ -98,7 +98,7 @@ class VideoUploadActivity : AppCompatActivity() {
                     .putString(KEY_PENDING_PATH, path)
                     .commit()
                 sendBroadcast(Intent(ACTION_VIDEO_UPLOADED).setPackage(packageName))
-                Handler(Looper.getMainLooper()).postDelayed({ finishInstantly() }, 500)
+                Handler(Looper.getMainLooper()).postDelayed({ finishInstantly() }, 750)
             }
         } catch (e: Exception) {
             e.printStackTrace()

@@ -15,7 +15,6 @@ import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.deltavoice.api.CompleteVoiceWorkflowService
 import kotlinx.coroutines.CoroutineScope
@@ -338,20 +337,35 @@ class VoiceProcessModeActivity : AppCompatActivity() {
     private fun shareProcessedAudio() {
         val audioPath = processedAudioFilePath
         if (audioPath.isNullOrBlank() || !isProcessedAudioReady) {
-            Toast.makeText(this, "No processed audio to send", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_processed_audio_send), Toast.LENGTH_SHORT).show()
             return
         }
         val audioFile = File(audioPath)
         if (!audioFile.exists()) {
-            showShareErrorDialog()
+            Toast.makeText(this, getString(R.string.share_file_not_found), Toast.LENGTH_SHORT).show()
+            return
+        }
+        val uri = try {
+            androidx.core.content.FileProvider.getUriForFile(
+                this, "${packageName}.fileprovider", audioFile
+            )
+        } catch (_: Exception) {
+            try {
+                val cacheCopy = File(cacheDir, "share_${System.currentTimeMillis()}_${audioFile.name}")
+                audioFile.copyTo(cacheCopy, overwrite = true)
+                androidx.core.content.FileProvider.getUriForFile(
+                    this, "${packageName}.fileprovider", cacheCopy
+                )
+            } catch (e2: Exception) {
+                android.util.Log.e("VoiceProcessMode", "getUri failed", e2)
+                null
+            }
+        }
+        if (uri == null) {
+            Toast.makeText(this, getString(R.string.share_prepare_failed), Toast.LENGTH_LONG).show()
             return
         }
         try {
-            val uri = androidx.core.content.FileProvider.getUriForFile(
-                this,
-                "${packageName}.fileprovider",
-                audioFile
-            )
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "audio/mpeg"
                 putExtra(Intent.EXTRA_STREAM, uri)
@@ -365,17 +379,9 @@ class VoiceProcessModeActivity : AppCompatActivity() {
             }
             startActivity(chooserIntent)
         } catch (e: Exception) {
-            android.util.Log.e("VoiceProcessMode", "Share failed", e)
-            showShareErrorDialog()
+            android.util.Log.e("VoiceProcessMode", "share failed", e)
+            Toast.makeText(this, getString(R.string.share_failed, e.message ?: ""), Toast.LENGTH_LONG).show()
         }
-    }
-
-    private fun showShareErrorDialog() {
-        AlertDialog.Builder(this, R.style.Theme_DeltaVoice_Dialog)
-            .setTitle(R.string.share_failed_title)
-            .setMessage(R.string.share_failed_message)
-            .setPositiveButton(android.R.string.ok, null)
-            .show()
     }
 
     private fun setupAudioPlayer() {

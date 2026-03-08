@@ -58,6 +58,10 @@
     <string name="ai_chat_title">AI Assistant</string>
     <string name="ai_chat_welcome">Hi! I\'m your AI assistant. Ask me anything — I can help with writing, questions, translations, and more!</string>
     <string name="ai_chat_hint">Type your message…</string>
+    <string name="ai_chat_api_key_title">OpenAI API Key (optional)</string>
+    <string name="ai_chat_api_key_hint">Add your key to use AI when server is unreachable</string>
+    <string name="ai_chat_api_key_saved">API key saved. AI will use it when server is down.</string>
+    <string name="ai_chat_api_key_removed">API key removed.</string>
 
     <!-- Bottom navigation -->
     <string name="nav_home">Home</string>
@@ -178,6 +182,8 @@
     <string name="saved_to">Saved to: %s</string>
     <string name="please_select_video_or_image">Please select a video or image file</string>
     <string name="file_ready_processing">File ready for processing</string>
+    <string name="ready_for_processing">Ready for processing</string>
+    <string name="processing_panel">Processing panel</string>
     <string name="failed_start_recording">Failed to start recording: %s</string>
     <string name="video_saved">Video saved: %s</string>
     <string name="error_stopping_recording">Error stopping recording: %s</string>
@@ -280,8 +286,10 @@
     <string name="recording_file_not_found">Recording file not found</string>
     <string name="sent_to_chat">✓ Sent to chat</string>
     <string name="error_sharing">Error sharing: %s</string>
-    <string name="share_failed_title">Share failed</string>
-    <string name="share_failed_message">Could not share. The file may be in use or the app could not access it. Try again or choose a different app.</string>
+    <string name="share_file_not_found">File not found. Cannot share.</string>
+    <string name="share_prepare_failed">Could not prepare file for sharing. Try again.</string>
+    <string name="share_failed">Sharing failed: %s</string>
+    <string name="share_failed_message">Sharing failed</string>
     <string name="stop_voice_input_first">Stop voice input first</string>
     <string name="apps">Apps</string>
     <string name="inserted">Inserted: %s</string>

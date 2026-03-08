@@ -20,6 +20,7 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.LinearInterpolator
+import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
 import android.graphics.Color
@@ -133,14 +134,15 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private var backspaceRepeatRunnable: Runnable? = null
     private var isBackspaceRepeating: Boolean = false
     private companion object {
-        // Performance targets: backspace 30-45 chars/sec when held, typing 12-15 chars/sec
+        // Performance targets (confirmed): backspace 30-45 chars/sec when held, typing 12-15 chars/sec
         private const val PREDICTION_DELAY_NORMAL_MS = 140L
         private const val PREDICTION_DELAY_FAST_MS = 320L
-        private const val FAST_TYPING_INTERVAL_MS = 90L   // 12-15 chars/sec = 67-83ms between taps
+        private const val FAST_TYPING_INTERVAL_MS = 80L   // 12.5 chars/sec threshold (80ms = 1000/12.5)
         private const val KEY_FEEDBACK_PREFS_CACHE_MS = 1000L
         private const val PREDICTION_PREFS_CACHE_MS = 1000L
-        private const val BACKSPACE_REPEAT_START_DELAY_MS = 150L  // ms before repeat starts
-        private const val BACKSPACE_REPEAT_INTERVAL_MS = 22L     // ~45 chars/sec when held
+        // Backspace repeat: 22ms interval = 1000/22 ≈ 45 chars/sec (target 30-45)
+        private const val BACKSPACE_REPEAT_START_DELAY_MS = 120L
+        private const val BACKSPACE_REPEAT_INTERVAL_MS = 22L
         private const val KEY_PRESS_ANIM_DURATION_MS = 35L
         private const val CLIPBOARD_PREFS = "clipboard_prefs"
         private const val CLIPBOARD_HISTORY_KEY = "clipboard_history"
@@ -529,14 +531,16 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     override fun onStartInputView(info: android.view.inputmethod.EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         rootView?.let { applyOrientationOptimizations(it) }
-        // Apply pending upload state so user lands on Step 2 (voice) or Preview & Process (video)
+        // Apply pending upload state so uploaded media is processed in Step 2 (voice) or Preview & Process (video)
         if (pendingShowVoiceFromUpload && !recordingFilePath.isNullOrBlank()) {
             pendingShowVoiceFromUpload = false
             showVoiceProcessingUI()
+            Toast.makeText(this, getString(R.string.ready_for_processing), Toast.LENGTH_SHORT).show()
         }
         if (pendingShowVideoFromUpload && !videoFilePath.isNullOrBlank()) {
             pendingShowVideoFromUpload = false
             showVideoPreview()
+            Toast.makeText(this, getString(R.string.ready_for_processing), Toast.LENGTH_SHORT).show()
         }
         // Reload saved language and rebuild layout when keyboard is shown
         loadKeyboardLanguagePreference()
@@ -592,16 +596,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     videoFilePath = p
                     pendingShowVideoFromUpload = true
                     if (rootView?.isAttachedToWindow == true) showVideoPreview()
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                            requestShowSelf(InputMethodManager.SHOW_FORCED)
-                        }
-                    }, 100)
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                            requestShowSelf(InputMethodManager.SHOW_FORCED)
-                        }
-                    }, 450)
+                    scheduleKeyboardShowAfterUpload()
                 }
             }
         }
@@ -618,35 +613,36 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     recordingFilePath = p
                     pendingShowVoiceFromUpload = true
                     if (rootView?.isAttachedToWindow == true) showVoiceProcessingUI()
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                            requestShowSelf(InputMethodManager.SHOW_FORCED)
-                        }
-                    }, 100)
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                            requestShowSelf(InputMethodManager.SHOW_FORCED)
-                        }
-                    }, 450)
+                    scheduleKeyboardShowAfterUpload()
                 }
             }
         }
         val videoFilter = IntentFilter(VideoUploadActivity.ACTION_VIDEO_UPLOADED)
         val audioFilter = IntentFilter(AudioUploadActivity.ACTION_AUDIO_UPLOADED)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(videoUploadReceiver, videoFilter, Context.RECEIVER_NOT_EXPORTED)
-            registerReceiver(audioUploadReceiver, audioFilter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            @Suppress("DEPRECATION")
-            registerReceiver(videoUploadReceiver, videoFilter)
-            @Suppress("DEPRECATION")
-            registerReceiver(audioUploadReceiver, audioFilter)
-        }
+        ContextCompat.registerReceiver(this, videoUploadReceiver, videoFilter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        ContextCompat.registerReceiver(this, audioUploadReceiver, audioFilter, ContextCompat.RECEIVER_NOT_EXPORTED)
         // Clipboard history: capture copies from any app
         clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         loadClipboardHistory()
         clipboardListener = ClipboardManager.OnPrimaryClipChangedListener { syncCurrentClipboardToHistory() }
         clipboardManager?.addPrimaryClipChangedListener(clipboardListener!!)
+    }
+
+    /**
+     * Schedule multiple requestShowSelf calls so keyboard reliably appears after upload activity
+     * finishes. Activity finishes at 750ms; we call before and after to catch the transition.
+     */
+    private fun scheduleKeyboardShowAfterUpload() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+        val handler = Handler(Looper.getMainLooper())
+        val delays = longArrayOf(150, 400, 700, 1000, 1300)
+        for (delay in delays) {
+            handler.postDelayed({
+                try {
+                    requestShowSelf(InputMethodManager.SHOW_FORCED)
+                } catch (_: Exception) { }
+            }, delay)
+        }
     }
 
     /**
@@ -2896,6 +2892,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         popupView.addView(scrollView)
         
         // Create popup window
+        // Use isFocusable = false so the popup does not steal focus and hide the keyboard
         val popupWindow = android.widget.PopupWindow(
             popupView,
             260.dpToPx(),
@@ -2905,9 +2902,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             elevation = 10f
             setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
             isOutsideTouchable = true
-            isFocusable = true
+            isFocusable = false  // Prevents keyboard from hiding when language selector opens
+            inputMethodMode = android.widget.PopupWindow.INPUT_METHOD_NOT_NEEDED
         }
-        
+
         // Set click listeners for each language
         for (i in 0 until languagesContainer.childCount) {
             val button = languagesContainer.getChildAt(i)
@@ -3155,6 +3153,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         popupView.addView(scrollView)
         
         // Create popup window
+        // Use isFocusable = false so the popup does not steal focus and hide the keyboard
         val popupWindow = android.widget.PopupWindow(
             popupView,
             260.dpToPx(),
@@ -3164,9 +3163,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             elevation = 10f
             setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
             isOutsideTouchable = true
-            isFocusable = true
+            isFocusable = false  // Prevents keyboard from hiding when language selector opens
+            inputMethodMode = android.widget.PopupWindow.INPUT_METHOD_NOT_NEEDED
         }
-        
+
         // Set click listeners
         for (i in 0 until languagesContainer.childCount) {
             val button = languagesContainer.getChildAt(i)
@@ -4258,6 +4258,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         
         popupView.addView(languagesContainer)
         
+        // Use isFocusable = false so the popup does not steal focus and hide the keyboard
         val popupWindow = android.widget.PopupWindow(
             popupView,
             220.dpToPx(),
@@ -4267,7 +4268,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             elevation = 10f
             setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
             isOutsideTouchable = true
-            isFocusable = true
+            isFocusable = false  // Prevents keyboard from hiding when language selector opens
+            inputMethodMode = android.widget.PopupWindow.INPUT_METHOD_NOT_NEEDED
         }
         
         for (i in 0 until languagesContainer.childCount) {
@@ -4674,7 +4676,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 }
                 
                 // Use Supabase edge function (no app API key needed)
-                val edgeResponse = callOpenAiViaSupabase(message)
+                // Skip if no network to avoid slow DNS timeout
+                val edgeResponse = if (com.deltavoice.util.NetworkUtils.isConnected(this@MainKeyboardService)) {
+                    callOpenAiViaSupabase(message)
+                } else null
                 if (edgeResponse != null) {
                     aiConversationHistory.add(mapOf("role" to "assistant", "content" to edgeResponse))
                     return@withContext edgeResponse
@@ -4761,12 +4766,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     /**
-     * Get OpenAI API key from Supabase config or environment
+     * Get OpenAI API key from user preferences (optional).
+     * When set, bypasses Supabase and calls OpenAI directly — useful when Supabase is unreachable.
      */
     private fun getOpenAiApiKey(): String {
-        // For now, return empty - the edge function will handle the API key
-        // In production, you'd store this securely
-        return ""
+        return getSharedPreferences("deltavoice_prefs", MODE_PRIVATE)
+            .getString("openai_api_key", "") ?: ""
     }
     
     /**
@@ -4842,7 +4847,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             val msg = e.message ?: ""
             if (msg.contains("Unable to resolve host", ignoreCase = true) || msg.contains("No address", ignoreCase = true)) {
                 Handler(android.os.Looper.getMainLooper()).post {
-                    Toast.makeText(this@MainKeyboardService, "Can't reach server. Check Wi‑Fi or mobile data.", Toast.LENGTH_LONG).show()
+                    val hint = if (getOpenAiApiKey().isNotBlank()) "" else "\n\nTip: Add your OpenAI API key in AI Assistant settings to use when server is unreachable."
+                    Toast.makeText(this@MainKeyboardService, "Can't reach server. Check Wi‑Fi or mobile data.$hint", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -6409,7 +6415,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
     /**
      * Apply lightweight scale animation and execute action. Fires on ACTION_DOWN for immediate
-     * response (12-20 chars/sec). Feedback deferred to next frame to avoid blocking.
+     * response (supports 12-15 chars/sec). commitText/action runs synchronously; no debounce.
      */
     private fun setKeyPressWithAnimation(button: Button, action: () -> Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -6477,6 +6483,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         lastTypingEventMs = now
     }
 
+    /**
+     * Delete one character. Used for single tap and repeat. No debounce; immediate execution.
+     */
     private fun deleteOneCharacter(triggerPredictionUpdate: Boolean) {
         markTypingCadence()
         if (isAiChatVisible) {
@@ -6492,6 +6501,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
     }
 
+    /**
+     * Start backspace repeat. First delete immediate; then repeat at BACKSPACE_REPEAT_INTERVAL_MS
+     * (~45 chars/sec when held). Prediction deferred until release to avoid blocking.
+     */
     private fun startBackspaceRepeat(sourceView: View) {
         stopBackspaceRepeat(applyPredictionUpdate = false)
         playKeyFeedback(sourceView)
@@ -6582,7 +6595,18 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             "EMOJI" -> toggleEmojiPicker()
             "LANGUAGE" -> showLanguageSelector()
             "TOGGLE_SYMBOLS" -> toggleSymbolsMode()
-            "ENTER" -> inputConnection?.commitText("\n", 1)
+            "ENTER" -> {
+                val editorInfo = currentInputEditorInfo
+                val actionId = editorInfo?.imeOptions?.let { opts ->
+                    if ((opts and EditorInfo.IME_FLAG_NO_ENTER_ACTION) != 0) EditorInfo.IME_ACTION_NONE
+                    else (opts and EditorInfo.IME_MASK_ACTION)
+                } ?: EditorInfo.IME_ACTION_DONE
+                if (actionId != EditorInfo.IME_ACTION_NONE) {
+                    inputConnection?.performEditorAction(actionId)
+                } else {
+                    inputConnection?.commitText("\n", 1)
+                }
+            }
             "SEARCH" -> performSearch(inputConnection)
             "\n" -> inputConnection?.commitText("\n", 1)
             " " -> {
@@ -7217,6 +7241,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         popupView.addView(scrollView)
         
         // Create and show popup window
+        // Use isFocusable = false so the popup does not steal focus and hide the keyboard
         val popupWindow = android.widget.PopupWindow(
             popupView,
             280.dpToPx(),
@@ -7226,7 +7251,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             elevation = 10f
             setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
             isOutsideTouchable = true
-            isFocusable = true
+            isFocusable = false  // Prevents keyboard from hiding when language selector opens
+            inputMethodMode = android.widget.PopupWindow.INPUT_METHOD_NOT_NEEDED
         }
         
         // Set click listeners for language buttons

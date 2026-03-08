@@ -1,9 +1,11 @@
 package com.deltavoice
 
+import android.content.Context
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
+import android.text.InputType
 import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
@@ -13,6 +15,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.deltavoice.ui.ShimmerView
 import android.graphics.Color
@@ -51,6 +54,7 @@ class AIChatConfigActivity : AppCompatActivity() {
         btnSend = findViewById(R.id.btn_send)
 
         findViewById<ImageButton>(R.id.btn_back).setOnClickListener { finish() }
+        findViewById<ImageButton>(R.id.btn_api_key).setOnClickListener { showApiKeyDialog() }
 
         addWelcomeMessage()
 
@@ -201,7 +205,20 @@ class AIChatConfigActivity : AppCompatActivity() {
         }
     }
 
+    private fun getOpenAiApiKey(): String {
+        return getSharedPreferences("deltavoice_prefs", Context.MODE_PRIVATE)
+            .getString("openai_api_key", "") ?: ""
+    }
+
     private fun callAiApi(userMessage: String): String? {
+        // Try direct OpenAI first when user has API key (bypasses Supabase when unreachable)
+        val openAiKey = getOpenAiApiKey()
+        if (openAiKey.isNotBlank()) {
+            val directResponse = callOpenAiDirectly(userMessage)
+            if (directResponse != null) return directResponse
+        }
+
+        // Use Supabase edge function
         return try {
             val apiKey = SupabaseConfig.SUPABASE_ANON_KEY
             val supabaseUrl = SupabaseConfig.SUPABASE_URL
@@ -246,11 +263,75 @@ class AIChatConfigActivity : AppCompatActivity() {
         } catch (e: Exception) {
             if (e.message?.contains("Unable to resolve host", ignoreCase = true) == true) {
                 mainHandler.post {
-                    Toast.makeText(this, "Can't reach server. Check Wi‑Fi or mobile data.", Toast.LENGTH_LONG).show()
+                    val hint = if (openAiKey.isNotBlank()) "" else "\n\nTip: Tap the ⚙ icon to add your OpenAI API key for when the server is unreachable."
+                    Toast.makeText(this, "Can't reach server. Check Wi‑Fi or mobile data.$hint", Toast.LENGTH_LONG).show()
                 }
             }
             null
         }
+    }
+
+    private fun callOpenAiDirectly(userMessage: String): String? {
+        val apiKey = getOpenAiApiKey()
+        if (apiKey.isBlank()) return null
+        return try {
+            val url = URL("https://api.openai.com/v1/chat/completions")
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.setRequestProperty("Authorization", "Bearer $apiKey")
+            connection.connectTimeout = 30000
+            connection.readTimeout = 60000
+            connection.doOutput = true
+
+            val messagesJson = StringBuilder("[")
+            messagesJson.append("""{"role":"system","content":"You are a helpful, friendly AI assistant. Be concise. Use emojis occasionally. Respond in the same language the user writes in."}""")
+            conversationHistory.takeLast(8).forEach { (role, content) ->
+                val escaped = content.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
+                messagesJson.append(""",{"role":"$role","content":"$escaped"}""")
+            }
+            messagesJson.append("]")
+            val requestBody = """{"model":"gpt-4o-mini","messages":$messagesJson,"max_tokens":1000,"temperature":0.7}"""
+
+            connection.outputStream.use { it.write(requestBody.toByteArray()) }
+
+            if (connection.responseCode == 200) {
+                val responseText = connection.inputStream.bufferedReader().readText()
+                Regex(""""content"\s*:\s*"((?:[^"\\]|\\.)*)"""").find(responseText)?.groupValues?.get(1)?.let { match ->
+                    return match.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\")
+                }
+            }
+            connection.disconnect()
+            null
+        } catch (e: Exception) {
+            android.util.Log.e("AIChatConfig", "OpenAI direct call failed: ${e.message}")
+            null
+        }
+    }
+
+    private fun showApiKeyDialog() {
+        val prefs = getSharedPreferences("deltavoice_prefs", Context.MODE_PRIVATE)
+        val currentKey = prefs.getString("openai_api_key", "") ?: ""
+
+        val input = EditText(this).apply {
+            setText(currentKey)
+            hint = getString(R.string.ai_chat_api_key_hint)
+            setPadding(48, 32, 48, 32)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setTextColor(Color.parseColor("#E5E7EB"))
+            setHintTextColor(Color.parseColor("#6B7280"))
+        }
+
+        AlertDialog.Builder(this, R.style.Theme_DeltaVoice_Dialog)
+            .setTitle(R.string.ai_chat_api_key_title)
+            .setView(input)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val key = input.text.toString().trim()
+                prefs.edit().putString("openai_api_key", key).apply()
+                Toast.makeText(this, if (key.isNotBlank()) R.string.ai_chat_api_key_saved else R.string.ai_chat_api_key_removed, Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun showInternetRequiredSnackbar(messageResId: Int) {
