@@ -349,8 +349,11 @@ class VideoRecordingActivity : AppCompatActivity() {
             videoFilePath?.let { path ->
                 val file = File(path)
                 if (file.exists()) {
-                    setResult(RESULT_OK, Intent().putExtra(EXTRA_VIDEO_PATH, path))
-                    Toast.makeText(this, "Video saved: ${file.name}", Toast.LENGTH_LONG).show()
+                    val intent = Intent(this, VideoConfigActivity::class.java).apply {
+                        putExtra(VideoConfigActivity.EXTRA_VIDEO_PATH, path)
+                        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    startActivity(intent)
                     finish()
                 }
             }

@@ -87,6 +87,7 @@ class VideoConfigActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_OPEN_UPLOAD = "open_upload"
+        const val EXTRA_VIDEO_PATH = "extra_video_path"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -123,6 +124,24 @@ class VideoConfigActivity : AppCompatActivity() {
             recordVideoLauncher.launch(Intent(this, VideoRecordingActivity::class.java))
         }
         btnProcess.setOnClickListener { processVideo() }
+
+        applyVideoPathFromIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        applyVideoPathFromIntent(intent)
+    }
+
+    private fun applyVideoPathFromIntent(intent: Intent?) {
+        val path = intent?.getStringExtra(EXTRA_VIDEO_PATH)
+        if (!path.isNullOrBlank() && File(path).exists()) {
+            videoFilePath = path
+            processingSection.visibility = View.VISIBLE
+            videoStatus.text = "Video recorded. Tap Process to translate."
+            intent?.removeExtra(EXTRA_VIDEO_PATH)
+        }
     }
 
     override fun onResume() {
