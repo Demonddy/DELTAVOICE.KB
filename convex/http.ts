@@ -1,6 +1,6 @@
 /**
- * Convex HTTP router - Voice workflow endpoint for real-time functionality.
- * Handles: complete (Change Language & Voice) and voice-only (Translate My Same Voice)
+ * Convex HTTP router - Voice workflow and AI chat.
+ * Handles: complete (Change Language & Voice), voice-only (Translate My Same Voice), ai-chat
  */
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
@@ -11,6 +11,120 @@ import {
 } from "./voiceWorkflow";
 
 const http = httpRouter();
+
+// --- AI Chat endpoint (alternative to Supabase when unreachable) ---
+http.route({
+  path: "/ai-chat",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return new Response(null, {
+      status: 204,
+      headers: CORS_HEADERS,
+    });
+  }),
+});
+
+http.route({
+  path: "/ai-chat",
+  method: "POST",
+  handler: httpAction(async (_ctx, request) => {
+    const jsonHeaders = {
+      ...CORS_HEADERS,
+      "Content-Type": "application/json",
+    };
+
+    try {
+      const openAIApiKey =
+        process.env.OPENAI_API_KEY77 || process.env.OPENAI_API_KEY;
+      if (!openAIApiKey) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "OpenAI API key not configured",
+            content: "I'm having trouble connecting. Please try again later.",
+          }),
+          { status: 200, headers: jsonHeaders }
+        );
+      }
+
+      const body = (await request.json()) as { messages?: Array<{ role: string; content: string }> };
+      const messages = body.messages;
+      if (!messages || !Array.isArray(messages)) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Messages array is required",
+            content: "Please send a message to start chatting!",
+          }),
+          { status: 200, headers: jsonHeaders }
+        );
+      }
+
+      const systemMessage = {
+        role: "system",
+        content: `You are a helpful, friendly AI assistant integrated into a mobile keyboard app. Be concise but informative (2-4 sentences typically). Use emojis occasionally. Respond in the same language the user writes in. If asked to write something, provide complete, ready-to-use content.`,
+      };
+      const apiMessages =
+        messages[0]?.role === "system" ? messages : [systemMessage, ...messages];
+
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${openAIApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: apiMessages,
+          max_tokens: 1000,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error("OpenAI AI chat error:", response.status, errText);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "AI service temporarily unavailable",
+            content: "I'm experiencing some issues. Please try again in a moment. 🔄",
+          }),
+          { status: 200, headers: jsonHeaders }
+        );
+      }
+
+      const result = (await response.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      const aiResponse =
+        result.choices?.[0]?.message?.content ||
+        "I couldn't generate a response. Please try again.";
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          content: aiResponse,
+          response: aiResponse,
+        }),
+        { status: 200, headers: jsonHeaders }
+      );
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      console.error("AI chat error:", err);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: err.message,
+          content: "Sorry, I encountered an error. Please try again. 🔄",
+        }),
+        { status: 200, headers: jsonHeaders }
+      );
+    }
+  }),
+});
+
+// --- Voice workflow ---
 
 http.route({
   path: "/complete-voice-workflow",

@@ -19,6 +19,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.deltavoice.ui.ShimmerView
 import android.graphics.Color
+import com.deltavoice.config.ConvexConfig
 import com.deltavoice.config.SupabaseConfig
 import com.deltavoice.util.NetworkUtils
 import com.google.android.material.snackbar.Snackbar
@@ -211,14 +212,18 @@ class AIChatConfigActivity : AppCompatActivity() {
     }
 
     private fun callAiApi(userMessage: String): String? {
-        // Try direct OpenAI first when user has API key (bypasses Supabase when unreachable)
+        // Try direct OpenAI first when user has API key
         val openAiKey = getOpenAiApiKey()
         if (openAiKey.isNotBlank()) {
             val directResponse = callOpenAiDirectly(userMessage)
             if (directResponse != null) return directResponse
         }
 
-        // Use Supabase edge function
+        // Try Convex first (no auth needed), then Supabase
+        val convexResponse = callOpenAiViaConvex(userMessage)
+        if (convexResponse != null) return convexResponse
+
+        // Fallback to Supabase
         return try {
             val apiKey = SupabaseConfig.SUPABASE_ANON_KEY
             val supabaseUrl = SupabaseConfig.SUPABASE_URL
@@ -267,6 +272,47 @@ class AIChatConfigActivity : AppCompatActivity() {
                     Toast.makeText(this, "Can't reach server. Check Wi‑Fi or mobile data.$hint", Toast.LENGTH_LONG).show()
                 }
             }
+            null
+        }
+    }
+
+    private fun callOpenAiViaConvex(userMessage: String): String? {
+        if (!ConvexConfig.USE_CONVEX_FOR_VOICE_WORKFLOW) return null
+        return try {
+            val url = URL(ConvexConfig.AI_CHAT_URL)
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.connectTimeout = 30000
+            connection.readTimeout = 60000
+            connection.doOutput = true
+
+            val messagesJson = StringBuilder("[")
+            messagesJson.append("""{"role":"system","content":"You are a helpful, friendly AI assistant. Be concise. Use emojis occasionally. Respond in the same language the user writes in."}""")
+            conversationHistory.takeLast(8).forEach { (role, content) ->
+                val escaped = content.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
+                messagesJson.append(""",{"role":"$role","content":"$escaped"}""")
+            }
+            messagesJson.append("]")
+            val requestBody = """{"messages":$messagesJson}"""
+            connection.outputStream.use { it.write(requestBody.toByteArray()) }
+
+            if (connection.responseCode == 200) {
+                val responseText = connection.inputStream.bufferedReader().readText()
+                val patterns = listOf(
+                    Regex(""""content"\s*:\s*"((?:[^"\\]|\\.)*)""""),
+                    Regex(""""response"\s*:\s*"((?:[^"\\]|\\.)*)"""")
+                )
+                for (pattern in patterns) {
+                    pattern.find(responseText)?.groupValues?.get(1)?.let { match ->
+                        return match.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\")
+                    }
+                }
+            }
+            connection.disconnect()
+            null
+        } catch (e: Exception) {
+            android.util.Log.e("AIChatConfig", "Convex AI call failed: ${e.message}")
             null
         }
     }

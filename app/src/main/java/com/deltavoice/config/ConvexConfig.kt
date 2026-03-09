@@ -21,9 +21,16 @@ object ConvexConfig {
     /** Voice workflow path - handles complete and voice-only workflows */
     const val VOICE_WORKFLOW_PATH = "/complete-voice-workflow"
 
+    /** AI chat path - ChatGPT-like assistant (alternative to Supabase when unreachable) */
+    const val AI_CHAT_PATH = "/ai-chat"
+
     /** Full endpoint URL for voice workflow */
     val VOICE_WORKFLOW_URL: String
         get() = "$CONVEX_SITE_URL$VOICE_WORKFLOW_PATH"
+
+    /** Full endpoint URL for AI chat */
+    val AI_CHAT_URL: String
+        get() = "$CONVEX_SITE_URL$AI_CHAT_PATH"
 
     /**
      * Use Convex for real-time delivery of complete and voice-only workflows when true.

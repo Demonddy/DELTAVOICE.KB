@@ -319,6 +319,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
     // Keyboard state
     private var isShiftPressed = false
+    private var isCapsLocked = false
+    private var lastShiftTapTimeMs: Long = 0L
     private var isNumbersMode = false
     private var isSymbolsMode = false
     private var shiftButton: Button? = null
@@ -4725,10 +4727,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     }
                 }
                 
-                // Use Supabase edge function (no app API key needed)
-                // Skip if no network to avoid slow DNS timeout
+                // Use Convex (primary) or Supabase (fallback) - skip if no network
                 val edgeResponse = if (com.deltavoice.util.NetworkUtils.isConnected(this@MainKeyboardService)) {
-                    callOpenAiViaSupabase(message)
+                    callOpenAiViaConvex(message) ?: callOpenAiViaSupabase(message)
                 } else null
                 if (edgeResponse != null) {
                     aiConversationHistory.add(mapOf("role" to "assistant", "content" to edgeResponse))
@@ -4825,7 +4826,67 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     /**
-     * Call OpenAI via Supabase edge function
+     * Call OpenAI via Convex HTTP endpoint (primary - no auth needed, uses Convex env OPENAI_API_KEY)
+     */
+    private fun callOpenAiViaConvex(message: String): String? {
+        if (!com.deltavoice.config.ConvexConfig.USE_CONVEX_FOR_VOICE_WORKFLOW) return null
+        try {
+            val convexUrl = com.deltavoice.config.ConvexConfig.AI_CHAT_URL
+            val url = java.net.URL(convexUrl)
+            val connection = url.openConnection() as java.net.HttpURLConnection
+
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.connectTimeout = 30000
+            connection.readTimeout = 60000
+            connection.doOutput = true
+
+            val messagesJson = StringBuilder("[")
+            messagesJson.append("""{"role":"system","content":"You are a helpful, friendly AI assistant like ChatGPT. Be concise but informative. Use emojis occasionally. Respond in the same language the user writes in."}""")
+            aiConversationHistory.takeLast(8).forEach { msg ->
+                val role = msg["role"] ?: "user"
+                val content = (msg["content"] ?: "")
+                    .replace("\\", "\\\\")
+                    .replace("\"", "\\\"")
+                    .replace("\n", "\\n")
+                messagesJson.append(""",{"role":"$role","content":"$content"}""")
+            }
+            messagesJson.append("]")
+            val requestBody = """{"messages":$messagesJson}"""
+
+            android.util.Log.d("DeltaVoice", "Calling Convex AI chat...")
+            java.io.OutputStreamWriter(connection.outputStream).use { writer ->
+                writer.write(requestBody)
+                writer.flush()
+            }
+
+            if (connection.responseCode == 200) {
+                val responseText = connection.inputStream.bufferedReader().use { it.readText() }
+                android.util.Log.d("DeltaVoice", "Convex AI response: ${responseText.take(200)}")
+                val patterns = listOf(
+                    Regex(""""content"\s*:\s*"((?:[^"\\]|\\.)*)""""),
+                    Regex(""""response"\s*:\s*"((?:[^"\\]|\\.)*)""""),
+                    Regex(""""message"\s*:\s*"((?:[^"\\]|\\.)*)"""")
+                )
+                for (pattern in patterns) {
+                    val match = pattern.find(responseText)
+                    if (match != null) {
+                        return match.groupValues[1]
+                            .replace("\\n", "\n")
+                            .replace("\\\"", "\"")
+                            .replace("\\\\", "\\")
+                    }
+                }
+            }
+            connection.disconnect()
+        } catch (e: Exception) {
+            android.util.Log.e("DeltaVoice", "Convex AI call failed: ${e.message}")
+        }
+        return null
+    }
+
+    /**
+     * Call OpenAI via Supabase edge function (fallback when Convex unavailable)
      */
     private fun callOpenAiViaSupabase(message: String): String? {
         try {
@@ -6316,7 +6377,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun createKeyButton(label: String, value: String, weight: Float = 1f): Button {
         val button = Button(this).apply {
-            text = if (label.length == 1 && label[0].isLetter()) label.lowercase() else label
+            val baseLabel = label
+            tag = value
+            text = if (baseLabel.length == 1 && baseLabel[0].isLetter()) {
+                if (isShiftPressed) baseLabel.uppercase() else baseLabel.lowercase()
+            } else {
+                baseLabel
+            }
             // Use smaller font for non-Latin scripts to prevent truncation to "..."
             val needsCompactFont = label.any { c ->
                 val code = c.code
@@ -6362,7 +6429,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun createKeyButtonWithNumber(number: String, letter: String): Button {
         val button = Button(this).apply {
-            text = "$number\n${letter.lowercase()}"
+            tag = letter
+            val letterDisplay = if (isShiftPressed) {
+                letter.uppercase()
+            } else {
+                letter.lowercase()
+            }
+            text = "$number\n$letterDisplay"
             textSize = 12f
             setTextColor(Color.parseColor("#333333"))
             gravity = Gravity.CENTER
@@ -6617,15 +6690,16 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     schedulePredictionUpdate()
                 }
                 else -> {
-                    val charToInsert = if (value.length == 1 && value[0].isLetter()) {
-                        if (isShiftPressed) value.uppercase() else value.lowercase()
-                    } else value
+                val charToInsert = if (value.length == 1 && value[0].isLetter()) {
+                    if (isShiftPressed) value.uppercase() else value.lowercase()
+                } else value
                     aiChatInputText.append(charToInsert)
                     updateAiChatInputDisplay()
-                    if (isShiftPressed && value.length == 1 && value[0].isLetter()) {
-                        isShiftPressed = false
-                        updateShiftButton()
-                    }
+                if (isShiftPressed && !isCapsLocked && value.length == 1 && value[0].isLetter()) {
+                    isShiftPressed = false
+                    updateShiftButton()
+                    updateLetterKeysForShift()
+                }
                     if (value.length == 1 && value[0].isLetter()) {
                         markTypingCadence()
                         schedulePredictionUpdate()
@@ -6669,9 +6743,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     if (isShiftPressed) value.uppercase() else value.lowercase()
                 } else value
                 inputConnection?.commitText(charToInsert, 1)
-                if (isShiftPressed && value.length == 1 && value[0].isLetter()) {
+                if (isShiftPressed && !isCapsLocked && value.length == 1 && value[0].isLetter()) {
                     isShiftPressed = false
                     updateShiftButton()
+                    updateLetterKeysForShift()
                 }
                 if (value.length == 1 && value[0].isLetter()) {
                     markTypingCadence()
@@ -6864,8 +6939,34 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Toggle shift state
      */
     private fun toggleShift() {
-        isShiftPressed = !isShiftPressed
+        val now = android.os.SystemClock.uptimeMillis()
+        val isDoubleTap = now - lastShiftTapTimeMs in 0..500
+        lastShiftTapTimeMs = now
+
+        when {
+            // Off → single shift
+            !isShiftPressed && !isCapsLocked -> {
+                isShiftPressed = true
+                isCapsLocked = false
+            }
+            // Single shift → caps lock (double tap)
+            isShiftPressed && !isCapsLocked && isDoubleTap -> {
+                isShiftPressed = true
+                isCapsLocked = true
+            }
+            // Caps lock → off
+            isCapsLocked -> {
+                isShiftPressed = false
+                isCapsLocked = false
+            }
+            // Fallback: single shift → off
+            else -> {
+                isShiftPressed = false
+                isCapsLocked = false
+            }
+        }
         updateShiftButton()
+        updateLetterKeysForShift()
     }
 
     /**
@@ -6873,10 +6974,47 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun updateShiftButton() {
         shiftButton?.let { button ->
-            if (isShiftPressed) {
-                button.setBackgroundColor(Color.parseColor("#33FFFFFF"))
-            } else {
-                button.background = ContextCompat.getDrawable(this, R.drawable.glass_key_special_background)
+            when {
+                isCapsLocked -> {
+                    // Stronger highlight for caps lock
+                    button.setBackgroundColor(Color.parseColor("#99FFFFFF"))
+                }
+                isShiftPressed -> {
+                    // Lighter highlight for single-shift
+                    button.setBackgroundColor(Color.parseColor("#33FFFFFF"))
+                }
+                else -> {
+                    // Default background when shift is off
+                    button.background = ContextCompat.getDrawable(this, R.drawable.glass_key_special_background)
+                }
+            }
+        }
+    }
+
+    /**
+     * Update visible letter key labels to match current shift state
+     */
+    private fun updateLetterKeysForShift() {
+        val view = rootView ?: return
+        val rows = listOf(
+            view.findViewById<LinearLayout>(R.id.row_qwerty),
+            view.findViewById<LinearLayout>(R.id.row_asdf),
+            view.findViewById<LinearLayout>(R.id.row_zxcv),
+            view.findViewById<LinearLayout>(R.id.row_numbers)
+        )
+
+        rows.forEach { row ->
+            row ?: return@forEach
+            for (i in 0 until row.childCount) {
+                val child = row.getChildAt(i) as? Button ?: continue
+                val value = (child.tag as? String) ?: child.text.toString()
+                if (value.length == 1 && value[0].isLetter()) {
+                    child.text = if (isShiftPressed) {
+                        value.uppercase()
+                    } else {
+                        value.lowercase()
+                    }
+                }
             }
         }
     }
@@ -7452,6 +7590,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 
                 // Update the numbers button to show !#1
                 numbersButton?.text = "!#1"
+                // Ensure shift button and key labels reflect current shift state
+                updateShiftButton()
+                updateLetterKeysForShift()
             }
         }
     }
