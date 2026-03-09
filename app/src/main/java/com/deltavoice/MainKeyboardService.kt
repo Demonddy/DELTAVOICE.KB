@@ -106,10 +106,17 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private lateinit var keyboardCardVoice: LinearLayout
     private lateinit var keyboardCardText: LinearLayout
     private lateinit var recordingStatusText: android.widget.TextView
+    private lateinit var recordingMicButton: ImageButton
+    private lateinit var recordingTimerText: android.widget.TextView
     private lateinit var playRecordingButton: ImageButton
     private lateinit var sendRawRecordingButton: ImageButton
     private lateinit var audioDurationText: android.widget.TextView
     private var rootView: View? = null
+
+    // Voice recording timer
+    private val recordingUiHandler = Handler(Looper.getMainLooper())
+    private var recordingTimerRunnable: Runnable? = null
+    private var recordingStartTimeMs: Long = 0L
 
     // Network callback for "internet restored" when Process button was blocked
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
@@ -478,6 +485,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         keyboardCardVoice = view.findViewById(R.id.keyboard_option_voice)
         keyboardCardText = view.findViewById(R.id.keyboard_option_text)
         recordingStatusText = view.findViewById(R.id.recording_status_text)
+        recordingMicButton = view.findViewById(R.id.btn_recording_mic)
+        recordingTimerText = view.findViewById(R.id.recording_timer_text)
         playRecordingButton = view.findViewById(R.id.btn_play_recording)
         sendRawRecordingButton = view.findViewById(R.id.btn_send_raw_recording)
         audioDurationText = view.findViewById(R.id.audio_duration_text)
@@ -755,6 +764,50 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         rootView?.findViewById<View>(R.id.top_bar_container)?.visibility = View.VISIBLE
         rootView?.findViewById<View>(R.id.ai_features_row)?.visibility = View.VISIBLE
         rootView?.findViewById<View>(R.id.predictions_container)?.visibility = View.GONE
+    }
+
+    private fun startRecordingTimer() {
+        recordingTimerRunnable?.let { recordingUiHandler.removeCallbacks(it) }
+        recordingStartTimeMs = SystemClock.elapsedRealtime()
+        updateRecordingTimerText(0L)
+        val runnable = object : Runnable {
+            override fun run() {
+                if (!isRecording) return
+                val elapsedMs = SystemClock.elapsedRealtime() - recordingStartTimeMs
+                updateRecordingTimerText(elapsedMs)
+                recordingUiHandler.postDelayed(this, 500L)
+            }
+        }
+        recordingTimerRunnable = runnable
+        recordingUiHandler.post(runnable)
+    }
+
+    private fun stopRecordingTimer(reset: Boolean) {
+        recordingTimerRunnable?.let { recordingUiHandler.removeCallbacks(it) }
+        recordingTimerRunnable = null
+        if (reset) {
+            updateRecordingTimerText(0L)
+        }
+    }
+
+    private fun updateRecordingTimerText(elapsedMs: Long) {
+        if (!::recordingTimerText.isInitialized) return
+        val totalSeconds = elapsedMs / 1000
+        val minutes = (totalSeconds / 60).toInt()
+        val seconds = (totalSeconds % 60).toInt()
+        recordingTimerText.text = String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+    }
+
+    private fun updateRecordingMicColor(recording: Boolean) {
+        if (!::recordingMicButton.isInitialized) return
+        val drawable = recordingMicButton.drawable ?: return
+        val color = if (recording) {
+            Color.parseColor("#4CAF50") // green
+        } else {
+            Color.WHITE
+        }
+        drawable.mutate().setTint(color)
+        recordingMicButton.setImageDrawable(drawable)
     }
     
     /**
@@ -1197,6 +1250,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         hideAllOverlays()
         keyboardContainer.visibility = View.GONE
         voiceRecordingContainer.visibility = View.VISIBLE
+        stopRecordingTimer(reset = true)
+        updateRecordingMicColor(false)
         recordingStatusText.text = "Tap to record"
     }
     
@@ -1215,6 +1270,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         isAiWritingToolsVisible = false
         keyboardContainer.visibility = View.VISIBLE
         showTopBarsAfterOverlay()
+        updateRecordingMicColor(false)
+        stopRecordingTimer(reset = true)
     }
     
     /**
@@ -1243,6 +1300,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         hideAllOverlays()
         keyboardContainer.visibility = View.GONE
         voiceProcessingStep2Container.visibility = View.VISIBLE
+        stopRecordingTimer(reset = false)
+        updateRecordingMicColor(false)
         
         // Default to "Change Language & Voice" (complete) when showing Step 2
         updateKeyboardModeSelection("complete")
@@ -1270,6 +1329,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         unregisterNetworkRestoredCallback()
         stopRecordingPlayback()
         voiceProcessingStep2Container.visibility = View.GONE
+        updateRecordingMicColor(false)
         emojiPickerContainer?.visibility = View.GONE
         isEmojiPickerVisible = false
         calculatorContainer.visibility = View.GONE
@@ -1730,6 +1790,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         mediaRecorder = null
         isRecording = false
         voiceButton.setImageResource(R.drawable.ic_mic)
+        stopRecordingTimer(reset = true)
+        updateRecordingMicColor(false)
+        recordingStatusText.text = "Tap to record"
         
         // Delete the recording file
         recordingFilePath?.let { path ->
@@ -5201,6 +5264,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         view.findViewById<ImageButton>(R.id.btn_video_close)?.setOnClickListener {
             hideVideoPreview()
         }
+
+        // Send original video immediately (no processing)
+        view.findViewById<ImageButton>(R.id.btn_video_send_raw)?.setOnClickListener {
+            sendOriginalVideoFromPreview()
+        }
         
         // Play video button
         view.findViewById<ImageButton>(R.id.btn_play_video)?.setOnClickListener {
@@ -6243,6 +6311,31 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         processedVideoFilePath = null
         isVideoProcessedAudioReady = false
     }
+
+    /**
+     * Send the original recorded or uploaded video directly, skipping processing.
+     * Used by the send icon in the Preview & Process Video header.
+     */
+    private fun sendOriginalVideoFromPreview() {
+        val path = videoFilePath
+        if (path.isNullOrBlank()) {
+            Toast.makeText(this, "No video to send", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val file = File(path)
+        if (!file.exists() || file.length() == 0L) {
+            Toast.makeText(this, "Video file not found", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        shareVideoFile(file, "Send video via") {
+            // After sending, close preview and clear processed state (but keep original file)
+            cleanupProcessedVideoFiles()
+            resetVideoProcessButton()
+            hideVideoPreview()
+        }
+    }
     
     /**
      * Hide all overlay components
@@ -7101,6 +7194,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         } else {
             stopVoiceInput()
         }
+        updateRecordingMicColor(false)
+        stopRecordingTimer(reset = true)
     }
 
     /**
@@ -7140,6 +7235,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         isListening = false
         if (!isRecording) {
             voiceButton.setImageResource(R.drawable.ic_mic)
+        }
+        if (!isRecording) {
+            updateRecordingMicColor(false)
+            stopRecordingTimer(reset = true)
         }
     }
 
@@ -8266,6 +8365,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     
                     // Update UI
                     voiceButton.setImageResource(R.drawable.ic_mic_active)
+                    if (recordingAction == RecordingAction.COMPLETE_WORKFLOW) {
+                        startRecordingTimer()
+                        updateRecordingMicColor(true)
+                    }
                     
                     // Only show Toast for actions that don't have UI
                     if (recordingAction != RecordingAction.COMPLETE_WORKFLOW) {
@@ -8342,6 +8445,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             
             // Update UI
             voiceButton.setImageResource(R.drawable.ic_mic)
+            if (action == RecordingAction.COMPLETE_WORKFLOW) {
+                stopRecordingTimer(reset = false)
+                updateRecordingMicColor(false)
+            }
             
             val action = recordingAction
             recordingAction = RecordingAction.TRANSCRIBE

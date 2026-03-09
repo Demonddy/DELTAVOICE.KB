@@ -216,7 +216,7 @@
         android:padding="16dp"
         android:visibility="gone">
 
-        <!-- Header with back button, title, and upload -->
+        <!-- Header with back button, title, timer, and upload -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -242,6 +242,16 @@
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"
                 android:layout_marginStart="12dp" />
+
+            <!-- Live recording timer -->
+            <TextView
+                android:id="@+id/recording_timer_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00"
+                android:textSize="14sp"
+                android:textColor="#66FFFFFF"
+                android:layout_marginEnd="8dp" />
 
             <ImageButton
                 android:id="@+id/btn_voice_upload"
@@ -747,7 +757,7 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-        <!-- Header with close button -->
+        <!-- Header with send + close button -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -763,6 +773,17 @@
                 android:textSize="16sp"
                 android:textColor="#E5E7EB"
                 android:textStyle="bold" />
+
+            <!-- Send original video immediately (no processing) -->
+            <ImageButton
+                android:id="@+id/btn_video_send_raw"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_send"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Send original video"
+                android:tint="#A855F7" />
 
             <ImageButton
                 android:id="@+id/btn_video_close"
