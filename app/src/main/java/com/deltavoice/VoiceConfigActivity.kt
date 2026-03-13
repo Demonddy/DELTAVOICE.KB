@@ -15,12 +15,14 @@ import android.view.View
 import android.view.LayoutInflater
 import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -55,18 +57,22 @@ class VoiceConfigActivity : AppCompatActivity() {
     private lateinit var btnProcess: Button
     private lateinit var processedVoicesList: LinearLayout
     private lateinit var processedVoicesLabel: TextView
+    private lateinit var processedVoiceViewSelector: LinearLayout
+    private lateinit var btnVoiceViewList: Button
+    private lateinit var btnVoiceViewGrid: Button
 
     private var selectedMode = VoiceProcessIntent.MODE_FULL
     private var audioFilePath: String? = null
     private val processedVoices = mutableListOf<ProcessedVoiceItem>()
 
-    private data class ProcessedVoiceItem(val filePath: String, val label: String, val duration: String)
+    private data class ProcessedVoiceItem(var filePath: String, var label: String, var duration: String)
     private var mediaRecorder: android.media.MediaRecorder? = null
     private var mediaPlayer: MediaPlayer? = null
     private var isRecording = false
     private var isPlaying = false
     private var isProcessing = false
     private var currentPlayingPlayButton: ImageButton? = null
+    private var isVoiceGridViewMode = false
 
     private val completeVoiceWorkflowService = CompleteVoiceWorkflowService()
     private val activityScope = CoroutineScope(Dispatchers.Main)
@@ -117,6 +123,9 @@ class VoiceConfigActivity : AppCompatActivity() {
         btnProcess = findViewById(R.id.btn_process_voice)
         processedVoicesList = findViewById(R.id.processed_voices_list)
         processedVoicesLabel = findViewById(R.id.processed_voices_label)
+        processedVoiceViewSelector = findViewById(R.id.processed_voice_view_selector)
+        btnVoiceViewList = findViewById(R.id.btn_voice_view_list)
+        btnVoiceViewGrid = findViewById(R.id.btn_voice_view_grid)
 
         findViewById<ImageButton>(R.id.btn_back).setOnClickListener { finish() }
 
@@ -151,6 +160,16 @@ class VoiceConfigActivity : AppCompatActivity() {
 
         btnPlay.setOnClickListener { togglePlayback() }
         btnProcess.setOnClickListener { processVoice() }
+        btnVoiceViewList.setOnClickListener {
+            isVoiceGridViewMode = false
+            updateProcessedVoiceViewModeUI()
+            updateProcessedVoicesList()
+        }
+        btnVoiceViewGrid.setOnClickListener {
+            isVoiceGridViewMode = true
+            updateProcessedVoiceViewModeUI()
+            updateProcessedVoicesList()
+        }
     }
 
     override fun onResume() {
@@ -390,19 +409,86 @@ class VoiceConfigActivity : AppCompatActivity() {
         processedVoicesList.removeAllViews()
         if (processedVoices.isEmpty()) {
             processedVoicesLabel.visibility = View.GONE
+            processedVoiceViewSelector.visibility = View.GONE
             processedVoicesList.visibility = View.GONE
             return
         }
         processedVoicesLabel.visibility = View.VISIBLE
+        processedVoiceViewSelector.visibility = View.VISIBLE
         processedVoicesList.visibility = View.VISIBLE
-        for (item in processedVoices) {
-            val row = LayoutInflater.from(this).inflate(R.layout.item_processed_voice, processedVoicesList, false)
-            row.findViewById<TextView>(R.id.voice_label).text = item.label
-            row.findViewById<TextView>(R.id.voice_duration).text = item.duration
-            row.findViewById<ImageButton>(R.id.btn_download_voice).setOnClickListener { downloadProcessedAudio(item.filePath) }
-            val playBtn = row.findViewById<ImageButton>(R.id.btn_play_voice)
-            playBtn.setOnClickListener { playProcessedAudio(item.filePath, playBtn) }
-            processedVoicesList.addView(row)
+        updateProcessedVoiceViewModeUI()
+
+        if (!isVoiceGridViewMode) {
+            for (item in processedVoices) {
+                val row = LayoutInflater.from(this).inflate(R.layout.item_processed_voice, processedVoicesList, false)
+                val labelView = row.findViewById<TextView>(R.id.voice_label)
+                val durationView = row.findViewById<TextView>(R.id.voice_duration)
+                val previewBtn = row.findViewById<ImageButton>(R.id.btn_preview_voice)
+                labelView.text = item.label
+                durationView.text = item.duration
+                row.findViewById<ImageButton>(R.id.btn_download_voice).setOnClickListener { downloadProcessedAudio(item.filePath) }
+                previewBtn.setOnClickListener { playProcessedAudio(item.filePath, previewBtn) }
+                row.findViewById<ImageButton>(R.id.btn_rename_voice).setOnClickListener { renameProcessedVoice(item, labelView, durationView) }
+                row.findViewById<ImageButton>(R.id.btn_send_voice).setOnClickListener { sendProcessedAudio(item.filePath) }
+                processedVoicesList.addView(row)
+            }
+            return
+        }
+
+        var index = 0
+        while (index < processedVoices.size) {
+            val rowContainer = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+
+            val firstItem = processedVoices[index]
+            rowContainer.addView(createVoiceGridItemView(firstItem))
+            index++
+
+            if (index < processedVoices.size) {
+                val secondItem = processedVoices[index]
+                rowContainer.addView(createVoiceGridItemView(secondItem))
+                index++
+            } else {
+                rowContainer.addView(View(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(0, 0, 1f)
+                })
+            }
+
+            processedVoicesList.addView(rowContainer)
+        }
+    }
+
+    private fun createVoiceGridItemView(item: ProcessedVoiceItem): View {
+        val card = LayoutInflater.from(this).inflate(R.layout.item_processed_voice_grid, processedVoicesList, false)
+        val labelView = card.findViewById<TextView>(R.id.grid_voice_label)
+        val durationView = card.findViewById<TextView>(R.id.grid_voice_duration)
+        val previewBtn = card.findViewById<ImageButton>(R.id.btn_preview_voice)
+        labelView.text = item.label
+        durationView.text = item.duration
+        card.findViewById<ImageButton>(R.id.btn_download_voice).setOnClickListener { downloadProcessedAudio(item.filePath) }
+        previewBtn.setOnClickListener { playProcessedAudio(item.filePath, previewBtn) }
+        card.findViewById<ImageButton>(R.id.btn_rename_voice).setOnClickListener { renameProcessedVoice(item, labelView, durationView) }
+        card.findViewById<ImageButton>(R.id.btn_send_voice).setOnClickListener { sendProcessedAudio(item.filePath) }
+        return card
+    }
+
+    private fun updateProcessedVoiceViewModeUI() {
+        if (!::btnVoiceViewList.isInitialized || !::btnVoiceViewGrid.isInitialized) return
+        if (isVoiceGridViewMode) {
+            btnVoiceViewGrid.background = ContextCompat.getDrawable(this, R.drawable.voice_mode_button_purple)
+            btnVoiceViewGrid.setTextColor(ContextCompat.getColor(this, R.color.text_primary))
+            btnVoiceViewList.background = ContextCompat.getDrawable(this, R.drawable.bg_card_dark)
+            btnVoiceViewList.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+        } else {
+            btnVoiceViewList.background = ContextCompat.getDrawable(this, R.drawable.voice_mode_button_purple)
+            btnVoiceViewList.setTextColor(ContextCompat.getColor(this, R.color.text_primary))
+            btnVoiceViewGrid.background = ContextCompat.getDrawable(this, R.drawable.bg_card_dark)
+            btnVoiceViewGrid.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
         }
     }
 
@@ -467,6 +553,94 @@ class VoiceConfigActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Toast.makeText(this, "Playback error: ${e.message}", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun sendProcessedAudio(path: String) {
+        if (path.isBlank()) {
+            Toast.makeText(this, "No processed audio to send", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val file = File(path)
+        if (!file.exists()) {
+            Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", file)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "audio/mpeg"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        try {
+            startActivity(Intent.createChooser(intent, "Send voice via"))
+        } catch (e: Exception) {
+            Toast.makeText(this, "No app available to send audio", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun renameProcessedVoice(item: ProcessedVoiceItem, labelView: TextView, durationView: TextView) {
+        val originalFile = File(item.filePath)
+        if (!originalFile.exists()) {
+            Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val input = EditText(this).apply {
+            setText(item.label)
+            setSelection(text.length)
+            setSingleLine(true)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Rename voice")
+            .setMessage("Choose a clear name for this processed voice")
+            .setView(input)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Save") { _, _ ->
+                val newLabel = input.text?.toString()?.trim().orEmpty()
+                if (newLabel.isBlank()) {
+                    Toast.makeText(this, "Name cannot be empty", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                val extension = originalFile.extension
+                val safeBaseName = newLabel
+                    .replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                    .trim()
+                    .ifBlank { "Processed_voice_${System.currentTimeMillis()}" }
+                val targetName = if (extension.isNotBlank() &&
+                    !safeBaseName.lowercase(Locale.getDefault()).endsWith(".${extension.lowercase(Locale.getDefault())}")
+                ) {
+                    "$safeBaseName.$extension"
+                } else {
+                    safeBaseName
+                }
+
+                val renamedFile = File(originalFile.parentFile, targetName)
+                if (renamedFile.exists() && renamedFile.absolutePath != originalFile.absolutePath) {
+                    Toast.makeText(this, "A file with this name already exists", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                val renamed = if (renamedFile.absolutePath == originalFile.absolutePath) {
+                    true
+                } else {
+                    originalFile.renameTo(renamedFile)
+                }
+
+                if (renamed) {
+                    item.filePath = renamedFile.absolutePath
+                    item.label = safeBaseName
+                    item.duration = getAudioDuration(item.filePath)
+                    labelView.text = item.label
+                    durationView.text = item.duration
+                    Toast.makeText(this, "Renamed", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Rename failed", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .show()
     }
 
     override fun onDestroy() {

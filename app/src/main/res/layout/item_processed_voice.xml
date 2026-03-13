@@ -18,13 +18,13 @@
         android:tint="@color/voice_color" />
 
     <ImageButton
-        android:id="@+id/btn_play_voice"
+        android:id="@+id/btn_preview_voice"
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:layout_marginStart="8dp"
         android:src="@drawable/ic_play"
         android:background="?android:attr/selectableItemBackgroundBorderless"
-        android:contentDescription="Play"
+        android:contentDescription="Preview"
         android:tint="@color/voice_color" />
 
     <TextView
@@ -45,4 +45,24 @@
         android:textColor="@color/text_secondary"
         android:textSize="12sp"
         android:layout_marginStart="8dp" />
+
+    <ImageButton
+        android:id="@+id/btn_rename_voice"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginStart="6dp"
+        android:src="@drawable/ic_edit"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Rename"
+        android:tint="@color/voice_color" />
+
+    <ImageButton
+        android:id="@+id/btn_send_voice"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginStart="2dp"
+        android:src="@drawable/ic_send"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Send"
+        android:tint="@color/voice_color" />
 </LinearLayout>

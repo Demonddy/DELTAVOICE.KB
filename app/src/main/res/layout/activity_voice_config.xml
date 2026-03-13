@@ -347,6 +347,41 @@
                 android:visibility="gone" />
 
             <LinearLayout
+                android:id="@+id/processed_voice_view_selector"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone">
+
+                <Button
+                    android:id="@+id/btn_voice_view_list"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="6dp"
+                    android:text="List"
+                    android:textAllCaps="false"
+                    android:textStyle="bold"
+                    android:textSize="12sp"
+                    android:background="@drawable/voice_mode_button_purple"
+                    android:textColor="@color/text_primary" />
+
+                <Button
+                    android:id="@+id/btn_voice_view_grid"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    android:text="Grid"
+                    android:textAllCaps="false"
+                    android:textStyle="bold"
+                    android:textSize="12sp"
+                    android:background="@drawable/bg_card_dark"
+                    android:textColor="@color/text_secondary" />
+            </LinearLayout>
+
+            <LinearLayout
                 android:id="@+id/processed_voices_list"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

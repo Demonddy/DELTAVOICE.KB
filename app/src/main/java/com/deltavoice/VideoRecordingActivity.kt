@@ -82,6 +82,19 @@ class VideoRecordingActivity : AppCompatActivity() {
 
         findViewById<View>(R.id.btn_back).setOnClickListener { finish() }
 
+        // Switch between front and back cameras
+        findViewById<View>(R.id.btn_switch_camera).setOnClickListener {
+            if (isRecording) {
+                Toast.makeText(this, "Stop recording to switch camera", Toast.LENGTH_SHORT).show()
+            } else {
+                useFrontCamera = !useFrontCamera
+                closeCamera()
+                if (checkPermissions() && cameraPreview.isAvailable) {
+                    openCamera()
+                }
+            }
+        }
+
         recordButton.setOnClickListener {
             if (checkPermissions()) {
                 if (isRecording) {

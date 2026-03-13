@@ -35,4 +35,34 @@
         android:textSize="14sp"
         android:ellipsize="end"
         android:maxLines="1" />
+
+    <ImageButton
+        android:id="@+id/btn_preview_video"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginStart="6dp"
+        android:src="@drawable/ic_play"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Preview"
+        android:tint="@color/video_color" />
+
+    <ImageButton
+        android:id="@+id/btn_rename_video"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginStart="2dp"
+        android:src="@drawable/ic_edit"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Rename"
+        android:tint="@color/video_color" />
+
+    <ImageButton
+        android:id="@+id/btn_send_video"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginStart="2dp"
+        android:src="@drawable/ic_send"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Send"
+        android:tint="@color/video_color" />
 </LinearLayout>
