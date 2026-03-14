@@ -1197,6 +1197,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun showRecordingUI() {
         // Ensure voice UI is exclusive and no other panel can overlap it.
         hideAllOverlays()
+        hideTopBarsForOverlay()
         keyboardContainer.visibility = View.GONE
         voiceRecordingContainer.visibility = View.VISIBLE
         stopRecordingTimer(reset = true)
@@ -1247,6 +1248,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         
         // Ensure processing UI is exclusive and no other panel can overlap it.
         hideAllOverlays()
+        hideTopBarsForOverlay()
         keyboardContainer.visibility = View.GONE
         voiceProcessingStep2Container.visibility = View.VISIBLE
         stopRecordingTimer(reset = false)
@@ -3265,15 +3267,30 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun createDictKey(letter: String, isNumber: Boolean = false): Button {
         val keyHeightDp = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) 40 else 48
         return Button(this).apply {
+            val isArabicKey = letter.any { isArabicCodePoint(it.code) }
             text = letter
             textSize = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                if (isNumber) 17f else 19f
+                when {
+                    isNumber -> 17f
+                    isArabicKey -> 22f
+                    else -> 19f
+                }
             } else {
-                if (isNumber) 20f else 22f
+                when {
+                    isNumber -> 20f
+                    isArabicKey -> 24f
+                    else -> 22f
+                }
+            }
+            if (isArabicKey) {
+                typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL)
+                textLocale = Locale("ar")
+                textDirection = View.TEXT_DIRECTION_RTL
             }
             setTextColor(Color.parseColor("#FFFFFF"))
             background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.dict_key_background)
             isAllCaps = false
+            ellipsize = null
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 0)
             includeFontPadding = false
@@ -4459,14 +4476,26 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun createAiChatKey(letter: String, isLandscape: Boolean = false): Button {
         val keyHeightPx = resources.getDimensionPixelSize(R.dimen.ai_chat_key_height)
-        val textSize = if (isLandscape) 13f else 15f
+        val isArabicKey = letter.any { isArabicCodePoint(it.code) }
+        val textSize = when {
+            isArabicKey && isLandscape -> 16f
+            isArabicKey -> 18f
+            isLandscape -> 13f
+            else -> 15f
+        }
         val margin = if (isLandscape) 1 else 2
         return Button(this).apply {
             text = letter
             this.textSize = textSize
+            if (isArabicKey) {
+                typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL)
+                textLocale = Locale("ar")
+                textDirection = View.TEXT_DIRECTION_RTL
+            }
             setTextColor(Color.parseColor("#FFFFFF"))
             background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.dict_key_background)
             isAllCaps = false
+            ellipsize = null
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 0)
             includeFontPadding = false
@@ -6447,6 +6476,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             } else {
                 baseLabel
             }
+            val isArabicKey = label.any { isArabicCodePoint(it.code) }
             // Use smaller font for non-Latin scripts to prevent truncation to "..."
             val needsCompactFont = label.any { c ->
                 val code = c.code
@@ -6455,13 +6485,20 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
             val isLandscapeKey = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
             textSize = when {
-                needsCompactFont -> if (isLandscapeKey) 10f else 12f
+                isArabicKey -> if (isLandscapeKey) 15f else 19f
+                needsCompactFont -> if (isLandscapeKey) 11f else 13f
                 label.length > 1 -> if (isLandscapeKey) 10f else 12f
                 else -> if (isLandscapeKey) 13f else 16f
+            }
+            if (isArabicKey) {
+                typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL)
+                textLocale = Locale("ar")
+                textDirection = View.TEXT_DIRECTION_RTL
             }
             setTextColor(Color.parseColor("#F2F2F2"))
             gravity = Gravity.CENTER
             isAllCaps = false
+            ellipsize = null
             setIncludeFontPadding(true)
             val keyVertPad = if (isLandscapeKey) 4 else 12
             setPadding(8, keyVertPad, 8, keyVertPad)
@@ -6639,6 +6676,14 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 else -> false
             }
         }
+    }
+
+    private fun isArabicCodePoint(codePoint: Int): Boolean {
+        return codePoint in 0x0600..0x06FF ||
+            codePoint in 0x0750..0x077F ||
+            codePoint in 0x08A0..0x08FF ||
+            codePoint in 0xFB50..0xFDFF ||
+            codePoint in 0xFE70..0xFEFF
     }
 
     /**
@@ -7317,9 +7362,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
 
     /**
-     * Show more options (Calculator & Dictionary), hide keyboard
+     * Show more options (Calculator & Dictionary), hide keyboard.
+     * Voice panel and three-dots panel are mutually exclusive.
      */
     private fun showMoreOptions() {
+        hideAllOverlays()
+        hideTopBarsForOverlay()
         keyboardContainer.visibility = View.GONE
         moreOptionsContainer.visibility = View.VISIBLE
     }
@@ -7330,6 +7378,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun hideMoreOptions() {
         moreOptionsContainer.visibility = View.GONE
         keyboardContainer.visibility = View.VISIBLE
+        showTopBarsAfterOverlay()
     }
 
     /**
