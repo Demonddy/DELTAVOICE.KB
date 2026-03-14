@@ -3,9 +3,9 @@
     <!-- AI chat messages area: compact in landscape to preserve vertical space -->
     <dimen name="ai_chat_messages_height">56dp</dimen>
     <!-- AI chat mini-keyboard key height: smaller in landscape -->
-    <dimen name="ai_chat_key_height">30dp</dimen>
+    <dimen name="ai_chat_key_height">26dp</dimen>
     <!-- AI chat bottom row (send/space/globe) height -->
-    <dimen name="ai_chat_bottom_row_height">34dp</dimen>
-    <!-- Emoji picker: half screen in landscape -->
-    <dimen name="emoji_picker_height">200dp</dimen>
+    <dimen name="ai_chat_bottom_row_height">30dp</dimen>
+    <!-- Emoji picker: shorter in landscape -->
+    <dimen name="emoji_picker_height">140dp</dimen>
 </resources>

@@ -145,11 +145,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private var backspaceRepeatRunnable: Runnable? = null
     private var isBackspaceRepeating: Boolean = false
     private companion object {
+        // Performance targets (confirmed): backspace 30-45 chars/sec when held, typing 12-15 chars/sec
         private const val PREDICTION_DELAY_NORMAL_MS = 140L
         private const val PREDICTION_DELAY_FAST_MS = 320L
-        private const val FAST_TYPING_INTERVAL_MS = 80L
+        private const val FAST_TYPING_INTERVAL_MS = 80L   // 12.5 chars/sec threshold (80ms = 1000/12.5)
         private const val KEY_FEEDBACK_PREFS_CACHE_MS = 1000L
         private const val PREDICTION_PREFS_CACHE_MS = 1000L
+        // Backspace repeat: 22ms interval = 1000/22 ≈ 45 chars/sec (target 30-45)
         private const val BACKSPACE_REPEAT_START_DELAY_MS = 120L
         private const val BACKSPACE_REPEAT_INTERVAL_MS = 22L
         private const val KEY_PRESS_ANIM_DURATION_MS = 35L
@@ -157,58 +159,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         private const val CLIPBOARD_HISTORY_KEY = "clipboard_history"
         private const val CLIPBOARD_MAX_ITEMS = 20
         private const val CLIPBOARD_DELIMITER = "\u001E"
-        private const val LONG_PRESS_DELAY_MS = 300L
-
-        private val ACCENT_MAP: Map<String, List<String>> = mapOf(
-            "a" to listOf("à", "á", "â", "ã", "ä", "å", "æ", "ā", "ă", "ą", "ª"),
-            "c" to listOf("ç", "ć", "č", "ĉ"),
-            "d" to listOf("ð", "ď", "đ"),
-            "e" to listOf("è", "é", "ê", "ë", "ē", "ė", "ę", "ě"),
-            "g" to listOf("ğ", "ĝ", "ġ"),
-            "h" to listOf("ĥ", "ħ"),
-            "i" to listOf("ì", "í", "î", "ï", "ī", "ĩ", "į", "ı"),
-            "j" to listOf("ĵ"),
-            "l" to listOf("ł", "ĺ", "ľ", "ļ"),
-            "n" to listOf("ñ", "ń", "ň", "ņ"),
-            "o" to listOf("ò", "ó", "ô", "õ", "ö", "ø", "ō", "ő", "œ"),
-            "r" to listOf("ŕ", "ř"),
-            "s" to listOf("ß", "ś", "š", "ş", "ŝ"),
-            "t" to listOf("ţ", "ť", "þ"),
-            "u" to listOf("ù", "ú", "û", "ü", "ū", "ů", "ű", "ų"),
-            "w" to listOf("ŵ"),
-            "y" to listOf("ý", "ŷ", "ÿ"),
-            "z" to listOf("ž", "ź", "ż"),
-            "0" to listOf("°", "⁰"),
-            "1" to listOf("¹", "½", "⅓", "¼", "⅛"),
-            "2" to listOf("²", "⅔"),
-            "3" to listOf("³", "¾", "⅜"),
-            "4" to listOf("⁴"),
-            "5" to listOf("⁵", "⅝"),
-            "7" to listOf("⁷", "⅞"),
-            "8" to listOf("⁸"),
-            "9" to listOf("⁹"),
-            "!" to listOf("¡"),
-            "?" to listOf("¿"),
-            "-" to listOf("–", "—", "·"),
-            "." to listOf("…", "•"),
-            "'" to listOf("'", "'", "‚", "‛"),
-            "\"" to listOf(""", """, "„", "‟"),
-            "/" to listOf("\\"),
-            "$" to listOf("€", "£", "¥", "₩", "₹", "₽"),
-            "&" to listOf("§"),
-            "%" to listOf("‰")
-        )
     }
-
-    // Long-press accent popup state
-    private var accentPopup: android.widget.PopupWindow? = null
-    private var accentPopupSelectedIndex = -1
-    private var accentPopupChars: List<String> = emptyList()
-    private var accentPopupViews: List<TextView> = emptyList()
-    private var accentPopupAnchor: View? = null
-    private var longPressHandler = Handler(Looper.getMainLooper())
-    private var longPressRunnable: Runnable? = null
-    private var isLongPressActive = false
 
     private val languages = listOf(
         "English" to "en",
@@ -2101,11 +2052,21 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     /**
-     * Show the emoji picker
+     * Show the emoji picker - sized to ~half screen like messaging apps
      */
     private fun showEmojiPicker() {
         keyboardContainer.visibility = View.GONE
-        emojiPickerContainer?.visibility = View.VISIBLE
+        emojiPickerContainer?.let { container ->
+            // Size to half screen (like WhatsApp/Telegram emoji picker)
+            val halfScreenPx = resources.displayMetrics.heightPixels / 2
+            val lp = container.layoutParams ?: LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                halfScreenPx
+            )
+            lp.height = halfScreenPx
+            container.layoutParams = lp
+            container.visibility = View.VISIBLE
+        }
         isEmojiPickerVisible = true
         // Refresh current category
         loadEmojiCategory(currentEmojiCategory)
@@ -3302,7 +3263,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Create a dictionary mini keyboard key
      */
     private fun createDictKey(letter: String, isNumber: Boolean = false): Button {
-        val keyHeightDp = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) 42 else 52
+        val keyHeightDp = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) 40 else 48
         return Button(this).apply {
             text = letter
             textSize = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
@@ -3342,7 +3303,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun createDictSpecialKey(label: String, onClick: () -> Unit): Button {
         val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-        val keyHeightDp = if (isLandscape) 42 else 52
+        val keyHeightDp = if (isLandscape) 40 else 48
         return Button(this).apply {
             text = label
             textSize = if (isLandscape) 17f else 20f
@@ -3384,14 +3345,14 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun getKeyHeightDp(): Int {
         val prefs = getSharedPreferences("deltavoice_prefs", MODE_PRIVATE)
         val baseHeight = when (prefs.getString("keyboard_height", "Normal")) {
-            "Extra short" -> 42
-            "Short" -> 46
-            "Tall" -> 58
-            "Custom" -> prefs.getInt("keyboard_height_custom", 52).coerceIn(38, 76)
-            else -> 52 // Normal – Gboard-like touch target
+            "Extra short" -> 36
+            "Short" -> 40
+            "Tall" -> 52
+            "Custom" -> prefs.getInt("keyboard_height_custom", 44).coerceIn(32, 72)
+            else -> 44 // Normal
         }
         return if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            (baseHeight * 0.72).toInt().coerceIn(32, 44)
+            (baseHeight * 0.72).toInt().coerceIn(28, 40)
         } else {
             baseHeight
         }
@@ -4680,17 +4641,19 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         
         // Call AI API
         serviceScope.launch {
+            var responseToShow: String? = null
             try {
                 val response = callAiApi(message)
-                withContext(Dispatchers.Main) {
-                    // Remove loading message and add response
-                    removeLoadingMessage()
-                    addChatMessage(response, isUser = false)
-                }
+                responseToShow = response
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
+                android.util.Log.e("DeltaVoice", "AI chat send failed: ${e.message}", e)
+                responseToShow = "Sorry, I couldn't process that. Please try again."
+            } finally {
                 withContext(Dispatchers.Main) {
                     removeLoadingMessage()
-                    addChatMessage("Sorry, I couldn't process that. Please try again.", isUser = false)
+                    responseToShow?.let { addChatMessage(it, isUser = false) }
                 }
             }
         }
@@ -4792,9 +4755,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     }
                 }
                 
-                // Use Convex (primary) or Supabase (fallback) - skip if no network
+                // Use Convex or Supabase - try both when network available
                 val edgeResponse = if (com.deltavoice.util.NetworkUtils.isConnected(this@MainKeyboardService)) {
-                    callOpenAiViaConvex(message) ?: callOpenAiViaSupabase(message)
+                    val convex = callOpenAiViaConvex(message)
+                    if (convex != null) convex
+                    else callOpenAiViaSupabase(message)
                 } else null
                 if (edgeResponse != null) {
                     aiConversationHistory.add(mapOf("role" to "assistant", "content" to edgeResponse))
@@ -4858,20 +4823,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             if (responseCode == 200) {
                 val responseText = connection.inputStream.bufferedReader().use { it.readText() }
                 android.util.Log.d("DeltaVoice", "OpenAI response received: ${responseText.take(200)}")
-                
-                // Parse the response to get the content
-                val contentMatch = Regex(""""content"\s*:\s*"((?:[^"\\]|\\.)*)"""").find(responseText)
-                if (contentMatch != null) {
-                    return contentMatch.groupValues[1]
-                        .replace("\\n", "\n")
-                        .replace("\\\"", "\"")
-                        .replace("\\\\", "\\")
-                }
+                connection.disconnect()
+                return parseAiChatResponse(responseText)
             } else {
                 val errorText = connection.errorStream?.bufferedReader()?.use { it.readText() } ?: "Unknown error"
                 android.util.Log.e("DeltaVoice", "OpenAI API error: $responseCode - $errorText")
             }
-            
             connection.disconnect()
             
         } catch (e: Exception) {
@@ -4891,10 +4848,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     /**
-     * Call OpenAI via Convex HTTP endpoint (primary - no auth needed, uses Convex env OPENAI_API_KEY)
+     * Call OpenAI via Convex HTTP endpoint (no auth needed, uses Convex env OPENAI_API_KEY)
      */
     private fun callOpenAiViaConvex(message: String): String? {
         if (!com.deltavoice.config.ConvexConfig.USE_CONVEX_FOR_VOICE_WORKFLOW) return null
+        if (com.deltavoice.config.ConvexConfig.CONVEX_SITE_URL.contains("YOUR_DEPLOYMENT")) return null
         try {
             val convexUrl = com.deltavoice.config.ConvexConfig.AI_CHAT_URL
             val url = java.net.URL(convexUrl)
@@ -4906,17 +4864,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             connection.readTimeout = 60000
             connection.doOutput = true
 
-            val messagesJson = StringBuilder("[")
-            messagesJson.append("""{"role":"system","content":"You are a helpful, friendly AI assistant like ChatGPT. Be concise but informative. Use emojis occasionally. Respond in the same language the user writes in."}""")
-            aiConversationHistory.takeLast(8).forEach { msg ->
-                val role = msg["role"] ?: "user"
-                val content = (msg["content"] ?: "")
-                    .replace("\\", "\\\\")
-                    .replace("\"", "\\\"")
-                    .replace("\n", "\\n")
-                messagesJson.append(""",{"role":"$role","content":"$content"}""")
-            }
-            messagesJson.append("]")
+            val messagesJson = buildAiChatMessagesJson()
             val requestBody = """{"messages":$messagesJson}"""
 
             android.util.Log.d("DeltaVoice", "Calling Convex AI chat...")
@@ -4925,25 +4873,18 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 writer.flush()
             }
 
-            if (connection.responseCode == 200) {
-                val responseText = connection.inputStream.bufferedReader().use { it.readText() }
-                android.util.Log.d("DeltaVoice", "Convex AI response: ${responseText.take(200)}")
-                val patterns = listOf(
-                    Regex(""""content"\s*:\s*"((?:[^"\\]|\\.)*)""""),
-                    Regex(""""response"\s*:\s*"((?:[^"\\]|\\.)*)""""),
-                    Regex(""""message"\s*:\s*"((?:[^"\\]|\\.)*)"""")
-                )
-                for (pattern in patterns) {
-                    val match = pattern.find(responseText)
-                    if (match != null) {
-                        return match.groupValues[1]
-                            .replace("\\n", "\n")
-                            .replace("\\\"", "\"")
-                            .replace("\\\\", "\\")
-                    }
-                }
+            val responseCode = connection.responseCode
+            val responseText = if (responseCode == 200) {
+                connection.inputStream.bufferedReader().use { it.readText() }
+            } else {
+                connection.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
             }
             connection.disconnect()
+
+            if (responseCode == 200 && responseText.isNotBlank()) {
+                android.util.Log.d("DeltaVoice", "Convex AI response: ${responseText.take(200)}")
+                return parseAiChatResponse(responseText)
+            }
         } catch (e: Exception) {
             android.util.Log.e("DeltaVoice", "Convex AI call failed: ${e.message}")
         }
@@ -4957,10 +4898,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         try {
             val apiKey = com.deltavoice.config.SupabaseConfig.SUPABASE_ANON_KEY
             val supabaseUrl = com.deltavoice.config.SupabaseConfig.SUPABASE_URL
-            
+
             val url = java.net.URL("$supabaseUrl/functions/v1/ai-chat")
             val connection = url.openConnection() as java.net.HttpURLConnection
-            
+
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json")
             connection.setRequestProperty("Authorization", "Bearer $apiKey")
@@ -4968,58 +4909,30 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             connection.connectTimeout = 30000
             connection.readTimeout = 60000
             connection.doOutput = true
-            
-            // Build messages array
-            val messagesJson = StringBuilder("[")
-            messagesJson.append("""{"role":"system","content":"You are a helpful, friendly AI assistant like ChatGPT. Be concise but informative. Use emojis occasionally. Respond in the same language the user writes in."}""")
-            
-            aiConversationHistory.takeLast(8).forEach { msg ->
-                val role = msg["role"] ?: "user"
-                val content = (msg["content"] ?: "")
-                    .replace("\\", "\\\\")
-                    .replace("\"", "\\\"")
-                    .replace("\n", "\\n")
-                messagesJson.append(""",{"role":"$role","content":"$content"}""")
-            }
-            messagesJson.append("]")
-            
+
+            val messagesJson = buildAiChatMessagesJson()
             val requestBody = """{"messages":$messagesJson}"""
-            
+
             android.util.Log.d("DeltaVoice", "Calling Supabase AI chat...")
-            
             java.io.OutputStreamWriter(connection.outputStream).use { writer ->
                 writer.write(requestBody)
                 writer.flush()
             }
-            
-            if (connection.responseCode == 200) {
-                val responseText = connection.inputStream.bufferedReader().use { it.readText() }
-                android.util.Log.d("DeltaVoice", "Supabase response: ${responseText.take(200)}")
-                
-                // Parse response - try multiple patterns
-                val patterns = listOf(
-                    Regex(""""content"\s*:\s*"((?:[^"\\]|\\.)*)""""),
-                    Regex(""""response"\s*:\s*"((?:[^"\\]|\\.)*)""""),
-                    Regex(""""message"\s*:\s*"((?:[^"\\]|\\.)*)""""),
-                    Regex(""""text"\s*:\s*"((?:[^"\\]|\\.)*)"""")
-                )
-                
-                for (pattern in patterns) {
-                    val match = pattern.find(responseText)
-                    if (match != null) {
-                        return match.groupValues[1]
-                            .replace("\\n", "\n")
-                            .replace("\\\"", "\"")
-                            .replace("\\\\", "\\")
-                    }
-                }
+
+            val responseCode = connection.responseCode
+            val responseText = if (responseCode == 200) {
+                connection.inputStream.bufferedReader().use { it.readText() }
+            } else {
+                connection.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
             }
-            
             connection.disconnect()
-            
+
+            if (responseCode == 200 && responseText.isNotBlank()) {
+                android.util.Log.d("DeltaVoice", "Supabase AI response: ${responseText.take(200)}")
+                return parseAiChatResponse(responseText)
+            }
         } catch (e: Exception) {
             android.util.Log.e("DeltaVoice", "Supabase AI call failed: ${e.message}")
-            // User-friendly message when device can't reach the server (DNS/network)
             val msg = e.message ?: ""
             if (msg.contains("Unable to resolve host", ignoreCase = true) || msg.contains("No address", ignoreCase = true)) {
                 Handler(android.os.Looper.getMainLooper()).post {
@@ -5028,8 +4941,59 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 }
             }
         }
-        
         return null
+    }
+
+    /** Build JSON array of messages for AI chat API */
+    private fun buildAiChatMessagesJson(): String {
+        val sb = StringBuilder("[")
+        sb.append("""{"role":"system","content":"You are a helpful, friendly AI assistant like ChatGPT. Be concise but informative. Use emojis occasionally. Respond in the same language the user writes in."}""")
+        aiConversationHistory.takeLast(8).forEach { msg ->
+            val role = msg["role"] ?: "user"
+            val content = (msg["content"] ?: "")
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "")
+                .replace("\t", " ")
+            sb.append(""",{"role":"$role","content":"$content"}""")
+        }
+        sb.append("]")
+        return sb.toString()
+    }
+
+    /** Parse AI chat response JSON - handles Convex/Supabase format and OpenAI API format */
+    private fun parseAiChatResponse(responseText: String): String? {
+        return try {
+            val json = org.json.JSONObject(responseText)
+            // Convex/Supabase: { content, response, message }
+            listOf("content", "response", "message", "text").forEach { key ->
+                if (json.has(key)) {
+                    val value = json.optString(key, "")
+                    if (value.isNotBlank()) return value
+                }
+            }
+            // OpenAI API: { choices: [{ message: { content: "..." } }] }
+            val choices = json.optJSONArray("choices")
+            if (choices != null && choices.length() > 0) {
+                val msg = choices.getJSONObject(0).optJSONObject("message")
+                msg?.optString("content", "")?.takeIf { it.isNotBlank() }?.let { return it }
+            }
+            null
+        } catch (_: Exception) {
+            // Fallback to regex for malformed JSON
+            val patterns = listOf(
+                Regex(""""content"\s*:\s*"((?:[^"\\\\]|\\\\.)*)""""),
+                Regex(""""response"\s*:\s*"((?:[^"\\\\]|\\\\.)*)""""),
+                Regex(""""message"\s*:\s*"((?:[^"\\\\]|\\\\.)*)"""")
+            )
+            for (pattern in patterns) {
+                pattern.find(responseText)?.groupValues?.getOrNull(1)?.let { escaped ->
+                    return escaped.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\")
+                }
+            }
+            null
+        }
     }
     
     /**
@@ -6483,6 +6447,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             } else {
                 baseLabel
             }
+            // Use smaller font for non-Latin scripts to prevent truncation to "..."
             val needsCompactFont = label.any { c ->
                 val code = c.code
                 code in 0x0600..0x06FF || code in 0x0900..0x097F || code in 0x0400..0x04FF ||
@@ -6490,16 +6455,16 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
             val isLandscapeKey = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
             textSize = when {
-                needsCompactFont -> if (isLandscapeKey) 12f else 15f
-                label.length > 1 -> if (isLandscapeKey) 12f else 14f
-                else -> if (isLandscapeKey) 16f else 21f
+                needsCompactFont -> if (isLandscapeKey) 10f else 12f
+                label.length > 1 -> if (isLandscapeKey) 10f else 12f
+                else -> if (isLandscapeKey) 13f else 16f
             }
             setTextColor(Color.parseColor("#F2F2F2"))
             gravity = Gravity.CENTER
             isAllCaps = false
-            setIncludeFontPadding(false)
-            val keyVertPad = if (isLandscapeKey) 6 else 8
-            setPadding(4, keyVertPad, 4, keyVertPad)
+            setIncludeFontPadding(true)
+            val keyVertPad = if (isLandscapeKey) 4 else 12
+            setPadding(8, keyVertPad, 8, keyVertPad)
             minHeight = getKeyHeightDp().dpToPx()
             background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.glass_key_background)
             
@@ -6538,14 +6503,14 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
             val isLandscapeKey = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
             text = "$number\n$letterDisplay"
-            textSize = if (isLandscapeKey) 12f else 14f
+            textSize = if (isLandscapeKey) 10f else 12f
             setTextColor(Color.parseColor("#333333"))
             gravity = Gravity.CENTER
             isAllCaps = false
-            setIncludeFontPadding(false)
-            setLineSpacing(0f, 1.1f)
-            val vertPad = if (isLandscapeKey) 4 else 6
-            setPadding(4, vertPad, 4, vertPad)
+            setIncludeFontPadding(true)
+            setLineSpacing(0f, 1.12f)
+            val vertPad = if (isLandscapeKey) 4 else 10
+            setPadding(8, vertPad, 8, if (isLandscapeKey) 4 else 16)
             minHeight = (getKeyHeightDp() + if (isLandscapeKey) 0 else 4).dpToPx()
             background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.glass_key_background)
             
@@ -6583,13 +6548,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val isLandscapeKey = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         val button = Button(this).apply {
             text = label
-            textSize = if (isLandscapeKey) 13f else 16f
+            textSize = if (isLandscapeKey) 11f else 14f
             setTextColor(Color.parseColor("#F2F2F2"))
             gravity = Gravity.CENTER
             isAllCaps = false
-            setIncludeFontPadding(false)
-            val keyVertPad = if (isLandscapeKey) 6 else 8
-            setPadding(4, keyVertPad, 4, keyVertPad)
+            setIncludeFontPadding(true)
+            val keyVertPad = if (isLandscapeKey) 4 else 12
+            setPadding(8, keyVertPad, 8, keyVertPad)
             minHeight = getKeyHeightDp().dpToPx()
             background = ContextCompat.getDrawable(this@MainKeyboardService, drawableRes)
             
@@ -6644,171 +6609,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
 
     /**
-     * Show Gboard-style accent popup above the anchor key.
-     * Characters flow in a horizontal strip; the first entry is pre-selected.
-     */
-    private fun showAccentPopup(anchor: View, chars: List<String>) {
-        dismissAccentPopup()
-        if (chars.isEmpty()) return
-
-        accentPopupChars = chars
-        accentPopupAnchor = anchor
-        isLongPressActive = true
-
-        val density = resources.displayMetrics.density
-        val cellW = (42 * density).toInt()
-        val cellH = (48 * density).toInt()
-        val padH = (8 * density).toInt()
-        val padV = (6 * density).toInt()
-        val textSizeSp = 20f
-
-        val maxPerRow = 10
-        val columns = chars.size.coerceAtMost(maxPerRow)
-        val rows = (chars.size + maxPerRow - 1) / maxPerRow
-
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.accent_popup_background)
-            setPadding(padH, padV, padH, padV)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) elevation = 8 * density
-        }
-
-        val allTextViews = mutableListOf<TextView>()
-        var charIndex = 0
-        for (r in 0 until rows) {
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-            }
-            val colsThisRow = if (r == rows - 1) chars.size - charIndex else columns
-            for (c in 0 until colsThisRow) {
-                val ch = chars[charIndex]
-                val tv = TextView(this).apply {
-                    text = ch
-                    textSize = textSizeSp
-                    setTextColor(Color.WHITE)
-                    gravity = Gravity.CENTER
-                    includeFontPadding = false
-                    layoutParams = LinearLayout.LayoutParams(cellW, cellH)
-                    background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.accent_char_normal)
-                }
-                allTextViews.add(tv)
-                row.addView(tv)
-                charIndex++
-            }
-            container.addView(row)
-        }
-        accentPopupViews = allTextViews
-
-        val popupW = columns * cellW + 2 * padH
-        val popupH = rows * cellH + 2 * padV
-
-        val popup = android.widget.PopupWindow(container, popupW, popupH, false).apply {
-            setBackgroundDrawable(null)
-            isOutsideTouchable = false
-            isFocusable = false
-            inputMethodMode = android.widget.PopupWindow.INPUT_METHOD_NOT_NEEDED
-        }
-
-        val loc = IntArray(2)
-        anchor.getLocationInWindow(loc)
-        val anchorCenterX = loc[0] + anchor.width / 2
-        val xOff = anchorCenterX - popupW / 2
-        val screenW = resources.displayMetrics.widthPixels
-        val clampedX = xOff.coerceIn(4, screenW - popupW - 4)
-        val yOff = loc[1] - popupH - (4 * density).toInt()
-
-        rootView?.let { rv ->
-            popup.showAtLocation(rv, Gravity.NO_GRAVITY, clampedX, yOff.coerceAtLeast(0))
-        }
-        accentPopup = popup
-
-        accentPopupSelectedIndex = 0
-        updateAccentPopupHighlight(0)
-
-        anchor.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-    }
-
-    private fun updateAccentPopupHighlight(index: Int) {
-        val normalBg = ContextCompat.getDrawable(this, R.drawable.accent_char_normal)
-        val selectedBg = ContextCompat.getDrawable(this, R.drawable.accent_char_selected)
-        accentPopupViews.forEachIndexed { i, tv ->
-            tv.background = if (i == index) selectedBg else normalBg
-        }
-        accentPopupSelectedIndex = index
-    }
-
-    private fun updateAccentSelectionFromTouch(rawX: Float, rawY: Float) {
-        val popup = accentPopup ?: return
-        val container = popup.contentView as? LinearLayout ?: return
-
-        val loc = IntArray(2)
-        container.getLocationOnScreen(loc)
-        val localX = rawX - loc[0]
-        val localY = rawY - loc[1]
-
-        if (localX < 0 || localX > container.width || localY < 0 || localY > container.height) return
-
-        val density = resources.displayMetrics.density
-        val cellW = (42 * density).toInt()
-        val cellH = (48 * density).toInt()
-        val padH = (8 * density).toInt()
-        val padV = (6 * density).toInt()
-        val maxPerRow = 10
-
-        val col = ((localX - padH) / cellW).toInt().coerceIn(0, accentPopupChars.size.coerceAtMost(maxPerRow) - 1)
-        val row = ((localY - padV) / cellH).toInt().coerceIn(0, (accentPopupChars.size + maxPerRow - 1) / maxPerRow - 1)
-        val idx = (row * maxPerRow + col).coerceIn(0, accentPopupChars.size - 1)
-
-        if (idx != accentPopupSelectedIndex) {
-            updateAccentPopupHighlight(idx)
-        }
-    }
-
-    private fun commitAccentSelection() {
-        if (accentPopupSelectedIndex in accentPopupChars.indices) {
-            val selected = accentPopupChars[accentPopupSelectedIndex]
-            if (isAiChatVisible) {
-                if (aiChatInputText.isNotEmpty()) aiChatInputText.deleteCharAt(aiChatInputText.length - 1)
-                aiChatInputText.append(selected)
-                updateAiChatInputDisplay()
-            } else {
-                currentInputConnection?.let { ic ->
-                    ic.deleteSurroundingText(1, 0)
-                    ic.commitText(selected, 1)
-                }
-            }
-            schedulePredictionUpdate()
-        }
-        dismissAccentPopup()
-    }
-
-    private fun dismissAccentPopup() {
-        accentPopup?.dismiss()
-        accentPopup = null
-        accentPopupChars = emptyList()
-        accentPopupViews = emptyList()
-        accentPopupSelectedIndex = -1
-        accentPopupAnchor = null
-        isLongPressActive = false
-        longPressRunnable?.let { longPressHandler.removeCallbacks(it) }
-        longPressRunnable = null
-    }
-
-    private fun getAccentsForKey(value: String): List<String> {
-        val lower = value.lowercase()
-        val accents = ACCENT_MAP[lower] ?: return emptyList()
-        return if (isShiftPressed || (value.length == 1 && value[0].isUpperCase())) {
-            accents.map { it.uppercase() }
-        } else {
-            accents
-        }
-    }
-
-    /**
      * Apply lightweight scale animation and execute action. Fires on ACTION_DOWN for immediate
      * response (supports 12-15 chars/sec). commitText/action runs synchronously; no debounce.
-     * For letter/number keys with accent variants, a long-press (300ms) shows the accent popup.
      */
     private fun setKeyPressWithAnimation(button: Button, action: () -> Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -6826,32 +6628,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     v.animate().scaleX(0.94f).scaleY(0.94f)
                         .setDuration(KEY_PRESS_ANIM_DURATION_MS)
                         .setInterpolator(LinearInterpolator()).start()
-
-                    val keyValue = (v as? Button)?.tag as? String ?: ""
-                    val accents = getAccentsForKey(keyValue)
-                    if (accents.isNotEmpty()) {
-                        longPressRunnable?.let { longPressHandler.removeCallbacks(it) }
-                        longPressRunnable = Runnable { showAccentPopup(v, accents) }
-                        longPressHandler.postDelayed(longPressRunnable!!, LONG_PRESS_DELAY_MS)
-                    }
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    if (isLongPressActive) {
-                        updateAccentSelectionFromTouch(event.rawX, event.rawY)
-                    }
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    longPressRunnable?.let { longPressHandler.removeCallbacks(it) }
-                    longPressRunnable = null
-                    if (isLongPressActive) {
-                        if (event.actionMasked == MotionEvent.ACTION_UP) {
-                            commitAccentSelection()
-                        } else {
-                            dismissAccentPopup()
-                        }
-                    }
                     v.animate().scaleX(1f).scaleY(1f)
                         .setDuration(KEY_PRESS_ANIM_DURATION_MS)
                         .setInterpolator(LinearInterpolator()).start()
@@ -8195,14 +7974,26 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         if (response.ttsFallback == true) {
             val text = response.translatedText?.takeIf { it.isNotBlank() }
             if (text != null) {
-                android.util.Log.d("DeltaVoice", "TTS fallback: synthesizing with device TTS")
-                handleTtsFallback(text, response.targetLanguage ?: "en", workflowType)
+                val fallbackLang = response.targetLanguage?.takeIf { it.isNotBlank() } ?: "en"
+                android.util.Log.d("DeltaVoice", "TTS fallback: synthesizing with device TTS, lang=$fallbackLang")
+                handleTtsFallback(text, fallbackLang, workflowType)
                 return
             }
         }
 
         val audioBase64 = response.convertedAudioBase64
         val hasAudio = !audioBase64.isNullOrBlank() && audioBase64.length > 100
+        
+        // When no audio returned but we have text (complete/voice-only), try device TTS fallback
+        if (!hasAudio && (workflowType == "complete" || workflowType == "voice-only")) {
+            val text = response.translatedText?.takeIf { it.isNotBlank() }
+            if (text != null) {
+                val fallbackLang = response.targetLanguage?.takeIf { it.isNotBlank() } ?: "en"
+                android.util.Log.d("DeltaVoice", "No cloud audio - trying device TTS fallback, lang=$fallbackLang")
+                handleTtsFallback(text, fallbackLang, workflowType)
+                return
+            }
+        }
         
         android.util.Log.d("DeltaVoice", "=== WORKFLOW SUCCESS ===")
         android.util.Log.d("DeltaVoice", "Type: $workflowType")
@@ -8360,16 +8151,28 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         insertText(text)
         audioDurationText.text = "⏳ Device voice..."
 
-        val locale = try {
-            java.util.Locale.forLanguageTag(targetLang.replace("_", "-"))
-        } catch (_: Exception) {
-            java.util.Locale.getDefault()
+        // Map language codes to proper Locale for TTS (some need region for best results)
+        val locale = when (val code = targetLang.trim().lowercase()) {
+            "" -> java.util.Locale.getDefault()
+            "zh" -> java.util.Locale.SIMPLIFIED_CHINESE
+            "ja" -> java.util.Locale.JAPANESE
+            "ko" -> java.util.Locale.KOREAN
+            "ar" -> java.util.Locale("ar")
+            "hi" -> java.util.Locale("hi")
+            else -> try {
+                java.util.Locale.forLanguageTag(code.replace("_", "-"))
+            } catch (_: Exception) {
+                java.util.Locale.getDefault()
+            }
         }
         val tts = textToSpeech ?: return
         val prevLang = selectedLanguage
-        val setOk = tts.setLanguage(locale)
+        var setOk = tts.setLanguage(locale)
         if (setOk == TextToSpeech.LANG_MISSING_DATA || setOk == TextToSpeech.LANG_NOT_SUPPORTED) {
-            tts.setLanguage(java.util.Locale.getDefault())
+            setOk = tts.setLanguage(java.util.Locale.getDefault())
+        }
+        if (setOk == TextToSpeech.LANG_MISSING_DATA || setOk == TextToSpeech.LANG_NOT_SUPPORTED) {
+            android.util.Log.w("DeltaVoice", "TTS fallback: language $targetLang not available, using default")
         }
 
         val outFile = File(cacheDir, "tts_fallback_${System.currentTimeMillis()}.wav")

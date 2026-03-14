@@ -403,8 +403,8 @@ serve(async (req) => {
     
     const reqBody = await req.json();
     const { audioBase64, format } = reqBody;
-    targetLanguage = reqBody.targetLanguage || '';
-    voiceStyle = reqBody.voiceStyle || '';
+    targetLanguage = (typeof reqBody.targetLanguage === 'string' && reqBody.targetLanguage.trim()) ? reqBody.targetLanguage.trim() : 'en';
+    voiceStyle = (typeof reqBody.voiceStyle === 'string' && reqBody.voiceStyle.trim()) ? reqBody.voiceStyle.trim().toLowerCase() : 'aria';
     workflowType = reqBody.workflowType || 'complete';
 
     console.log('🚀 Request payload received:', { 

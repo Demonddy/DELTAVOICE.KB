@@ -63,10 +63,15 @@ class CompleteVoiceWorkflowService {
         
         android.util.Log.d("DeltaVoice", "WorkflowService: Encoded audio base64 length = ${audioBase64.length}")
         
+        // Ensure backend receives valid voice and language - never send empty strings
+        val sanitizedLang = targetLanguage.takeIf { it.isNotBlank() } ?: "en"
+        val sanitizedVoice = voiceStyle.takeIf { it.isNotBlank() } ?: "aria"
+        android.util.Log.d("DeltaVoice", "WorkflowService: Sending lang=$sanitizedLang, voice=$sanitizedVoice")
+        
         val request = WorkflowRequest(
             audioBase64 = audioBase64,
-            targetLanguage = targetLanguage,
-            voiceStyle = voiceStyle,
+            targetLanguage = sanitizedLang,
+            voiceStyle = sanitizedVoice,
             workflowType = workflowType,
             format = audioFile.extension.takeIf { it.isNotBlank() } ?: "m4a"
         )

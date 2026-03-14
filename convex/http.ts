@@ -203,10 +203,20 @@ http.route({
         );
       }
 
+      // Ensure voice and language are never empty - use selected values or sensible defaults
+      const sanitizedLang =
+        (typeof targetLanguage === "string" && targetLanguage.trim())
+          ? targetLanguage.trim()
+          : "en";
+      const sanitizedVoice =
+        (typeof voiceStyle === "string" && voiceStyle.trim())
+          ? voiceStyle.trim().toLowerCase()
+          : "aria";
+
       const req: WorkflowRequest = {
         audioBase64,
-        targetLanguage: targetLanguage || "",
-        voiceStyle: voiceStyle || "aria",
+        targetLanguage: sanitizedLang,
+        voiceStyle: sanitizedVoice,
         workflowType: wfType,
         format,
       };
