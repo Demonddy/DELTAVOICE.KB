@@ -69,6 +69,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import android.app.AlertDialog
 import android.net.ConnectivityManager
 import android.net.Network
@@ -405,6 +406,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private val aiChatPredictionHandler = Handler(Looper.getMainLooper())
     private var aiChatPredictionRunnable: Runnable? = null
     private val aiChatPredictionDelayMs = 80L
+    private val aiChatConnectTimeoutMs = 8000
+    private val aiChatReadTimeoutMs = 12000
+    private val aiChatEdgeTotalTimeoutMs = 15000L
     private val aiChatMessages = mutableListOf<Pair<String, Boolean>>() // message, isUser
     private var aiConversationHistory = mutableListOf<Map<String, String>>() // For context
     
@@ -977,7 +981,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val network = connectivityManager.activeNetwork ?: return false
             val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val network = connectivityManager.activeNetwork ?: return false
+            val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
         } else {
             @Suppress("DEPRECATION")
             (connectivityManager.activeNetworkInfo?.isConnected == true)
@@ -4849,11 +4859,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     }
                 }
                 
-                // Use Convex or Supabase - try both when network available
+                // Use Convex or Supabase with a strict total timeout so chat never hangs.
                 val edgeResponse = if (com.deltavoice.util.NetworkUtils.isConnected(this@MainKeyboardService)) {
-                    val convex = callOpenAiViaConvex(message)
-                    if (convex != null) convex
-                    else callOpenAiViaSupabase(message)
+                    withTimeoutOrNull(aiChatEdgeTotalTimeoutMs) {
+                        val convex = callOpenAiViaConvex(message)
+                        convex ?: callOpenAiViaSupabase(message)
+                    }
                 } else null
                 if (edgeResponse != null) {
                     aiConversationHistory.add(mapOf("role" to "assistant", "content" to edgeResponse))
@@ -4861,6 +4872,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 }
                 
                 // Fallback to smart local responses if all API calls fail
+                android.util.Log.w("DeltaVoice", "AI chat cloud unavailable, using local response")
                 getSmartLocalResponse(message)
                 
             } catch (e: Exception) {
@@ -4882,8 +4894,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             connection.setRequestProperty("Content-Type", "application/json")
             // Note: For production, store API key securely
             connection.setRequestProperty("Authorization", "Bearer ${getOpenAiApiKey()}")
-            connection.connectTimeout = 30000
-            connection.readTimeout = 60000
+            connection.connectTimeout = aiChatConnectTimeoutMs
+            connection.readTimeout = aiChatReadTimeoutMs
             connection.doOutput = true
             
             // Build messages array with conversation history
@@ -4954,8 +4966,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json")
-            connection.connectTimeout = 30000
-            connection.readTimeout = 60000
+            connection.connectTimeout = aiChatConnectTimeoutMs
+            connection.readTimeout = aiChatReadTimeoutMs
             connection.doOutput = true
 
             val messagesJson = buildAiChatMessagesJson()
@@ -5000,8 +5012,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             connection.setRequestProperty("Content-Type", "application/json")
             connection.setRequestProperty("Authorization", "Bearer $apiKey")
             connection.setRequestProperty("apikey", apiKey)
-            connection.connectTimeout = 30000
-            connection.readTimeout = 60000
+            connection.connectTimeout = aiChatConnectTimeoutMs
+            connection.readTimeout = aiChatReadTimeoutMs
             connection.doOutput = true
 
             val messagesJson = buildAiChatMessagesJson()
@@ -6541,7 +6553,6 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             } else {
                 baseLabel
             }
-            val isArabicKey = label.any { isArabicCodePoint(it.code) }
             // Use smaller font for non-Latin scripts to prevent truncation to "..."
             val needsCompactFont = label.any { c ->
                 val code = c.code
@@ -6550,20 +6561,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
             val isLandscapeKey = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
             textSize = when {
-                isArabicKey -> if (isLandscapeKey) 15f else 19f
-                needsCompactFont -> if (isLandscapeKey) 11f else 13f
+                needsCompactFont -> if (isLandscapeKey) 10f else 12f
                 label.length > 1 -> if (isLandscapeKey) 10f else 12f
                 else -> if (isLandscapeKey) 13f else 16f
-            }
-            if (isArabicKey) {
-                typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL)
-                textLocale = Locale("ar")
-                textDirection = View.TEXT_DIRECTION_RTL
             }
             setTextColor(Color.parseColor("#F2F2F2"))
             gravity = Gravity.CENTER
             isAllCaps = false
-            ellipsize = null
             setIncludeFontPadding(true)
             val keyVertPad = if (isLandscapeKey) 4 else 12
             setPadding(8, keyVertPad, 8, keyVertPad)
