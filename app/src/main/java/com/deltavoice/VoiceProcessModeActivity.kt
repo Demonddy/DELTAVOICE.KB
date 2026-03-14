@@ -31,6 +31,7 @@ class VoiceProcessModeActivity : AppCompatActivity() {
     private lateinit var spinnerVoice: Spinner
     private lateinit var playRecordingButton: ImageButton
     private lateinit var audioDurationText: TextView
+    private lateinit var audioSeekBar: android.widget.SeekBar
     private lateinit var buttonSend: Button
     private lateinit var buttonFullProcess: Button
 
@@ -41,6 +42,9 @@ class VoiceProcessModeActivity : AppCompatActivity() {
     private var mediaPlayer: MediaPlayer? = null
     private var isPlaying = false
     private var isProcessing = false
+
+    private val seekBarHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var seekBarRunnable: Runnable? = null
     
     // Backend service
     private val completeVoiceWorkflowService = CompleteVoiceWorkflowService()
@@ -81,6 +85,7 @@ class VoiceProcessModeActivity : AppCompatActivity() {
         spinnerVoice = findViewById(R.id.spinner_voice)
         playRecordingButton = findViewById(R.id.btn_play_recording)
         audioDurationText = findViewById(R.id.audio_duration_text)
+        audioSeekBar = findViewById(R.id.audio_playback_seekbar)
 
         // Get audio file path from intent
         audioFilePath = intent.getStringExtra(VoiceProcessIntent.EXTRA_AUDIO_FILE_PATH)
@@ -315,6 +320,8 @@ class VoiceProcessModeActivity : AppCompatActivity() {
     private fun updateAudioDurationFromPath(path: String?) {
         if (path.isNullOrBlank()) {
             audioDurationText.text = "0:00"
+            audioSeekBar.max = 100
+            audioSeekBar.progress = 0
             return
         }
         try {
@@ -326,6 +333,8 @@ class VoiceProcessModeActivity : AppCompatActivity() {
             val seconds = (durationMs / 1000) % 60
             val minutes = (durationMs / 1000) / 60
             audioDurationText.text = String.format("%d:%02d", minutes, seconds)
+            audioSeekBar.max = durationMs.coerceAtLeast(1)
+            audioSeekBar.progress = 0
         } catch (e: Exception) {
             audioDurationText.text = "0:00"
         }
@@ -385,19 +394,27 @@ class VoiceProcessModeActivity : AppCompatActivity() {
     }
 
     private fun setupAudioPlayer() {
-        // Update duration display
         updateAudioDuration()
-        
-        // Setup play button click listener
+
         playRecordingButton.setOnClickListener {
             togglePlayback()
         }
+
+        audioSeekBar.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) mediaPlayer?.seekTo(progress)
+            }
+            override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {}
+        })
     }
 
     private fun updateAudioDuration() {
         val path = audioFilePath
         if (path.isNullOrBlank()) {
             audioDurationText.text = "0:00"
+            audioSeekBar.max = 100
+            audioSeekBar.progress = 0
             return
         }
 
@@ -411,6 +428,8 @@ class VoiceProcessModeActivity : AppCompatActivity() {
             val seconds = (durationMs / 1000) % 60
             val minutes = (durationMs / 1000) / 60
             audioDurationText.text = String.format("%d:%02d", minutes, seconds)
+            audioSeekBar.max = durationMs.coerceAtLeast(1)
+            audioSeekBar.progress = 0
         } catch (e: Exception) {
             audioDurationText.text = "0:00"
         }
@@ -450,9 +469,14 @@ class VoiceProcessModeActivity : AppCompatActivity() {
                 setDataSource(path)
                 prepare()
 
+                audioSeekBar.max = duration.coerceAtLeast(1)
+                audioSeekBar.progress = 0
+
                 setOnCompletionListener {
                     this@VoiceProcessModeActivity.isPlaying = false
                     playRecordingButton.setImageResource(R.drawable.ic_play)
+                    stopSeekBarUpdater()
+                    audioSeekBar.progress = 0
                 }
 
                 start()
@@ -460,6 +484,7 @@ class VoiceProcessModeActivity : AppCompatActivity() {
 
             isPlaying = true
             playRecordingButton.setImageResource(R.drawable.ic_pause)
+            startSeekBarUpdater()
 
         } catch (e: Exception) {
             e.printStackTrace()
@@ -467,7 +492,27 @@ class VoiceProcessModeActivity : AppCompatActivity() {
         }
     }
 
+    private fun startSeekBarUpdater() {
+        stopSeekBarUpdater()
+        val runnable = object : Runnable {
+            override fun run() {
+                val player = mediaPlayer ?: return
+                if (!isPlaying) return
+                try { audioSeekBar.progress = player.currentPosition } catch (_: Exception) {}
+                seekBarHandler.postDelayed(this, 100L)
+            }
+        }
+        seekBarRunnable = runnable
+        seekBarHandler.post(runnable)
+    }
+
+    private fun stopSeekBarUpdater() {
+        seekBarRunnable?.let { seekBarHandler.removeCallbacks(it) }
+        seekBarRunnable = null
+    }
+
     private fun stopPlayback() {
+        stopSeekBarUpdater()
         try {
             mediaPlayer?.let { player ->
                 if (player.isPlaying) {
@@ -481,6 +526,7 @@ class VoiceProcessModeActivity : AppCompatActivity() {
         mediaPlayer = null
         isPlaying = false
         playRecordingButton.setImageResource(R.drawable.ic_play)
+        audioSeekBar.progress = 0
     }
 
     override fun onDestroy() {

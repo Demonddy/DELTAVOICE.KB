@@ -112,7 +112,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private lateinit var playRecordingButton: ImageButton
     private lateinit var sendRawRecordingButton: ImageButton
     private lateinit var audioDurationText: android.widget.TextView
+    private lateinit var audioPlaybackSeekBar: android.widget.SeekBar
     private var rootView: View? = null
+
+    // SeekBar progress updater
+    private val seekBarHandler = Handler(Looper.getMainLooper())
+    private var seekBarRunnable: Runnable? = null
+    private var audioTotalDurationMs: Int = 0
 
     // Voice recording timer
     private val recordingUiHandler = Handler(Looper.getMainLooper())
@@ -491,6 +497,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         playRecordingButton = view.findViewById(R.id.btn_play_recording)
         sendRawRecordingButton = view.findViewById(R.id.btn_send_raw_recording)
         audioDurationText = view.findViewById(R.id.audio_duration_text)
+        audioPlaybackSeekBar = view.findViewById(R.id.audio_playback_seekbar)
 
         // Setup button click listeners
         setupButtons()
@@ -854,6 +861,17 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         playRecordingButton.setOnClickListener {
             toggleRecordingPlayback()
         }
+
+        // Seekbar - allow user to scrub through audio
+        audioPlaybackSeekBar.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    playbackMediaPlayer?.seekTo(progress)
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {}
+        })
 
         // Send original recording immediately (without any processing)
         sendRawRecordingButton.setOnClickListener {
@@ -1336,9 +1354,18 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 setDataSource(audioPath)
                 prepare()
                 
+                if (::audioPlaybackSeekBar.isInitialized) {
+                    audioPlaybackSeekBar.max = duration.coerceAtLeast(1)
+                    audioPlaybackSeekBar.progress = 0
+                }
+                
                 setOnCompletionListener {
                     isPlayingRecording = false
                     playRecordingButton.setImageResource(R.drawable.ic_play)
+                    stopSeekBarUpdater()
+                    if (::audioPlaybackSeekBar.isInitialized) {
+                        audioPlaybackSeekBar.progress = 0
+                    }
                 }
                 
                 start()
@@ -1346,6 +1373,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             
             isPlayingRecording = true
             playRecordingButton.setImageResource(R.drawable.ic_pause)
+            startSeekBarUpdater()
             
         } catch (e: Exception) {
             e.printStackTrace()
@@ -1353,10 +1381,34 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
     }
     
+    private fun startSeekBarUpdater() {
+        stopSeekBarUpdater()
+        val runnable = object : Runnable {
+            override fun run() {
+                val player = playbackMediaPlayer ?: return
+                if (!isPlayingRecording) return
+                try {
+                    if (::audioPlaybackSeekBar.isInitialized) {
+                        audioPlaybackSeekBar.progress = player.currentPosition
+                    }
+                } catch (_: Exception) {}
+                seekBarHandler.postDelayed(this, 100L)
+            }
+        }
+        seekBarRunnable = runnable
+        seekBarHandler.post(runnable)
+    }
+
+    private fun stopSeekBarUpdater() {
+        seekBarRunnable?.let { seekBarHandler.removeCallbacks(it) }
+        seekBarRunnable = null
+    }
+    
     /**
      * Stop playback of recorded audio
      */
     private fun stopRecordingPlayback() {
+        stopSeekBarUpdater()
         try {
             playbackMediaPlayer?.apply {
                 if (isPlaying) {
@@ -1372,6 +1424,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         if (::playRecordingButton.isInitialized) {
             playRecordingButton.setImageResource(R.drawable.ic_play)
         }
+        if (::audioPlaybackSeekBar.isInitialized) {
+            audioPlaybackSeekBar.progress = 0
+        }
     }
     
     /**
@@ -1381,10 +1436,15 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun updateAudioDuration(audioPath: String?) {
         if (audioPath.isNullOrBlank()) {
             audioDurationText.text = "0:00"
+            audioTotalDurationMs = 0
+            if (::audioPlaybackSeekBar.isInitialized) {
+                audioPlaybackSeekBar.max = 100
+                audioPlaybackSeekBar.progress = 0
+            }
             return
         }
         serviceScope.launch {
-            val durationText = withContext(Dispatchers.IO) {
+            val result = withContext(Dispatchers.IO) {
                 try {
                     val mp = MediaPlayer()
                     mp.setDataSource(audioPath)
@@ -1393,12 +1453,17 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     mp.release()
                     val seconds = (durationMs / 1000) % 60
                     val minutes = (durationMs / 1000) / 60
-                    String.format("%d:%02d", minutes, seconds)
+                    Pair(String.format("%d:%02d", minutes, seconds), durationMs)
                 } catch (e: Exception) {
-                    "0:00"
+                    Pair("0:00", 0)
                 }
             }
-            audioDurationText.text = durationText
+            audioDurationText.text = result.first
+            audioTotalDurationMs = result.second
+            if (::audioPlaybackSeekBar.isInitialized) {
+                audioPlaybackSeekBar.max = if (result.second > 0) result.second else 100
+                audioPlaybackSeekBar.progress = 0
+            }
         }
     }
 

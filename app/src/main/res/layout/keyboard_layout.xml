@@ -348,15 +348,19 @@
                     android:padding="8dp"
                     android:tint="#3B82F6" />
 
-                <!-- Audio waveform visualization placeholder -->
-                <View
-                    android:id="@+id/audio_waveform"
+                <!-- Audio playback seek bar -->
+                <SeekBar
+                    android:id="@+id/audio_playback_seekbar"
                     android:layout_width="0dp"
-                    android:layout_height="24dp"
+                    android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:layout_marginEnd="8dp"
-                    android:background="#2A3140" />
+                    android:layout_marginStart="4dp"
+                    android:layout_marginEnd="4dp"
+                    android:max="100"
+                    android:progress="0"
+                    android:progressTint="#3B82F6"
+                    android:thumbTint="#3B82F6"
+                    android:progressBackgroundTint="#2A3140" />
 
                 <TextView
                     android:id="@+id/audio_duration_text"
