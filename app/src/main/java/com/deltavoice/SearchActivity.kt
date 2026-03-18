@@ -2,9 +2,11 @@ package com.deltavoice
 
 import android.content.Intent
 import android.graphics.Color
-import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.Toast
@@ -14,13 +16,19 @@ import com.google.android.material.snackbar.Snackbar
 import java.net.URLEncoder
 
 /**
- * Simple search screen - opens Google search in browser.
+ * Search screen - displays results in-app via WebView.
  */
 class SearchActivity : AppCompatActivity() {
+
+    private lateinit var webView: WebView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_search)
+
+        webView = findViewById(R.id.search_webview)
+        webView.settings.javaScriptEnabled = true
+        webView.webViewClient = WebViewClient() // Keep navigation in-app
 
         val searchInput = findViewById<EditText>(R.id.search_input)
         searchInput.setOnEditorActionListener { _, actionId, _ ->
@@ -78,7 +86,7 @@ class SearchActivity : AppCompatActivity() {
     private fun performSearch(query: String) {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) {
-            Toast.makeText(this, "Type something to search", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.type_something_search), Toast.LENGTH_SHORT).show()
             return
         }
         if (!NetworkUtils.isConnected(this)) {
@@ -87,12 +95,8 @@ class SearchActivity : AppCompatActivity() {
         }
         val encoded = URLEncoder.encode(trimmed, "UTF-8")
         val searchUrl = "https://www.google.com/search?q=$encoded"
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(searchUrl))
-        try {
-            startActivity(intent)
-        } catch (e: Exception) {
-            Toast.makeText(this, "Could not open search", Toast.LENGTH_SHORT).show()
-        }
+        webView.visibility = View.VISIBLE
+        webView.loadUrl(searchUrl)
     }
 
     private fun showInternetRequiredSnackbar() {

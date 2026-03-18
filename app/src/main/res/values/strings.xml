@@ -248,7 +248,7 @@
     <string name="predictive_text">Predictive text</string>
     <string name="predictive_text_desc">Show word suggestions while typing</string>
     <string name="auto_correction">Auto-correction</string>
-    <string name="auto_correction_desc">Suggest corrections for misspelled words</string>
+    <string name="auto_correction_desc">Automatically correct misspelled words when you press space</string>
     <string name="voice_ai">Voice &amp; AI</string>
     <string name="default_voice">Default voice</string>
     <string name="aria">Aria</string>
@@ -351,6 +351,8 @@
     <!-- Search -->
     <string name="type_something_search">Type something to search</string>
     <string name="could_not_open_search">Could not open search</string>
+    <string name="search_in_app_hint">Type a query and tap Search to see results below.</string>
+    <string name="search_hint">Search…</string>
 
     <!-- AI writing tools (calculator layout) -->
     <string name="del">⌫ Del</string>

@@ -4,10 +4,12 @@ package com.deltavoice.predict
  * Trie-based dictionary for instant prefix search.
  * O(prefix_length) lookup, O(1) per-node traversal.
  * Supports frequency-weighted words for ranking.
+ * Optimized: priority-queue style collection for top-K results.
  */
 internal class TrieDictionary {
 
     private val root = TrieNode()
+    private var wordCount = 0
 
     fun insert(word: String, frequency: Int = 1) {
         if (word.isBlank()) return
@@ -15,13 +17,14 @@ internal class TrieDictionary {
         for (c in word.lowercase()) {
             node = node.children.getOrPut(c) { TrieNode() }
         }
+        if (!node.isWordEnd) wordCount++
         node.isWordEnd = true
-        node.frequency = (node.frequency + frequency).coerceAtLeast(1)
+        node.frequency = maxOf(node.frequency, frequency)
     }
 
     /**
      * Get all words with given prefix, sorted by frequency (desc).
-     * Limit results for performance.
+     * Uses bounded collection to avoid scanning entire subtree.
      */
     fun searchPrefix(prefix: String, limit: Int = 20): List<Pair<String, Int>> {
         if (prefix.isBlank()) return emptyList()
@@ -30,23 +33,42 @@ internal class TrieDictionary {
         for (c in normalized) {
             node = node.children[c] ?: return emptyList()
         }
-        val results = mutableListOf<Pair<String, Int>>()
-        collectWords(node, normalized, normalized, results, limit)
-        return results.sortedByDescending { it.second }.take(limit)
+        val results = BoundedResultList(limit * 3)
+        collectWords(node, normalized, normalized, results, limit * 3)
+        return results.toSortedList().take(limit)
+    }
+
+    /**
+     * Search prefix but also return the exact prefix match if it exists.
+     */
+    fun searchPrefixIncludingSelf(prefix: String, limit: Int = 20): List<Pair<String, Int>> {
+        if (prefix.isBlank()) return emptyList()
+        val normalized = prefix.lowercase()
+        var node = root
+        for (c in normalized) {
+            node = node.children[c] ?: return emptyList()
+        }
+        val results = BoundedResultList(limit * 3)
+        if (node.isWordEnd) {
+            results.add(normalized, node.frequency)
+        }
+        collectWords(node, normalized, "\u0000", results, limit * 3)
+        return results.toSortedList().take(limit)
     }
 
     private fun collectWords(
         node: TrieNode,
         pathFromRoot: String,
         userPrefix: String,
-        results: MutableList<Pair<String, Int>>,
+        results: BoundedResultList,
         limit: Int
     ) {
         if (results.size >= limit) return
         if (node.isWordEnd && pathFromRoot != userPrefix) {
-            results.add(pathFromRoot to node.frequency)
+            results.add(pathFromRoot, node.frequency)
         }
-        for ((c, child) in node.children) {
+        val sortedChildren = node.children.entries.sortedByDescending { it.value.frequency }
+        for ((c, child) in sortedChildren) {
             if (results.size >= limit) break
             collectWords(child, pathFromRoot + c, userPrefix, results, limit)
         }
@@ -60,14 +82,35 @@ internal class TrieDictionary {
         return node.isWordEnd
     }
 
-    /** Get all words (for correction fallback). Limited for performance. */
-    fun getAllWords(limit: Int = 1000): List<String> {
-        val results = mutableListOf<Pair<String, Int>>()
-        collectWords(root, "", "\u0000", results, limit)  // sentinel: never exclude
-        return results.map { it.first }
+    fun getFrequency(word: String): Int {
+        var node = root
+        for (c in word.lowercase()) {
+            node = node.children[c] ?: return 0
+        }
+        return if (node.isWordEnd) node.frequency else 0
     }
+
+    fun size(): Int = wordCount
 
     fun clear() {
         root.children.clear()
+        wordCount = 0
+    }
+
+    /**
+     * Bounded result list that keeps top-K by frequency without full sort.
+     */
+    private class BoundedResultList(private val capacity: Int) {
+        private val items = ArrayList<Pair<String, Int>>(capacity)
+        val size: Int get() = items.size
+
+        fun add(word: String, frequency: Int) {
+            if (items.size < capacity) {
+                items.add(word to frequency)
+            }
+        }
+
+        fun toSortedList(): List<Pair<String, Int>> =
+            items.sortedByDescending { it.second }
     }
 }

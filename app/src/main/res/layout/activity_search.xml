@@ -6,12 +6,6 @@
     android:orientation="vertical"
     android:background="@color/background_dark">
 
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:fillViewport="true">
-
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -48,7 +42,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="Search the web..."
+            android:hint="@string/search_hint"
             android:textColor="@color/text_primary"
             android:textColorHint="@color/text_tertiary"
             android:background="@null"
@@ -60,12 +54,19 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Type a query and tap Search to open results in your browser."
+        android:text="@string/search_in_app_hint"
         android:textColor="@color/text_secondary"
-        android:textSize="14sp" />
+        android:textSize="14sp"
+        android:layout_marginBottom="16dp" />
 
     </LinearLayout>
-    </ScrollView>
+
+    <WebView
+        android:id="@+id/search_webview"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="gone" />
 
     <include layout="@layout/bottom_nav_bar" />
 

@@ -135,7 +135,6 @@ class AIChatConfigActivity : AppCompatActivity() {
 
         if (!NetworkUtils.isConnected(this)) {
             showInternetRequiredSnackbar(R.string.internet_required_ai_chat)
-            return
         }
 
         chatInput.setText("")
@@ -215,15 +214,11 @@ class AIChatConfigActivity : AppCompatActivity() {
         // Try direct OpenAI first when user has API key
         val openAiKey = getOpenAiApiKey()
         if (openAiKey.isNotBlank()) {
-            val directResponse = callOpenAiDirectly(userMessage)
+            val directResponse = callOpenAiDirectly()
             if (directResponse != null) return directResponse
         }
 
-        // Try Convex first (no auth needed), then Supabase
-        val convexResponse = callOpenAiViaConvex(userMessage)
-        if (convexResponse != null) return convexResponse
-
-        // Fallback to Supabase
+        // Try Supabase first. The configured Convex chat route may be unavailable.
         return try {
             val apiKey = SupabaseConfig.SUPABASE_ANON_KEY
             val supabaseUrl = SupabaseConfig.SUPABASE_URL
@@ -251,20 +246,10 @@ class AIChatConfigActivity : AppCompatActivity() {
 
             if (connection.responseCode == 200) {
                 val responseText = connection.inputStream.bufferedReader().readText()
-                val patterns = listOf(
-                    Regex(""""content"\s*:\s*"((?:[^"\\]|\\.)*)""""),
-                    Regex(""""response"\s*:\s*"((?:[^"\\]|\\.)*)""""),
-                    Regex(""""message"\s*:\s*"((?:[^"\\]|\\.)*)""""),
-                    Regex(""""text"\s*:\s*"((?:[^"\\]|\\.)*)"""")
-                )
-                for (pattern in patterns) {
-                    pattern.find(responseText)?.groupValues?.get(1)?.let { match ->
-                        return match.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\")
-                    }
-                }
+                parseAiResponse(responseText)?.let { return it }
             }
             connection.disconnect()
-            null
+            callOpenAiViaConvex()
         } catch (e: Exception) {
             if (e.message?.contains("Unable to resolve host", ignoreCase = true) == true) {
                 mainHandler.post {
@@ -272,11 +257,11 @@ class AIChatConfigActivity : AppCompatActivity() {
                     Toast.makeText(this, "Can't reach server. Check Wi‑Fi or mobile data.$hint", Toast.LENGTH_LONG).show()
                 }
             }
-            null
+            callOpenAiViaConvex()
         }
     }
 
-    private fun callOpenAiViaConvex(userMessage: String): String? {
+    private fun callOpenAiViaConvex(): String? {
         if (!ConvexConfig.USE_CONVEX_FOR_VOICE_WORKFLOW) return null
         return try {
             val url = URL(ConvexConfig.AI_CHAT_URL)
@@ -299,15 +284,7 @@ class AIChatConfigActivity : AppCompatActivity() {
 
             if (connection.responseCode == 200) {
                 val responseText = connection.inputStream.bufferedReader().readText()
-                val patterns = listOf(
-                    Regex(""""content"\s*:\s*"((?:[^"\\]|\\.)*)""""),
-                    Regex(""""response"\s*:\s*"((?:[^"\\]|\\.)*)"""")
-                )
-                for (pattern in patterns) {
-                    pattern.find(responseText)?.groupValues?.get(1)?.let { match ->
-                        return match.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\")
-                    }
-                }
+                parseAiResponse(responseText)?.let { return it }
             }
             connection.disconnect()
             null
@@ -317,7 +294,7 @@ class AIChatConfigActivity : AppCompatActivity() {
         }
     }
 
-    private fun callOpenAiDirectly(userMessage: String): String? {
+    private fun callOpenAiDirectly(): String? {
         val apiKey = getOpenAiApiKey()
         if (apiKey.isBlank()) return null
         return try {
@@ -343,14 +320,41 @@ class AIChatConfigActivity : AppCompatActivity() {
 
             if (connection.responseCode == 200) {
                 val responseText = connection.inputStream.bufferedReader().readText()
-                Regex(""""content"\s*:\s*"((?:[^"\\]|\\.)*)"""").find(responseText)?.groupValues?.get(1)?.let { match ->
-                    return match.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\")
-                }
+                parseAiResponse(responseText)?.let { return it }
             }
             connection.disconnect()
             null
         } catch (e: Exception) {
             android.util.Log.e("AIChatConfig", "OpenAI direct call failed: ${e.message}")
+            null
+        }
+    }
+
+    private fun parseAiResponse(responseText: String): String? {
+        return try {
+            val json = org.json.JSONObject(responseText)
+            listOf("content", "response", "message", "text").forEach { key ->
+                val value = json.optString(key, "")
+                if (value.isNotBlank()) return value
+            }
+            val choices = json.optJSONArray("choices")
+            if (choices != null && choices.length() > 0) {
+                val message = choices.getJSONObject(0).optJSONObject("message")
+                message?.optString("content", "")?.takeIf { it.isNotBlank() }?.let { return it }
+            }
+            null
+        } catch (_: Exception) {
+            val patterns = listOf(
+                Regex(""""content"\s*:\s*"((?:[^"\\]|\\.)*)""""),
+                Regex(""""response"\s*:\s*"((?:[^"\\]|\\.)*)""""),
+                Regex(""""message"\s*:\s*"((?:[^"\\]|\\.)*)""""),
+                Regex(""""text"\s*:\s*"((?:[^"\\]|\\.)*)"""")
+            )
+            for (pattern in patterns) {
+                pattern.find(responseText)?.groupValues?.getOrNull(1)?.let { match ->
+                    return match.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\")
+                }
+            }
             null
         }
     }
