@@ -174,25 +174,26 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         private const val CLIPBOARD_DELIMITER = "\u001E"
         private const val LONG_PRESS_DELAY_MS = 300L
 
+        /** Gboard-style: base key -> list of variants (lowercase + uppercase for letters). */
         private val ACCENT_MAP: Map<String, List<String>> = mapOf(
-            "a" to listOf("à", "á", "â", "ã", "ä", "å", "æ", "ā", "ă", "ą", "ª"),
-            "c" to listOf("ç", "ć", "č", "ĉ"),
-            "d" to listOf("ð", "ď", "đ"),
-            "e" to listOf("è", "é", "ê", "ë", "ē", "ė", "ę", "ě"),
-            "g" to listOf("ğ", "ĝ", "ġ"),
-            "h" to listOf("ĥ", "ħ"),
-            "i" to listOf("ì", "í", "î", "ï", "ī", "ĩ", "į", "ı"),
-            "j" to listOf("ĵ"),
-            "l" to listOf("ł", "ĺ", "ľ", "ļ"),
-            "n" to listOf("ñ", "ń", "ň", "ņ"),
-            "o" to listOf("ò", "ó", "ô", "õ", "ö", "ø", "ō", "ő", "œ"),
-            "r" to listOf("ŕ", "ř"),
-            "s" to listOf("ß", "ś", "š", "ş", "ŝ"),
-            "t" to listOf("ţ", "ť", "þ"),
-            "u" to listOf("ù", "ú", "û", "ü", "ū", "ů", "ű", "ų"),
-            "w" to listOf("ŵ"),
-            "y" to listOf("ý", "ŷ", "ÿ"),
-            "z" to listOf("ž", "ź", "ż"),
+            "a" to listOf("à", "á", "â", "ã", "ä", "å", "æ", "ā", "ă", "ą", "ª", "À", "Á", "Â", "Ã", "Ä", "Å", "Æ", "Ā", "Ă", "Ą"),
+            "c" to listOf("ç", "ć", "č", "ĉ", "Ç", "Ć", "Č", "Ĉ"),
+            "d" to listOf("ð", "ď", "đ", "Ð", "Ď", "Đ"),
+            "e" to listOf("è", "é", "ê", "ë", "ē", "ė", "ę", "ě", "È", "É", "Ê", "Ë", "Ē", "Ė", "Ę", "Ě"),
+            "g" to listOf("ğ", "ĝ", "ġ", "Ğ", "Ĝ", "Ġ"),
+            "h" to listOf("ĥ", "ħ", "Ĥ", "Ħ"),
+            "i" to listOf("ì", "í", "î", "ï", "ī", "ĩ", "į", "ı", "¡", "Ì", "Í", "Î", "Ï", "Ī", "Ĩ", "Į", "İ"),
+            "j" to listOf("ĵ", "Ĵ"),
+            "l" to listOf("ł", "ĺ", "ľ", "ļ", "Ł", "Ĺ", "Ľ", "Ļ"),
+            "n" to listOf("ñ", "ń", "ň", "ņ", "Ñ", "Ń", "Ň", "Ņ"),
+            "o" to listOf("ò", "ó", "ô", "õ", "ö", "ø", "ō", "ő", "œ", "ọ", "Ò", "Ó", "Ô", "Õ", "Ö", "Ø", "Ō", "Ő", "Œ", "Ọ"),
+            "r" to listOf("ŕ", "ř", "Ŕ", "Ř"),
+            "s" to listOf("ß", "ś", "š", "ş", "ŝ", "Ś", "Š", "Ş", "Ŝ"),
+            "t" to listOf("ţ", "ť", "þ", "Ţ", "Ť", "Þ"),
+            "u" to listOf("ù", "ú", "û", "ü", "ū", "ů", "ű", "ų", "Ù", "Ú", "Û", "Ü", "Ū", "Ů", "Ű", "Ų"),
+            "w" to listOf("ŵ", "Ŵ"),
+            "y" to listOf("ý", "ŷ", "ÿ", "Ý", "Ŷ", "Ÿ"),
+            "z" to listOf("ž", "ź", "ż", "Ž", "Ź", "Ż"),
             "0" to listOf("°", "⁰"),
             "1" to listOf("¹", "½", "⅓", "¼", "⅛"),
             "2" to listOf("²", "⅔"),
@@ -3304,8 +3305,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Create a dictionary mini keyboard key
      */
     private fun createDictKey(letter: String, isNumber: Boolean = false): Button {
-        val keyHeightDp = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) 40 else 48
+        val keyHeightDp = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) 42 else 52
         return Button(this).apply {
+            tag = letter
             val isArabicKey = letter.any { isArabicCodePoint(it.code) }
             text = letter
             textSize = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
@@ -4511,6 +4513,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val textSize = if (isLandscape) 13f else 15f
         val margin = if (isLandscape) 1 else 2
         return Button(this).apply {
+            tag = letter
             text = letter
             this.textSize = textSize
             if (isArabicKey) {
@@ -6668,7 +6671,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
     /**
      * Show Gboard-style accent popup above the anchor key.
-     * Characters flow in a horizontal strip; the first entry is pre-selected.
+     * Dark gray panel with blue selection highlight; grid layout, ~6 chars per row.
      */
     private fun showAccentPopup(anchor: View, chars: List<String>) {
         dismissAccentPopup()
@@ -6679,13 +6682,14 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         isLongPressActive = true
 
         val density = resources.displayMetrics.density
-        val cellW = (42 * density).toInt()
+        val cellW = (44 * density).toInt()
         val cellH = (48 * density).toInt()
-        val padH = (8 * density).toInt()
+        val padH = (6 * density).toInt()
         val padV = (6 * density).toInt()
-        val textSizeSp = 20f
+        val gap = (2 * density).toInt()
+        val textSizeSp = 22f
+        val maxPerRow = 6
 
-        val maxPerRow = 10
         val columns = chars.size.coerceAtMost(maxPerRow)
         val rows = (chars.size + maxPerRow - 1) / maxPerRow
 
@@ -6693,7 +6697,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             orientation = LinearLayout.VERTICAL
             background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.accent_popup_background)
             setPadding(padH, padV, padH, padV)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) elevation = 8 * density
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) elevation = 12 * density
         }
 
         val allTextViews = mutableListOf<TextView>()
@@ -6703,30 +6707,41 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
             }
-            val colsThisRow = if (r == rows - 1) chars.size - charIndex else columns
+            val colsThisRow = (chars.size - charIndex).coerceAtMost(maxPerRow)
             for (c in 0 until colsThisRow) {
                 val ch = chars[charIndex]
+                val lp = LinearLayout.LayoutParams(cellW, cellH)
+                if (c > 0) lp.marginStart = gap
                 val tv = TextView(this).apply {
                     text = ch
                     textSize = textSizeSp
                     setTextColor(Color.WHITE)
                     gravity = Gravity.CENTER
                     includeFontPadding = false
-                    layoutParams = LinearLayout.LayoutParams(cellW, cellH)
+                    layoutParams = lp
                     background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.accent_char_normal)
                 }
                 allTextViews.add(tv)
                 row.addView(tv)
                 charIndex++
             }
+            val rowLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            if (r > 0) rowLp.topMargin = gap
+            row.layoutParams = rowLp
             container.addView(row)
         }
         accentPopupViews = allTextViews
 
-        val popupW = columns * cellW + 2 * padH
-        val popupH = rows * cellH + 2 * padV
+        val popupW = ViewGroup.LayoutParams.WRAP_CONTENT
+        val popupH = ViewGroup.LayoutParams.WRAP_CONTENT
+        container.measure(
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+        val measuredW = container.measuredWidth
+        val measuredH = container.measuredHeight
 
-        val popup = android.widget.PopupWindow(container, popupW, popupH, false).apply {
+        val popup = android.widget.PopupWindow(container, measuredW, measuredH, false).apply {
             setBackgroundDrawable(null)
             isOutsideTouchable = false
             isFocusable = false
@@ -6736,10 +6751,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val loc = IntArray(2)
         anchor.getLocationInWindow(loc)
         val anchorCenterX = loc[0] + anchor.width / 2
-        val xOff = anchorCenterX - popupW / 2
+        val xOff = anchorCenterX - measuredW / 2
         val screenW = resources.displayMetrics.widthPixels
-        val clampedX = xOff.coerceIn(4, screenW - popupW - 4)
-        val yOff = loc[1] - popupH - (4 * density).toInt()
+        val clampedX = xOff.coerceIn(8, screenW - measuredW - 8)
+        val yOff = loc[1] - measuredH - (6 * density).toInt()
 
         rootView?.let { rv ->
             popup.showAtLocation(rv, Gravity.NO_GRAVITY, clampedX, yOff.coerceAtLeast(0))
@@ -6763,42 +6778,39 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
     private fun updateAccentSelectionFromTouch(rawX: Float, rawY: Float) {
         val popup = accentPopup ?: return
-        val container = popup.contentView as? LinearLayout ?: return
+        val container = popup.contentView as? ViewGroup ?: return
 
-        val loc = IntArray(2)
-        container.getLocationOnScreen(loc)
-        val localX = rawX - loc[0]
-        val localY = rawY - loc[1]
-
-        if (localX < 0 || localX > container.width || localY < 0 || localY > container.height) return
-
-        val density = resources.displayMetrics.density
-        val cellW = (42 * density).toInt()
-        val cellH = (48 * density).toInt()
-        val padH = (8 * density).toInt()
-        val padV = (6 * density).toInt()
-        val maxPerRow = 10
-
-        val col = ((localX - padH) / cellW).toInt().coerceIn(0, accentPopupChars.size.coerceAtMost(maxPerRow) - 1)
-        val row = ((localY - padV) / cellH).toInt().coerceIn(0, (accentPopupChars.size + maxPerRow - 1) / maxPerRow - 1)
-        val idx = (row * maxPerRow + col).coerceIn(0, accentPopupChars.size - 1)
-
-        if (idx != accentPopupSelectedIndex) {
-            updateAccentPopupHighlight(idx)
+        for (i in accentPopupViews.indices) {
+            val tv = accentPopupViews.getOrNull(i) ?: continue
+            val loc = IntArray(2)
+            tv.getLocationOnScreen(loc)
+            if (rawX >= loc[0] && rawX < loc[0] + tv.width &&
+                rawY >= loc[1] && rawY < loc[1] + tv.height) {
+                if (i != accentPopupSelectedIndex) {
+                    updateAccentPopupHighlight(i)
+                    accentPopupViews.getOrNull(i)?.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                }
+                return
+            }
         }
     }
 
     private fun commitAccentSelection() {
         if (accentPopupSelectedIndex in accentPopupChars.indices) {
             val selected = accentPopupChars[accentPopupSelectedIndex]
-            if (isAiChatVisible) {
-                if (aiChatInputText.isNotEmpty()) aiChatInputText.deleteCharAt(aiChatInputText.length - 1)
-                aiChatInputText.append(selected)
-                updateAiChatInputDisplay()
-            } else {
-                currentInputConnection?.let { ic ->
-                    ic.deleteSurroundingText(1, 0)
-                    ic.commitText(selected, 1)
+            when {
+                isAiChatVisible -> {
+                    aiChatInputText.append(selected)
+                    updateAiChatInputDisplay()
+                }
+                isDictionaryVisible -> {
+                    dictSearchText.append(selected)
+                    updateDictSearchDisplay()
+                }
+                else -> {
+                    currentInputConnection?.let { ic ->
+                        ic.commitText(selected, 1)
+                    }
                 }
             }
             schedulePredictionUpdate()
@@ -6818,14 +6830,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         longPressRunnable = null
     }
 
+    /** Returns lowercase + uppercase variants for letters; symbol variants for numbers/symbols. */
     private fun getAccentsForKey(value: String): List<String> {
-        val lower = value.lowercase()
-        val accents = ACCENT_MAP[lower] ?: return emptyList()
-        return if (isShiftPressed || (value.length == 1 && value[0].isUpperCase())) {
-            accents.map { it.uppercase() }
-        } else {
-            accents
-        }
+        val key = if (value.length == 1) value.lowercase() else value
+        return ACCENT_MAP[key] ?: emptyList()
     }
 
     /**
@@ -6844,15 +6852,19 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         button.setOnTouchListener { v, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    action()
+                    val keyValue = (v as? Button)?.tag as? String ?: ""
+                    val accents = getAccentsForKey(keyValue)
+                    val hasAccents = accents.isNotEmpty()
+
+                    if (!hasAccents) {
+                        action()
+                    }
                     Handler(Looper.getMainLooper()).post { playKeyFeedback(v) }
                     v.animate().scaleX(0.94f).scaleY(0.94f)
                         .setDuration(KEY_PRESS_ANIM_DURATION_MS)
                         .setInterpolator(LinearInterpolator()).start()
 
-                    val keyValue = (v as? Button)?.tag as? String ?: ""
-                    val accents = getAccentsForKey(keyValue)
-                    if (accents.isNotEmpty()) {
+                    if (hasAccents) {
                         longPressRunnable?.let { longPressHandler.removeCallbacks(it) }
                         longPressRunnable = Runnable { showAccentPopup(v, accents) }
                         longPressHandler.postDelayed(longPressRunnable!!, LONG_PRESS_DELAY_MS)
@@ -6873,6 +6885,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                             commitAccentSelection()
                         } else {
                             dismissAccentPopup()
+                        }
+                    } else {
+                        val keyValue = (v as? Button)?.tag as? String ?: ""
+                        if (getAccentsForKey(keyValue).isNotEmpty()) {
+                            action()
                         }
                     }
                     v.animate().scaleX(1f).scaleY(1f)
