@@ -14,17 +14,17 @@
     <color name="primary_light">#A78BFA</color>
     <color name="accent">#C084FC</color>
 
-    <!-- Background Colors (Light) -->
-    <color name="background_dark">#F5F5F7</color>
-    <color name="background_card">#FFFFFF</color>
-    <color name="background_surface">#FFFFFF</color>
-    <color name="background_elevated">#F0F0F2</color>
+    <!-- Background Colors (Dark) -->
+    <color name="background_dark">#0F0F10</color>
+    <color name="background_card">#1A1A1D</color>
+    <color name="background_surface">#111114</color>
+    <color name="background_elevated">#1F1F23</color>
 
-    <!-- Text Colors (Light) -->
-    <color name="text_primary">#1A1A1D</color>
-    <color name="text_secondary">#6B7280</color>
-    <color name="text_tertiary">#9CA3AF</color>
-    <color name="text_accent">#7C3AED</color>
+    <!-- Text Colors (Dark) -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#9CA3AF</color>
+    <color name="text_tertiary">#6B7280</color>
+    <color name="text_accent">#C084FC</color>
 
     <!-- Gradient Colors -->
     <color name="gradient_start">#8B5CF6</color>

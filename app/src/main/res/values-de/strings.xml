@@ -82,6 +82,12 @@
     <string name="app_language_desc">Sprache der App-Oberfläche wählen</string>
     <string name="system_default">Systemstandard</string>
     <string name="select_app_language">App-Sprache auswählen</string>
+    <string name="app_appearance">App-Darstellung</string>
+    <string name="app_appearance_desc">Hell, dunkel oder Systemstandard</string>
+    <string name="theme_light">Hell</string>
+    <string name="theme_dark">Dunkel</string>
+    <string name="theme_system">Systemstandard</string>
+    <string name="select_app_theme">App-Theme auswählen</string>
     <string name="keyboard">Tastatur</string>
     <string name="english">Englisch</string>
     <string name="privacy">Datenschutz</string>

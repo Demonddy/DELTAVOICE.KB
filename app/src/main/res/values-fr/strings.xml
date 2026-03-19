@@ -82,6 +82,12 @@
     <string name="app_language_desc">Choisir la langue de l\'interface</string>
     <string name="system_default">Par défaut du système</string>
     <string name="select_app_language">Choisir la langue de l\'app</string>
+    <string name="app_appearance">Apparence de l\'app</string>
+    <string name="app_appearance_desc">Clair, sombre ou par défaut du système</string>
+    <string name="theme_light">Clair</string>
+    <string name="theme_dark">Sombre</string>
+    <string name="theme_system">Par défaut du système</string>
+    <string name="select_app_theme">Choisir le thème de l\'app</string>
     <string name="keyboard">Clavier</string>
     <string name="english">Anglais</string>
     <string name="privacy">Confidentialité</string>

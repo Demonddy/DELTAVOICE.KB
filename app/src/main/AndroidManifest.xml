@@ -97,7 +97,7 @@
         <!-- Themes Activity -->
         <activity
             android:name=".ThemesActivity"
-            android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+            android:theme="@style/Theme.DeltaVoice"
             android:exported="false" />
 
         <!-- Account Activity -->

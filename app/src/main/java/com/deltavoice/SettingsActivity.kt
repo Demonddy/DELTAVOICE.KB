@@ -31,7 +31,15 @@ class SettingsActivity : AppCompatActivity() {
         private const val KEY_KEYBOARD_HEIGHT_CUSTOM = "keyboard_height_custom"
         private const val KEY_PREDICTIVE_TEXT = "predictive_text"
         private const val KEY_AUTO_CORRECTION = "auto_correction"
-        
+        private const val KEY_APP_THEME = "app_theme"
+
+        /** App theme options: light, dark, system */
+        private val APP_THEME_OPTIONS = listOf(
+            DeltaVoiceApplication.THEME_LIGHT to R.string.theme_light,
+            DeltaVoiceApplication.THEME_DARK to R.string.theme_dark,
+            DeltaVoiceApplication.THEME_SYSTEM to R.string.theme_system
+        )
+
         /** Supported app locales: empty = system default, then en, es, fr, de */
         private val APP_LOCALES = listOf(
             "" to "system_default",
@@ -95,6 +103,12 @@ class SettingsActivity : AppCompatActivity() {
             prefs.edit().putBoolean(KEY_AUTO_CORRECTION, isChecked).apply()
         }
         
+        // App appearance setting
+        findViewById<LinearLayout>(R.id.setting_app_appearance).setOnClickListener {
+            showAppThemeDialog()
+        }
+        updateAppThemeDisplay()
+
         // App language setting
         findViewById<LinearLayout>(R.id.setting_app_language).setOnClickListener {
             showAppLanguageDialog()
@@ -183,6 +197,40 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
     
+    private fun updateAppThemeDisplay() {
+        val currentTheme = prefs.getString(KEY_APP_THEME, DeltaVoiceApplication.THEME_SYSTEM)
+            ?: DeltaVoiceApplication.THEME_SYSTEM
+        val displayResId = APP_THEME_OPTIONS.find { it.first == currentTheme }?.second
+            ?: R.string.theme_system
+        findViewById<android.widget.TextView>(R.id.current_app_theme).text = getString(displayResId)
+    }
+
+    private fun showAppThemeDialog() {
+        val currentTheme = prefs.getString(KEY_APP_THEME, DeltaVoiceApplication.THEME_SYSTEM)
+            ?: DeltaVoiceApplication.THEME_SYSTEM
+        val options = APP_THEME_OPTIONS.map { getString(it.second) }.toTypedArray()
+        var selectedIndex = APP_THEME_OPTIONS.indexOfFirst { it.first == currentTheme }.coerceAtLeast(0)
+
+        AlertDialog.Builder(this, R.style.Theme_DeltaVoice_Dialog)
+            .setTitle(getString(R.string.select_app_theme))
+            .setSingleChoiceItems(options, selectedIndex) { _, which ->
+                selectedIndex = which
+            }
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val (themeValue, _) = APP_THEME_OPTIONS[selectedIndex]
+                prefs.edit().putString(KEY_APP_THEME, themeValue).apply()
+                val mode = when (themeValue) {
+                    DeltaVoiceApplication.THEME_LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
+                    DeltaVoiceApplication.THEME_DARK -> AppCompatDelegate.MODE_NIGHT_YES
+                    else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                }
+                AppCompatDelegate.setDefaultNightMode(mode)
+                // Activity recreates automatically
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
     private fun updateAppLanguageDisplay() {
         val displayLocale = Locale.getDefault()
         val currentLocales = AppCompatDelegate.getApplicationLocales()
