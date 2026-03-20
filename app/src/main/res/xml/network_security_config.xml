@@ -19,7 +19,7 @@
       openssl dgst -sha256 -binary | openssl enc -base64
 
     Domains: yvizvsojpwgvaisoahda.supabase.co, kindred-curlew-363.eu-west-1.convex.site,
-             api.openai.com, api.dictionaryapi.dev
+             api.deepseek.com, api.dictionaryapi.dev
     -->
     <!--
     <domain-config cleartextTrafficPermitted="false">

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center"
+    android:background="@drawable/glass_panel_background"
+    android:padding="12dp"
+    android:minHeight="60dp">
+
+    <!-- More Options (⋮) - Calculator & Dictionary -->
+    <ImageButton
+        android:id="@+id/btn_more"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:src="@drawable/ic_more_vert"
+        android:background="@drawable/ai_circle_button"
+        android:tint="#FFFFFF"
+        android:contentDescription="More options"
+        android:layout_margin="4dp"
+        android:padding="8dp" />
+
+    <!-- Camera/Video Button -->
+    <ImageButton
+        android:id="@+id/btn_camera"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:src="@drawable/ic_camera"
+        android:background="@drawable/ai_circle_button"
+        android:tint="#FFFFFF"
+        android:contentDescription="Video Recording"
+        android:layout_margin="4dp"
+        android:padding="8dp" />
+
+    <!-- Home Button -->
+    <ImageButton
+        android:id="@+id/btn_list"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:src="@drawable/ic_home"
+        android:background="@drawable/ai_circle_button"
+        android:tint="#FFFFFF"
+        android:contentDescription="Home"
+        android:layout_margin="4dp"
+        android:padding="8dp" />
+
+    <!-- AI Chat Button -->
+    <ImageButton
+        android:id="@+id/btn_text_t"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:src="@drawable/ic_ai_chat"
+        android:background="@drawable/ai_circle_button"
+        android:tint="#FFFFFF"
+        android:contentDescription="AI Chat"
+        android:layout_margin="4dp"
+        android:padding="8dp" />
+
+    <!-- KB+ Button (AI Writing Tools) -->
+    <ImageButton
+        android:id="@+id/btn_kb_plus"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:src="@drawable/ic_kb_plus"
+        android:background="@drawable/ai_circle_button"
+        android:tint="#FFFFFF"
+        android:contentDescription="AI Writing Tools"
+        android:layout_margin="4dp"
+        android:padding="8dp" />
+
+    <!-- Microphone Button -->
+    <ImageButton
+        android:id="@+id/btn_voice"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:src="@drawable/ic_mic"
+        android:background="@drawable/ai_circle_button"
+        android:tint="#FFFFFF"
+        android:contentDescription="Voice input"
+        android:layout_margin="4dp"
+        android:padding="8dp" />
+
+    <!-- Clipboard Button -->
+    <ImageButton
+        android:id="@+id/btn_app_grid"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:src="@drawable/ic_clipboard"
+        android:background="@drawable/ai_circle_button"
+        android:tint="#FFFFFF"
+        android:contentDescription="Clipboard"
+        android:layout_margin="4dp"
+        android:padding="8dp" />
+</LinearLayout>

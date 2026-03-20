@@ -205,16 +205,16 @@ class AIChatConfigActivity : AppCompatActivity() {
         }
     }
 
-    private fun getOpenAiApiKey(): String {
+    private fun getDeepseekApiKey(): String {
         return getSharedPreferences("deltavoice_prefs", Context.MODE_PRIVATE)
-            .getString("openai_api_key", "") ?: ""
+            .getString("deepseek_api_key", "") ?: ""
     }
 
     private fun callAiApi(userMessage: String): String? {
-        // Try direct OpenAI first when user has API key
-        val openAiKey = getOpenAiApiKey()
-        if (openAiKey.isNotBlank()) {
-            val directResponse = callOpenAiDirectly()
+        // Try direct DeepSeek first when user has API key
+        val deepseekKey = getDeepseekApiKey()
+        if (deepseekKey.isNotBlank()) {
+            val directResponse = callDeepseekDirectly()
             if (directResponse != null) return directResponse
         }
 
@@ -253,7 +253,7 @@ class AIChatConfigActivity : AppCompatActivity() {
         } catch (e: Exception) {
             if (e.message?.contains("Unable to resolve host", ignoreCase = true) == true) {
                 mainHandler.post {
-                    val hint = if (openAiKey.isNotBlank()) "" else "\n\nTip: Tap the ⚙ icon to add your OpenAI API key for when the server is unreachable."
+                    val hint = if (deepseekKey.isNotBlank()) "" else "\n\nTip: Tap the ⚙ icon to add your DeepSeek API key for when the server is unreachable."
                     Toast.makeText(this, "Can't reach server. Check Wi‑Fi or mobile data.$hint", Toast.LENGTH_LONG).show()
                 }
             }
@@ -294,11 +294,11 @@ class AIChatConfigActivity : AppCompatActivity() {
         }
     }
 
-    private fun callOpenAiDirectly(): String? {
-        val apiKey = getOpenAiApiKey()
+    private fun callDeepseekDirectly(): String? {
+        val apiKey = getDeepseekApiKey()
         if (apiKey.isBlank()) return null
         return try {
-            val url = URL("https://api.openai.com/v1/chat/completions")
+            val url = URL("https://api.deepseek.com/v1/chat/completions")
             val connection = url.openConnection() as HttpURLConnection
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json")
@@ -314,7 +314,7 @@ class AIChatConfigActivity : AppCompatActivity() {
                 messagesJson.append(""",{"role":"$role","content":"$escaped"}""")
             }
             messagesJson.append("]")
-            val requestBody = """{"model":"gpt-4o-mini","messages":$messagesJson,"max_tokens":1000,"temperature":0.7}"""
+            val requestBody = """{"model":"deepseek-chat","messages":$messagesJson,"max_tokens":1000,"temperature":0.7}"""
 
             connection.outputStream.use { it.write(requestBody.toByteArray()) }
 
@@ -325,7 +325,7 @@ class AIChatConfigActivity : AppCompatActivity() {
             connection.disconnect()
             null
         } catch (e: Exception) {
-            android.util.Log.e("AIChatConfig", "OpenAI direct call failed: ${e.message}")
+            android.util.Log.e("AIChatConfig", "DeepSeek direct call failed: ${e.message}")
             null
         }
     }
@@ -361,7 +361,7 @@ class AIChatConfigActivity : AppCompatActivity() {
 
     private fun showApiKeyDialog() {
         val prefs = getSharedPreferences("deltavoice_prefs", Context.MODE_PRIVATE)
-        val currentKey = prefs.getString("openai_api_key", "") ?: ""
+        val currentKey = prefs.getString("deepseek_api_key", "") ?: ""
 
         val input = EditText(this).apply {
             setText(currentKey)
@@ -377,7 +377,7 @@ class AIChatConfigActivity : AppCompatActivity() {
             .setView(input)
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 val key = input.text.toString().trim()
-                prefs.edit().putString("openai_api_key", key).apply()
+                prefs.edit().putString("deepseek_api_key", key).apply()
                 Toast.makeText(this, if (key.isNotBlank()) R.string.ai_chat_api_key_saved else R.string.ai_chat_api_key_removed, Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(android.R.string.cancel, null)

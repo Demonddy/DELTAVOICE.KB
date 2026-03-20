@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Liquid Glass primary buttons: #7C52FF -->
+<!-- Liquid Glass primary buttons -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_pressed="true">
         <shape android:shape="oval">
-            <solid android:color="#651FFF" />
+            <solid android:color="@color/primary_dark" />
             <size android:width="48dp" android:height="48dp" />
         </shape>
     </item>
     <item>
         <shape android:shape="oval">
-            <solid android:color="#7C52FF" />
+            <solid android:color="@color/primary" />
             <size android:width="48dp" android:height="48dp" />
         </shape>
     </item>

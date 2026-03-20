@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Ethereal: large rounded cards (~1.5rem) -->
+    <dimen name="card_corner_radius">24dp</dimen>
     <!-- AI chat messages area height - compact to leave room for keyboard -->
     <dimen name="ai_chat_messages_height">100dp</dimen>
     <!-- AI chat key height (portrait) -->

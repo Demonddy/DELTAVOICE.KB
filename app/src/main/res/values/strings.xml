@@ -24,6 +24,16 @@
     <string name="translate_to">Translate to: %s</string>
     <string name="translation_target_set">Translation target set to %s</string>
 
+    <!-- Overlay -->
+    <string name="overlay_back">Back</string>
+    <string name="overlay_notification_channel">Floating Bubble</string>
+    <string name="overlay_notification_title">DeltaVoice overlay active</string>
+    <string name="overlay_notification_text">Tap to access features</string>
+    <string name="floating_bubble">Floating Bubble</string>
+    <string name="floating_bubble_tap_to_enable">Tap to enable floating bubble</string>
+    <string name="floating_bubble_enabled">Bubble active — tap to stop</string>
+    <string name="overlay_permission_required">Overlay permission is required for the floating bubble</string>
+
     <!-- Permissions -->
     <string name="microphone_permission_required">Microphone permission is required for voice input</string>
     <string name="camera_permission_required">Camera permission is required for video recording</string>
@@ -58,8 +68,8 @@
     <string name="ai_chat_title">AI Assistant</string>
     <string name="ai_chat_welcome">Hi! I\'m your AI assistant. Ask me anything — I can help with writing, questions, translations, and more!</string>
     <string name="ai_chat_hint">Type your message…</string>
-    <string name="ai_chat_api_key_title">OpenAI API Key (optional)</string>
-    <string name="ai_chat_api_key_hint">Add your key to use AI when server is unreachable</string>
+    <string name="ai_chat_api_key_title">DeepSeek API Key (optional)</string>
+    <string name="ai_chat_api_key_hint">Add your DeepSeek key to use AI when server is unreachable</string>
     <string name="ai_chat_api_key_saved">API key saved. AI will use it when server is down.</string>
     <string name="ai_chat_api_key_removed">API key removed.</string>
 

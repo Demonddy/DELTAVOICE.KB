@@ -11,6 +11,13 @@
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_secondary</item>
         <item name="android:colorControlActivated">@color/accent</item>
+        <!-- Ethereal: Manrope body (API 26+; older devices fall back to system sans) -->
+        <item name="android:fontFamily">@font/manrope_regular</item>
+    </style>
+
+    <!-- Headline style: Plus Jakarta Sans (use with android:textAppearance) -->
+    <style name="TextAppearance.DeltaVoice.Headline" parent="TextAppearance.AppCompat.Title">
+        <item name="android:fontFamily">@font/plus_jakarta_sans_semibold</item>
     </style>
 
     <!-- Dialog theme: dark surface, accent buttons -->
@@ -18,6 +25,7 @@
         <item name="android:windowBackground">@drawable/bg_dialog_dark</item>
         <item name="android:windowMinWidthMinor">90%</item>
         <item name="colorAccent">@color/accent</item>
+        <item name="android:fontFamily">@font/manrope_regular</item>
     </style>
 
     <!-- Translucent theme for file-picker activities (VideoUpload, AudioUpload) -->

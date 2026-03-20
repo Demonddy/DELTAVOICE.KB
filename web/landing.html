@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeltaVoice - Speak. Change voice. Translate. Share.</title>
+    <meta name="description" content="Real-time voice translation, video dubbing, and AI chat in 12+ languages. Works in any app: Telegram, Instagram, WhatsApp.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "primary": "#137fec",
+                "accent-purple": "#7c3aed",
+                "background-light": "#f6f7f8",
+                "background-dark": "#101922",
+              },
+              fontFamily: {
+                "display": ["Inter", "sans-serif"]
+              },
+              borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+            },
+          },
+        }
+    </script>
+    <style type="text/tailwindcss">
+        body {
+          min-height: max(884px, 100dvh);
+        }
+        .voice-wave {
+            background: linear-gradient(90deg, #137fec 0%, #7c3aed 100%);
+            mask-image: url("data:image/svg+xml,%3Csvg width='400' height='100' viewBox='0 0 400 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 50 Q 25 20, 50 50 T 100 50 T 150 50 T 200 50 T 250 50 T 300 50 T 350 50 T 400 50' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E");
+            mask-repeat: repeat-x;
+        }
+        .keyboard-key {
+            @apply bg-[#2d2d2d] text-white rounded-[6px] flex items-center justify-center text-[13px] font-medium shadow-sm active:bg-[#3d3d3d] transition-colors;
+        }
+        .action-button {
+            @apply size-9 rounded-full bg-[#7c3aed] text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform;
+        }
+        @keyframes drift {
+            0%, 100% { transform: translateY(0) translateX(0) rotate(0deg); }
+            25% { transform: translateY(-20px) translateX(10px) rotate(2deg); }
+            50% { transform: translateY(-35px) translateX(-5px) rotate(-2deg); }
+            75% { transform: translateY(-15px) translateX(-15px) rotate(1deg); }
+        }
+        .floating-key {
+            @apply absolute bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg flex items-center justify-center text-white/20 font-bold select-none pointer-events-none;
+            animation: drift 15s ease-in-out infinite;
+        }
+        html {
+          scroll-behavior: smooth;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display min-h-screen relative overflow-x-hidden selection:bg-primary/30 selection:text-primary">
+
+<!-- Background effects -->
+<div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+    <div class="absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] max-w-[500px] max-h-[500px] bg-primary/20 rounded-full blur-[80px] md:blur-[120px]"></div>
+    <div class="absolute bottom-[-10%] right-[-10%] w-[70vw] h-[70vw] max-w-[600px] max-h-[600px] bg-purple-600/15 rounded-full blur-[100px] md:blur-[140px]"></div>
+    <div class="absolute inset-0 overflow-hidden opacity-40">
+        <div class="floating-key size-16 text-3xl" style="top: 15%; left: 10%; animation-duration: 18s;">Q</div>
+        <div class="floating-key size-12 text-2xl" style="top: 65%; left: 5%; animation-duration: 22s;">W</div>
+        <div class="floating-key size-14 text-2xl" style="top: 40%; right: 8%; animation-duration: 20s;">E</div>
+        <div class="floating-key size-20 text-4xl" style="bottom: 15%; right: 12%; animation-duration: 25s;">R</div>
+        <div class="floating-key size-10 text-xl" style="top: 80%; left: 45%; animation-duration: 16s;">T</div>
+        <div class="floating-key size-16 text-3xl" style="top: 20%; right: 25%; animation-duration: 19s;">Y</div>
+        <div class="floating-key size-14 text-2xl" style="bottom: 35%; left: 15%; animation-duration: 21s;">A</div>
+        <div class="floating-key size-10 text-xl" style="top: 55%; right: 15%; animation-duration: 17s;">S</div>
+        <div class="floating-key size-16 text-3xl" style="bottom: 55%; left: 40%; animation-duration: 24s;">D</div>
+        <div class="floating-key size-12 text-2xl" style="top: 10%; left: 35%; animation-duration: 19s;">F</div>
+        <div class="floating-key size-16 text-3xl" style="bottom: 10%; right: 40%; animation-duration: 23s;">G</div>
+        <div class="floating-key size-11 text-xl" style="top: 45%; left: 25%; animation-duration: 20s;">H</div>
+        <div class="floating-key size-14 text-2xl" style="bottom: 25%; right: 25%; animation-duration: 22s;">J</div>
+        <div class="floating-key size-12 text-xl" style="top: 30%; left: 60%; animation-duration: 18s;">K</div>
+        <div class="floating-key size-15 text-2xl" style="bottom: 45%; right: 5%; animation-duration: 25s;">L</div>
+    </div>
+</div>
+
+<div class="relative z-10 flex flex-col min-h-screen">
+
+<!-- Header -->
+<header class="sticky top-0 z-50 flex items-center justify-between p-4 md:px-8 bg-background-dark/60 backdrop-blur-xl border-b border-white/5">
+    <a href="#" class="flex items-center gap-2.5 cursor-pointer">
+        <div class="flex items-center justify-center size-10 rounded-lg bg-primary/10 text-primary border border-primary/20">
+            <span class="material-symbols-outlined text-[24px]">mic_double</span>
+        </div>
+        <h2 class="text-xl font-bold tracking-tight text-slate-100">DeltaVoice</h2>
+    </a>
+    <div class="md:hidden relative">
+        <button id="mobile-menu-btn" class="flex items-center justify-center size-10 rounded-lg text-slate-300 hover:text-slate-100 hover:bg-white/5 transition-colors" aria-label="Menu" aria-expanded="false">
+            <span class="material-symbols-outlined">menu</span>
+        </button>
+        <div id="mobile-menu" class="hidden absolute top-full right-0 mt-2 w-48 py-2 bg-slate-800/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-xl">
+            <a class="block px-4 py-2 text-slate-300 hover:text-primary hover:bg-white/5" href="#features">Features</a>
+            <a class="block px-4 py-2 text-slate-300 hover:text-primary hover:bg-white/5" href="#how-it-works">How It Works</a>
+            <a class="block px-4 py-2 text-slate-300 hover:text-primary hover:bg-white/5" href="#pricing">Pricing</a>
+        </div>
+    </div>
+    <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
+        <a class="hover:text-primary transition-colors" href="#features">Features</a>
+        <a class="hover:text-primary transition-colors" href="#how-it-works">How It Works</a>
+        <a class="hover:text-primary transition-colors" href="#pricing">Pricing</a>
+    </nav>
+    <div class="hidden md:flex items-center gap-4">
+        <a class="text-sm font-medium text-slate-300 hover:text-white transition-colors" href="#">Log In</a>
+        <a href="#pricing" class="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-semibold transition-colors">Get Started</a>
+    </div>
+</header>
+
+<main class="flex-1">
+    <!-- Hero Section -->
+    <section class="flex items-center justify-center p-6 py-12 md:p-12 lg:p-24 @container">
+        <div class="w-full max-w-6xl flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+            <div class="flex-1 flex flex-col gap-6 text-center lg:text-left z-10">
+                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold uppercase tracking-wider mx-auto lg:mx-0 w-fit">
+                    <span class="material-symbols-outlined text-[16px]">new_releases</span>
+                    Version 1.0 is here
+                </div>
+                <h1 class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[1.1] tracking-[-0.03em] text-slate-100">
+                    Speak. Change voice. Translate. <br>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary via-blue-400 to-purple-400">Share to friends</span>
+                </h1>
+                <p class="text-base sm:text-lg md:text-xl font-normal leading-relaxed text-slate-300 max-w-2xl mx-auto lg:mx-0">
+                    Real-time voice translation, video dubbing, and AI chat in 12+ languages. Works in any app: Telegram, Instagram, and WhatsApp. Save hours daily communicating globally with ease.
+                </p>
+                <div class="flex flex-col sm:flex-row flex-wrap items-center justify-center lg:justify-start gap-4 mt-4">
+                    <a href="#pricing" class="w-full sm:w-auto flex items-center justify-center h-14 px-8 rounded-xl bg-primary hover:bg-blue-600 text-white text-base font-bold tracking-wide transition-all shadow-[0_0_30px_-5px_rgba(19,127,236,0.4)] hover:shadow-[0_0_40px_-5px_rgba(19,127,236,0.6)]">Get DeltaVoice</a>
+                    <a href="#features" class="w-full sm:w-auto flex items-center justify-center h-14 px-8 rounded-xl bg-slate-800/50 hover:bg-slate-800 backdrop-blur-md border border-white/10 text-slate-100 text-base font-bold tracking-wide transition-all">Explore Premium</a>
+                </div>
+                <div class="flex items-center justify-center lg:justify-start gap-4 mt-6 text-sm text-slate-400">
+                    <div class="flex -space-x-3">
+                        <img class="size-8 rounded-full border-2 border-background-dark" alt="User avatar 1" src="https://lh3.googleusercontent.com/aida-public/AB6AXuArmatuTS5D44Zf2-348CFLkmD0hE4V6SP8j8yJrxhBl53KAeSem3LoxLxhmNPreE9tBksKf1gZePFURZSHaBcr7RA491G_mCVEGuY2FBW0QFkSm4kwbyXY30gIAhVoPjQqzuGldltGm1KOICMi5i9DSo4gn5eJzp7CPFNdffStmqVYkUybt2KKZerlocSLfetFUOZh_eiBNeCaAXCvJ2TTWaRVOYl0Y5COvEBiZGdMUZegh3e8LOQaQReicvVVYcmIWTD4i_beawI">
+                        <img class="size-8 rounded-full border-2 border-background-dark" alt="User avatar 2" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAO8wI4CVPWAypFqT3mNZYWGP8CoxCBBoUqBMybCi_qINta_TJBT06PK18_3TCHrje7GlkO45MI8-CV5PCtFLPuZgNo0v00-xP7wXrzOc4qXB6M8H0fV34K-8PPDRJffRRTsoTAKFwt_g8kDdl-CxV9wNE-pbR6GQJciXz5Qgia13am5Ng0G87hY4P-Uyei0oDL9-9WMKBNs8luJQQHiukE1LGmah3RX7LlWY791b2U5HwC6jNihkY1osNxCGt-P7oHPM85Z-KKzJM">
+                        <img class="size-8 rounded-full border-2 border-background-dark" alt="User avatar 3" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqU5wQDHIY5FOM0VhPNP5IwNiqVhqKk6cW4V-qhVKnLHc8sQJS7nqdYfwg8t43MaDLMhDIDD9C80W6tdR1agBtRxnoIV22j9UU8TJUIrENs_kPgZZgTyIFmZRhrU6rubCkvrxxb4n_toPKkQN2jZvw-MMl6Rnm2R7mMO3FsdZT21tiyvLHPPZul6ByIh6b-RIYeSVCTo8liQfxZOegSrdC6IIhNmzypcS8VptdbldN4BSVPRiZRp9ysBrsyQms1ECa4b6JT3UXUH0">
+                    </div>
+                    <p>Trusted by <span class="font-semibold text-slate-200">10,000+</span> teams</p>
+                </div>
+            </div>
+            <!-- Phone mockup -->
+            <div class="flex-1 w-full max-w-lg lg:max-w-none relative z-10 perspective-[1000px]">
+                <div class="relative mx-auto w-full max-w-[340px] aspect-[9/19.5] rounded-[3rem] border-[8px] border-slate-800 bg-black shadow-2xl overflow-hidden ring-1 ring-white/10">
+                    <div class="flex flex-col h-full bg-[#111] relative overflow-hidden">
+                        <div class="absolute top-[20%] inset-x-0 h-40 opacity-30 pointer-events-none">
+                            <div class="absolute inset-0 bg-gradient-to-r from-primary/50 via-purple-500/50 to-primary/50 blur-3xl"></div>
+                            <svg class="w-full h-full opacity-60" preserveAspectRatio="none" viewBox="0 0 400 100">
+                                <path d="M0 50 C 50 10, 100 90, 150 50 C 200 10, 250 90, 300 50 C 350 10, 400 90, 450 50" fill="none" stroke="url(#wave-grad)" stroke-linecap="round" stroke-width="3">
+                                    <animate attributeName="d" dur="3s" repeatCount="indefinite" values="M0 50 C 50 10, 100 90, 150 50 C 200 10, 250 90, 300 50 C 350 10, 400 90, 450 50; M0 50 C 50 90, 100 10, 150 50 C 200 90, 250 10, 300 50 C 350 90, 400 10, 450 50; M0 50 C 50 10, 100 90, 150 50 C 200 10, 250 90, 300 50 C 350 10, 400 90, 450 50"></animate>
+                                </path>
+                                <defs>
+                                    <linearGradient id="wave-grad" x1="0%" x2="100%" y1="0%" y2="0%">
+                                        <stop offset="0%" stop-color="#137fec"></stop>
+                                        <stop offset="100%" stop-color="#7c3aed"></stop>
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                        </div>
+                        <div class="flex-1 p-4 flex flex-col gap-4 overflow-y-auto mt-10">
+                            <div class="self-start max-w-[85%]">
+                                <div class="bg-slate-800/80 backdrop-blur-md p-3 rounded-2xl rounded-bl-sm border border-white/5">
+                                    <p class="text-[14px] text-white leading-relaxed">¿Cómo va el proyecto de IA?</p>
+                                    <div class="mt-2 flex items-center gap-1.5 py-1 px-2 bg-primary/10 rounded-lg border border-primary/20">
+                                        <span class="material-symbols-outlined text-[14px] text-primary">translate</span>
+                                        <p class="text-[11px] font-medium text-primary/90">How's the AI project going?</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="self-end max-w-[85%]">
+                                <div class="bg-primary p-3 rounded-2xl rounded-br-sm shadow-lg">
+                                    <p class="text-[14px] text-white">We just integrated DeltaVoice!</p>
+                                </div>
+                                <div class="mt-1 flex justify-end">
+                                    <span class="material-symbols-outlined text-[14px] text-blue-400">done_all</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-[#1a1a1a] p-2 pb-8 border-t border-white/5">
+                            <div class="flex justify-between items-center mb-3 px-1">
+                                <div class="size-8 rounded-full bg-[#7c3aed] text-white flex items-center justify-center"><span class="material-symbols-outlined text-[18px]">more_vert</span></div>
+                                <div class="size-8 rounded-full bg-[#7c3aed] text-white flex items-center justify-center"><span class="material-symbols-outlined text-[18px]">videocam</span></div>
+                                <div class="size-8 rounded-full bg-[#7c3aed] text-white flex items-center justify-center"><span class="material-symbols-outlined text-[18px]">home</span></div>
+                                <div class="size-8 rounded-full bg-[#7c3aed] text-white flex items-center justify-center"><span class="material-symbols-outlined text-[18px] fill-current">auto_awesome</span></div>
+                                <div class="size-8 rounded-full bg-[#7c3aed] text-white flex items-center justify-center"><span class="material-symbols-outlined text-[18px]">keyboard</span></div>
+                                <div class="size-8 rounded-full bg-[#7c3aed] text-white flex items-center justify-center"><span class="material-symbols-outlined text-[18px]">mic</span></div>
+                                <div class="size-8 rounded-full bg-[#7c3aed] text-white flex items-center justify-center"><span class="material-symbols-outlined text-[18px]">assignment</span></div>
+                            </div>
+                            <div class="grid grid-cols-10 gap-1">
+                                <div class="keyboard-key h-9">q</div><div class="keyboard-key h-9">w</div><div class="keyboard-key h-9">e</div><div class="keyboard-key h-9">r</div><div class="keyboard-key h-9">t</div><div class="keyboard-key h-9">y</div><div class="keyboard-key h-9">u</div><div class="keyboard-key h-9">i</div><div class="keyboard-key h-9">o</div><div class="keyboard-key h-9">p</div>
+                                <div class="col-span-1"></div><div class="keyboard-key h-9">a</div><div class="keyboard-key h-9">s</div><div class="keyboard-key h-9">d</div><div class="keyboard-key h-9">f</div><div class="keyboard-key h-9">g</div><div class="keyboard-key h-9">h</div><div class="keyboard-key h-9">j</div><div class="keyboard-key h-9">k</div><div class="keyboard-key h-9">l</div>
+                                <div class="keyboard-key h-9 bg-[#404040]"><span class="material-symbols-outlined text-[16px]">shift</span></div>
+                                <div class="keyboard-key h-9">z</div><div class="keyboard-key h-9">x</div><div class="keyboard-key h-9">c</div><div class="keyboard-key h-9">v</div><div class="keyboard-key h-9">b</div><div class="keyboard-key h-9">n</div><div class="keyboard-key h-9">m</div>
+                                <div class="col-span-2 keyboard-key h-9 bg-[#404040]"><span class="material-symbols-outlined text-[16px]">backspace</span></div>
+                                <div class="col-span-2 keyboard-key h-9 text-[11px]">!#1</div>
+                                <div class="keyboard-key h-9"><span class="material-symbols-outlined text-[16px]">language</span></div>
+                                <div class="keyboard-key h-9">😊</div>
+                                <div class="col-span-4 keyboard-key h-9 text-[11px]">English (UK)</div>
+                                <div class="keyboard-key h-9">.</div>
+                                <div class="keyboard-key h-9 bg-[#404040]"><span class="material-symbols-outlined text-[16px]">keyboard_return</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[120px] h-[30px] bg-black rounded-b-[1.5rem] z-20 flex items-end justify-center pb-1">
+                        <div class="w-12 h-1 bg-white/10 rounded-full"></div>
+                    </div>
+                </div>
+                <div class="absolute -top-10 -right-10 w-48 h-48 bg-primary/30 rounded-full blur-[60px] -z-10 animate-pulse"></div>
+                <div class="absolute -bottom-10 -left-10 w-56 h-56 bg-purple-500/20 rounded-full blur-[70px] -z-10 animate-pulse" style="animation-delay: 1s;"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="scroll-mt-24 py-16 md:py-24 px-6 md:px-12 lg:px-24">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-3xl md:text-4xl font-black text-slate-100 text-center mb-4">Features</h2>
+            <p class="text-slate-400 text-center max-w-2xl mx-auto mb-12">Everything you need to communicate across languages—voice, video, AI, and more.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+                <div class="bg-slate-800/50 backdrop-blur-md border border-white/5 rounded-xl p-6 hover:border-primary/30 transition-colors">
+                    <div class="size-12 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+                        <span class="material-symbols-outlined text-2xl text-primary">mic</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-100 mb-2">Voice Input & Cloning</h3>
+                    <p class="text-sm text-slate-400">Record, translate, or clone your voice in 12 languages. Full conversion, same-voice translation, or transcript-only.</p>
+                </div>
+                <div class="bg-slate-800/50 backdrop-blur-md border border-white/5 rounded-xl p-6 hover:border-primary/30 transition-colors">
+                    <div class="size-12 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+                        <span class="material-symbols-outlined text-2xl text-primary">videocam</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-100 mb-2">Record & Translate Videos</h3>
+                    <p class="text-sm text-slate-400">Record or upload videos; translate and dub audio to any target language with natural-sounding voices.</p>
+                </div>
+                <div class="bg-slate-800/50 backdrop-blur-md border border-white/5 rounded-xl p-6 hover:border-primary/30 transition-colors">
+                    <div class="size-12 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+                        <span class="material-symbols-outlined text-2xl text-primary">smart_toy</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-100 mb-2">Smart AI Assistant</h3>
+                    <p class="text-sm text-slate-400">Writing help, questions, translations—works in any app via the keyboard.</p>
+                </div>
+                <div class="bg-slate-800/50 backdrop-blur-md border border-white/5 rounded-xl p-6 hover:border-primary/30 transition-colors">
+                    <div class="size-12 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+                        <span class="material-symbols-outlined text-2xl text-primary">keyboard</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-100 mb-2">40+ Languages</h3>
+                    <p class="text-sm text-slate-400">Predictive text, dictionary, search, voice input—works in Telegram, WhatsApp, Instagram.</p>
+                </div>
+                <div class="bg-slate-800/50 backdrop-blur-md border border-white/5 rounded-xl p-6 hover:border-primary/30 transition-colors">
+                    <div class="size-12 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+                        <span class="material-symbols-outlined text-2xl text-primary">palette</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-100 mb-2">Customize Keyboard</h3>
+                    <p class="text-sm text-slate-400">Light, dark, and premium themes.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="scroll-mt-24 py-16 md:py-24 px-6 md:px-12 lg:px-24 bg-slate-900/30">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-3xl md:text-4xl font-black text-slate-100 text-center mb-4">How It Works</h2>
+            <p class="text-slate-400 text-center max-w-2xl mx-auto mb-16">Get started in three simple steps.</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
+                <div class="flex flex-col items-center text-center">
+                    <div class="size-16 rounded-full bg-primary/20 border-2 border-primary/40 flex items-center justify-center mb-6">
+                        <span class="material-symbols-outlined text-3xl text-primary">looks_one</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-100 mb-2">Enable the keyboard</h3>
+                    <p class="text-slate-400">Install DeltaVoice and enable it in your system settings.</p>
+                </div>
+                <div class="flex flex-col items-center text-center">
+                    <div class="size-16 rounded-full bg-primary/20 border-2 border-primary/40 flex items-center justify-center mb-6">
+                        <span class="material-symbols-outlined text-3xl text-primary">looks_two</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-100 mb-2">Use in any app</h3>
+                    <p class="text-slate-400">Open Telegram, WhatsApp, or any app—tap the mic or AI icon on the keyboard.</p>
+                </div>
+                <div class="flex flex-col items-center text-center">
+                    <div class="size-16 rounded-full bg-primary/20 border-2 border-primary/40 flex items-center justify-center mb-6">
+                        <span class="material-symbols-outlined text-3xl text-primary">looks_3</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-100 mb-2">Speak, translate, share</h3>
+                    <p class="text-slate-400">Record voice, choose language and voice, process, and send—all from the keyboard.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Services / Capabilities Section -->
+    <section id="services" class="scroll-mt-24 py-16 md:py-24 px-6 md:px-12 lg:px-24">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-3xl md:text-4xl font-black text-slate-100 text-center mb-4">Services & Capabilities</h2>
+            <p class="text-slate-400 text-center max-w-2xl mx-auto mb-16">Everything DeltaVoice offers under one keyboard.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="bg-slate-800/50 backdrop-blur-md border border-white/5 rounded-xl p-6">
+                    <h3 class="text-lg font-bold text-slate-100 mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">record_voice_over</span>
+                        Voice modes
+                    </h3>
+                    <ul class="space-y-2 text-slate-400 text-sm">
+                        <li>• Full conversion — translate + change voice</li>
+                        <li>• Voice cloning — same voice, new language</li>
+                        <li>• Transcript & translate — text only</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-800/50 backdrop-blur-md border border-white/5 rounded-xl p-6">
+                    <h3 class="text-lg font-bold text-slate-100 mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">translate</span>
+                        12 languages
+                    </h3>
+                    <p class="text-slate-400 text-sm mb-2">English, Spanish, French, German, Italian, Portuguese, Russian, Japanese, Korean, Chinese, Arabic, Hindi.</p>
+                    <div class="flex flex-wrap gap-1.5 mt-2">
+                        <span class="px-2 py-0.5 rounded bg-white/5 text-xs text-slate-300">en</span>
+                        <span class="px-2 py-0.5 rounded bg-white/5 text-xs text-slate-300">es</span>
+                        <span class="px-2 py-0.5 rounded bg-white/5 text-xs text-slate-300">fr</span>
+                        <span class="px-2 py-0.5 rounded bg-white/5 text-xs text-slate-300">de</span>
+                        <span class="px-2 py-0.5 rounded bg-white/5 text-xs text-slate-300">ja</span>
+                        <span class="px-2 py-0.5 rounded bg-white/5 text-xs text-slate-300">zh</span>
+                        <span class="px-2 py-0.5 rounded bg-white/5 text-xs text-slate-300">+6</span>
+                    </div>
+                </div>
+                <div class="bg-slate-800/50 backdrop-blur-md border border-white/5 rounded-xl p-6">
+                    <h3 class="text-lg font-bold text-slate-100 mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">record_voice_over</span>
+                        8 voice styles
+                    </h3>
+                    <p class="text-slate-400 text-sm">Adam, Aria, Roger, Sarah, Laura, Charlie, George, Liam.</p>
+                </div>
+                <div class="bg-slate-800/50 backdrop-blur-md border border-white/5 rounded-xl p-6">
+                    <h3 class="text-lg font-bold text-slate-100 mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">apps</span>
+                        Works everywhere
+                    </h3>
+                    <p class="text-slate-400 text-sm">Any app that uses the system keyboard—messaging, social, email.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Advantages / USPs Section -->
+    <section id="advantages" class="scroll-mt-24 py-16 md:py-24 px-6 md:px-12 lg:px-24 bg-slate-900/30">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-3xl md:text-4xl font-black text-slate-100 text-center mb-4">Why DeltaVoice</h2>
+            <p class="text-slate-400 text-center max-w-2xl mx-auto mb-16">One keyboard. Every language. Zero hassle.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
+                <div class="flex gap-4 items-start">
+                    <span class="material-symbols-outlined text-2xl text-primary shrink-0">check_circle</span>
+                    <div>
+                        <h3 class="font-bold text-slate-100 mb-1">One keyboard for everything</h3>
+                        <p class="text-sm text-slate-400">Voice, translation, AI, video—no app switching.</p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-start">
+                    <span class="material-symbols-outlined text-2xl text-primary shrink-0">check_circle</span>
+                    <div>
+                        <h3 class="font-bold text-slate-100 mb-1">Real-time in chat</h3>
+                        <p class="text-sm text-slate-400">Translate and send from inside Telegram, WhatsApp, Instagram.</p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-start">
+                    <span class="material-symbols-outlined text-2xl text-primary shrink-0">check_circle</span>
+                    <div>
+                        <h3 class="font-bold text-slate-100 mb-1">Privacy-aware</h3>
+                        <p class="text-sm text-slate-400">Processing via secure backend; optional local API key for AI.</p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-start">
+                    <span class="material-symbols-outlined text-2xl text-primary shrink-0">check_circle</span>
+                    <div>
+                        <h3 class="font-bold text-slate-100 mb-1">Free tier</h3>
+                        <p class="text-sm text-slate-400">10 voice + 3 video + 50 AI messages/day—try before upgrading.</p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-start">
+                    <span class="material-symbols-outlined text-2xl text-primary shrink-0">check_circle</span>
+                    <div>
+                        <h3 class="font-bold text-slate-100 mb-1">47+ keyboard languages</h3>
+                        <p class="text-sm text-slate-400">Predictive text for many locales.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="scroll-mt-24 py-16 md:py-24 px-6 md:px-12 lg:px-24">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-3xl md:text-4xl font-black text-slate-100 text-center mb-4">Pricing</h2>
+            <p class="text-slate-400 text-center max-w-2xl mx-auto mb-16">Start free. Upgrade when you need more.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                <div class="bg-slate-800/50 backdrop-blur-md border border-white/10 rounded-2xl p-8">
+                    <h3 class="text-xl font-bold text-slate-100 mb-2">Free</h3>
+                    <p class="text-slate-400 text-sm mb-6">Perfect for trying DeltaVoice</p>
+                    <ul class="space-y-3 mb-8">
+                        <li class="flex items-center gap-2 text-slate-300">
+                            <span class="material-symbols-outlined text-primary text-lg">check</span>
+                            10 voice translations per day
+                        </li>
+                        <li class="flex items-center gap-2 text-slate-300">
+                            <span class="material-symbols-outlined text-primary text-lg">check</span>
+                            3 video translations per day
+                        </li>
+                        <li class="flex items-center gap-2 text-slate-300">
+                            <span class="material-symbols-outlined text-primary text-lg">check</span>
+                            50 AI chat messages per day
+                        </li>
+                        <li class="flex items-center gap-2 text-slate-300">
+                            <span class="material-symbols-outlined text-primary text-lg">check</span>
+                            Basic themes
+                        </li>
+                    </ul>
+                    <a href="#" class="block w-full py-3 px-6 rounded-xl border border-white/20 text-slate-100 font-semibold text-center hover:bg-white/5 transition-colors">Get DeltaVoice</a>
+                </div>
+                <div class="bg-gradient-to-b from-primary/20 to-purple-600/20 backdrop-blur-md border-2 border-primary/50 rounded-2xl p-8 relative">
+                    <div class="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-primary text-white text-xs font-bold">RECOMMENDED</div>
+                    <h3 class="text-xl font-bold text-slate-100 mb-2">Premium</h3>
+                    <p class="text-slate-400 text-sm mb-6">Unlock everything</p>
+                    <ul class="space-y-3 mb-8">
+                        <li class="flex items-center gap-2 text-slate-300">
+                            <span class="material-symbols-outlined text-primary text-lg">check</span>
+                            Unlimited voice translations
+                        </li>
+                        <li class="flex items-center gap-2 text-slate-300">
+                            <span class="material-symbols-outlined text-primary text-lg">check</span>
+                            Unlimited video translations
+                        </li>
+                        <li class="flex items-center gap-2 text-slate-300">
+                            <span class="material-symbols-outlined text-primary text-lg">check</span>
+                            Unlimited AI chat messages
+                        </li>
+                        <li class="flex items-center gap-2 text-slate-300">
+                            <span class="material-symbols-outlined text-primary text-lg">check</span>
+                            All premium themes
+                        </li>
+                    </ul>
+                    <a href="#" class="block w-full py-3 px-6 rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold text-center transition-colors shadow-[0_0_30px_-5px_rgba(19,127,236,0.4)]">Upgrade to Premium</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- Footer -->
+<footer class="border-t border-white/5 py-12 px-6 md:px-12 lg:px-24">
+    <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="flex items-center gap-2">
+            <div class="flex items-center justify-center size-8 rounded-lg bg-primary/10 text-primary border border-primary/20">
+                <span class="material-symbols-outlined text-lg">mic_double</span>
+            </div>
+            <span class="font-bold text-slate-100">DeltaVoice</span>
+        </div>
+        <nav class="flex items-center gap-6 text-sm text-slate-400">
+            <a href="#" class="hover:text-primary transition-colors">Privacy Policy</a>
+            <a href="#" class="hover:text-primary transition-colors">Terms of Service</a>
+        </nav>
+        <p class="text-sm text-slate-500">© 2025 DeltaVoice. All rights reserved.</p>
+    </div>
+</footer>
+
+</div>
+
+<script>
+    document.getElementById('mobile-menu-btn')?.addEventListener('click', function() {
+        const menu = document.getElementById('mobile-menu');
+        const expanded = this.getAttribute('aria-expanded') === 'true';
+        menu.classList.toggle('hidden', expanded);
+        this.setAttribute('aria-expanded', !expanded);
+    });
+</script>
+</body>
+</html>

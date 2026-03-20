@@ -34,13 +34,12 @@ http.route({
     };
 
     try {
-      const openAIApiKey =
-        process.env.OPENAI_API_KEY77 || process.env.OPENAI_API_KEY;
-      if (!openAIApiKey) {
+      const deepseekApiKey = process.env.Deepseeka;
+      if (!deepseekApiKey) {
         return new Response(
           JSON.stringify({
             success: false,
-            error: "OpenAI API key not configured",
+            error: "DeepSeek API key not configured",
             content: "I'm having trouble connecting. Please try again later.",
           }),
           { status: 200, headers: jsonHeaders }
@@ -67,14 +66,14 @@ http.route({
       const apiMessages =
         messages[0]?.role === "system" ? messages : [systemMessage, ...messages];
 
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${openAIApiKey}`,
+          Authorization: `Bearer ${deepseekApiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "deepseek-chat",
           messages: apiMessages,
           max_tokens: 1000,
           temperature: 0.7,
@@ -83,7 +82,7 @@ http.route({
 
       if (!response.ok) {
         const errText = await response.text();
-        console.error("OpenAI AI chat error:", response.status, errText);
+        console.error("DeepSeek AI chat error:", response.status, errText);
         return new Response(
           JSON.stringify({
             success: false,

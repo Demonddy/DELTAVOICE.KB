@@ -3395,11 +3395,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun getKeyHeightDp(): Int {
         val prefs = getSharedPreferences("deltavoice_prefs", MODE_PRIVATE)
         val baseHeight = when (prefs.getString("keyboard_height", "Normal")) {
-            "Extra short" -> 36
-            "Short" -> 40
-            "Tall" -> 52
-            "Custom" -> prefs.getInt("keyboard_height_custom", 44).coerceIn(32, 72)
-            else -> 44 // Normal
+            "Extra short" -> 40
+            "Short" -> 44
+            "Tall" -> 56
+            "Custom" -> prefs.getInt("keyboard_height_custom", 48).coerceIn(36, 76)
+            else -> 48 // Normal - Gboard-style larger touch targets
         }
         return if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
             (baseHeight * 0.72).toInt().coerceIn(28, 40)
@@ -4791,7 +4791,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     /**
-     * Call AI API (using OpenAI API for real responses like ChatGPT)
+     * Call AI API (using DeepSeek API for real responses like ChatGPT)
      */
     private suspend fun callAiApi(message: String): String {
         return withContext(Dispatchers.IO) {
@@ -4804,9 +4804,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     aiConversationHistory = aiConversationHistory.takeLast(10).toMutableList()
                 }
                 
-                // Try direct OpenAI API call only when API key is set (avoids 401)
-                if (getOpenAiApiKey().isNotBlank()) {
-                    val response = callOpenAiDirectly(message)
+                // Try direct DeepSeek API call only when API key is set (avoids 401)
+                if (getDeepseekApiKey().isNotBlank()) {
+                    val response = callDeepseekDirectly(message)
                     if (response != null) {
                         aiConversationHistory.add(mapOf("role" to "assistant", "content" to response))
                         return@withContext response
@@ -4836,17 +4836,17 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     /**
-     * Call OpenAI API directly for ChatGPT-like responses
+     * Call DeepSeek API directly for ChatGPT-like responses
      */
-    private fun callOpenAiDirectly(message: String): String? {
+    private fun callDeepseekDirectly(message: String): String? {
         try {
-            val url = java.net.URL("https://api.openai.com/v1/chat/completions")
+            val url = java.net.URL("https://api.deepseek.com/v1/chat/completions")
             val connection = url.openConnection() as java.net.HttpURLConnection
             
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json")
             // Note: For production, store API key securely
-            connection.setRequestProperty("Authorization", "Bearer ${getOpenAiApiKey()}")
+            connection.setRequestProperty("Authorization", "Bearer ${getDeepseekApiKey()}")
             connection.connectTimeout = aiChatConnectTimeoutMs
             connection.readTimeout = aiChatReadTimeoutMs
             connection.doOutput = true
@@ -4867,9 +4867,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
             messagesJson.append("]")
             
-            val requestBody = """{"model":"gpt-4o-mini","messages":$messagesJson,"max_tokens":1000,"temperature":0.7}"""
+            val requestBody = """{"model":"deepseek-chat","messages":$messagesJson,"max_tokens":1000,"temperature":0.7}"""
             
-            android.util.Log.d("DeltaVoice", "Calling OpenAI API directly...")
+            android.util.Log.d("DeltaVoice", "Calling DeepSeek API directly...")
             
             java.io.OutputStreamWriter(connection.outputStream).use { writer ->
                 writer.write(requestBody)
@@ -4877,37 +4877,37 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
             
             val responseCode = connection.responseCode
-            android.util.Log.d("DeltaVoice", "OpenAI response code: $responseCode")
+            android.util.Log.d("DeltaVoice", "DeepSeek response code: $responseCode")
             
             if (responseCode == 200) {
                 val responseText = connection.inputStream.bufferedReader().use { it.readText() }
-                android.util.Log.d("DeltaVoice", "OpenAI response received: ${responseText.take(200)}")
+                android.util.Log.d("DeltaVoice", "DeepSeek response received: ${responseText.take(200)}")
                 connection.disconnect()
                 return parseAiChatResponse(responseText)
             } else {
                 val errorText = connection.errorStream?.bufferedReader()?.use { it.readText() } ?: "Unknown error"
-                android.util.Log.e("DeltaVoice", "OpenAI API error: $responseCode - $errorText")
+                android.util.Log.e("DeltaVoice", "DeepSeek API error: $responseCode - $errorText")
             }
             connection.disconnect()
             
         } catch (e: Exception) {
-            android.util.Log.e("DeltaVoice", "OpenAI direct call failed: ${e.message}")
+            android.util.Log.e("DeltaVoice", "DeepSeek direct call failed: ${e.message}")
         }
         
         return null
     }
     
     /**
-     * Get OpenAI API key from user preferences (optional).
-     * When set, bypasses Supabase and calls OpenAI directly — useful when Supabase is unreachable.
+     * Get DeepSeek API key from user preferences (optional).
+     * When set, bypasses Supabase and calls DeepSeek directly — useful when Supabase is unreachable.
      */
-    private fun getOpenAiApiKey(): String {
+    private fun getDeepseekApiKey(): String {
         return getSharedPreferences("deltavoice_prefs", MODE_PRIVATE)
-            .getString("openai_api_key", "") ?: ""
+            .getString("deepseek_api_key", "") ?: ""
     }
     
     /**
-     * Call OpenAI via Convex HTTP endpoint (no auth needed, uses Convex env OPENAI_API_KEY)
+     * Call DeepSeek via Convex HTTP endpoint (no auth needed, uses Convex env Deepseeka)
      */
     private fun callOpenAiViaConvex(message: String): String? {
         if (!com.deltavoice.config.ConvexConfig.USE_CONVEX_FOR_VOICE_WORKFLOW) return null
@@ -4951,7 +4951,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
 
     /**
-     * Call OpenAI via Supabase edge function (fallback when Convex unavailable)
+     * Call DeepSeek via Supabase edge function (fallback when Convex unavailable)
      */
     private fun callOpenAiViaSupabase(message: String): String? {
         try {
@@ -4995,7 +4995,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             val msg = e.message ?: ""
             if (msg.contains("Unable to resolve host", ignoreCase = true) || msg.contains("No address", ignoreCase = true)) {
                 Handler(android.os.Looper.getMainLooper()).post {
-                    val hint = if (getOpenAiApiKey().isNotBlank()) "" else "\n\nTip: Add your OpenAI API key in AI Assistant settings to use when server is unreachable."
+                    val hint = if (getDeepseekApiKey().isNotBlank()) "" else "\n\nTip: Add your DeepSeek API key in AI Assistant settings to use when server is unreachable."
                     Toast.makeText(this@MainKeyboardService, "Can't reach server. Check Wi‑Fi or mobile data.$hint", Toast.LENGTH_LONG).show()
                 }
             }
@@ -6524,12 +6524,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             gravity = Gravity.CENTER
             isAllCaps = false
             setIncludeFontPadding(true)
-            val keyVertPad = if (isLandscapeKey) 4 else 12
-            setPadding(8, keyVertPad, 8, keyVertPad)
+            val keyVertPad = if (isLandscapeKey) 4 else 8
+            setPadding(6, keyVertPad, 6, keyVertPad)
             minHeight = getKeyHeightDp().dpToPx()
             background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.glass_key_background)
             
-            val keyMargin = if (isLandscapeKey) 2 else 3
+            // Gboard-style: minimal gaps for larger touch area, edge-to-edge feel
+            val keyMargin = if (isLandscapeKey) 1 else 1
             val layoutParams = LinearLayout.LayoutParams(
                 0,
                 ViewGroup.LayoutParams.WRAP_CONTENT
@@ -6570,12 +6571,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             isAllCaps = false
             setIncludeFontPadding(true)
             setLineSpacing(0f, 1.12f)
-            val vertPad = if (isLandscapeKey) 4 else 10
-            setPadding(8, vertPad, 8, if (isLandscapeKey) 4 else 16)
+            val vertPad = if (isLandscapeKey) 4 else 8
+            setPadding(6, vertPad, 6, if (isLandscapeKey) 4 else 10)
             minHeight = (getKeyHeightDp() + if (isLandscapeKey) 0 else 4).dpToPx()
             background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.glass_key_background)
             
-            val keyMargin = if (isLandscapeKey) 2 else 3
+            val keyMargin = 1
             val layoutParams = LinearLayout.LayoutParams(
                 0,
                 ViewGroup.LayoutParams.WRAP_CONTENT
@@ -6614,12 +6615,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             gravity = Gravity.CENTER
             isAllCaps = false
             setIncludeFontPadding(true)
-            val keyVertPad = if (isLandscapeKey) 4 else 12
-            setPadding(8, keyVertPad, 8, keyVertPad)
+            val keyVertPad = if (isLandscapeKey) 4 else 8
+            setPadding(6, keyVertPad, 6, keyVertPad)
             minHeight = getKeyHeightDp().dpToPx()
             background = ContextCompat.getDrawable(this@MainKeyboardService, drawableRes)
             
-            val keyMargin = if (isLandscapeKey) 2 else 3
+            val keyMargin = 1
             val layoutParams = LinearLayout.LayoutParams(
                 0,
                 ViewGroup.LayoutParams.WRAP_CONTENT

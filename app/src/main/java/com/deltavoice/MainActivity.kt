@@ -1,10 +1,13 @@
 package com.deltavoice
 
 import android.Manifest
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.LayoutInflater
@@ -35,6 +38,7 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_STAT_VOICES = "stat_voices"
         private const val KEY_STAT_CHATS = "stat_chats"
         private const val PERMISSION_REQUEST_CODE = 100
+        private const val OVERLAY_PERMISSION_REQUEST = 200
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,12 +59,14 @@ class MainActivity : AppCompatActivity() {
         
         setupUI()
         setupBottomNav()
+        setupFloatingBubble()
         updateStats()
     }
     
     override fun onResume() {
         super.onResume()
         updateStats()
+        updateFloatingBubbleStatus()
     }
     
     /**
@@ -132,6 +138,86 @@ class MainActivity : AppCompatActivity() {
         // Update subscription status
         val isPremium = prefs.getBoolean(KEY_IS_PREMIUM, false)
         findViewById<TextView>(R.id.subscription_status).text = if (isPremium) getString(R.string.premium) else getString(R.string.free_plan)
+    }
+
+    /**
+     * Setup floating bubble card - request overlay permission and start/stop service
+     */
+    private fun setupFloatingBubble() {
+        findViewById<LinearLayout>(R.id.card_floating_bubble).setOnClickListener {
+            if (Settings.canDrawOverlays(this)) {
+                toggleOverlayService()
+            } else {
+                requestOverlayPermission()
+            }
+        }
+        updateFloatingBubbleStatus()
+    }
+
+    private fun updateFloatingBubbleStatus() {
+        val statusView = findViewById<TextView>(R.id.floating_bubble_status)
+        statusView.text = if (isOverlayServiceRunning()) {
+            getString(R.string.floating_bubble_enabled)
+        } else {
+            getString(R.string.floating_bubble_tap_to_enable)
+        }
+    }
+
+    private fun isOverlayServiceRunning(): Boolean {
+        return try {
+            val manager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            @Suppress("DEPRECATION")
+            manager.getRunningServices(Int.MAX_VALUE).any {
+                it.service.className == OverlayBubbleService::class.java.name
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun requestOverlayPermission() {
+        Toast.makeText(this, getString(R.string.overlay_permission_required), Toast.LENGTH_LONG).show()
+        val intent = Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.parse("package:$packageName")
+        )
+        startActivityForResult(intent, OVERLAY_PERMISSION_REQUEST)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == OVERLAY_PERMISSION_REQUEST) {
+            if (Settings.canDrawOverlays(this)) {
+                startOverlayService()
+                Toast.makeText(this, "Floating bubble enabled", Toast.LENGTH_SHORT).show()
+            }
+            updateFloatingBubbleStatus()
+        }
+    }
+
+    private fun toggleOverlayService() {
+        if (isOverlayServiceRunning()) {
+            stopOverlayService()
+        } else {
+            startOverlayService()
+        }
+        updateFloatingBubbleStatus()
+    }
+
+    private fun startOverlayService() {
+        val intent = Intent(this, OverlayBubbleService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
+    }
+
+    private fun stopOverlayService() {
+        val intent = Intent(this, OverlayBubbleService::class.java).apply {
+            action = OverlayBubbleService.ACTION_STOP
+        }
+        startService(intent)
     }
 
     /**

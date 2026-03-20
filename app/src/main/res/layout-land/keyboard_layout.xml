@@ -444,7 +444,7 @@
                             android:layout_width="18dp"
                             android:layout_height="18dp"
                             android:src="@drawable/ic_lightning"
-                            android:tint="#C084FC" />
+                            android:tint="@color/accent" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -796,7 +796,7 @@
                         android:src="@drawable/ic_send"
                         android:background="?android:attr/selectableItemBackgroundBorderless"
                         android:contentDescription="Send original video"
-                        android:tint="#A855F7" />
+                        android:tint="@color/gradient_middle" />
 
                     <ImageButton
                         android:id="@+id/btn_video_close"
@@ -824,7 +824,7 @@
                         android:layout_width="16dp"
                         android:layout_height="16dp"
                         android:src="@drawable/ic_globe"
-                        android:tint="#C084FC" />
+                        android:tint="@color/accent" />
 
                     <Spinner
                         android:id="@+id/video_spinner_language"
@@ -852,7 +852,7 @@
                         android:layout_width="16dp"
                         android:layout_height="16dp"
                         android:src="@drawable/ic_speaker"
-                        android:tint="#C084FC" />
+                        android:tint="@color/accent" />
 
                     <Spinner
                         android:id="@+id/video_spinner_voice"
@@ -1217,23 +1217,23 @@
             android:contentDescription="Back to keyboard" />
     </LinearLayout>
 
-    <!-- Main Keyboard Panel: compact landscape rows -->
+    <!-- Main Keyboard Panel: Gboard-style compact landscape rows -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/glass_keyboard_panel_background"
-        android:padding="4dp"
-        android:paddingBottom="8dp">
+        android:padding="2dp"
+        android:paddingBottom="4dp">
 
         <LinearLayout
             android:id="@+id/keyboard_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingStart="2dp"
-            android:paddingEnd="2dp"
-            android:paddingTop="2dp"
-            android:paddingBottom="2dp">
+            android:paddingStart="0dp"
+            android:paddingEnd="0dp"
+            android:paddingTop="0dp"
+            android:paddingBottom="0dp">
 
             <LinearLayout
                 android:id="@+id/row_numbers"
@@ -1241,7 +1241,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center"
-                android:padding="1dp" />
+                android:padding="0dp" />
 
             <LinearLayout
                 android:id="@+id/row_qwerty"
@@ -1249,7 +1249,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center"
-                android:padding="1dp" />
+                android:padding="0dp" />
 
             <LinearLayout
                 android:id="@+id/row_asdf"
@@ -1257,7 +1257,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center"
-                android:padding="1dp"
+                android:padding="0dp"
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp" />
 
@@ -1267,7 +1267,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center"
-                android:padding="1dp" />
+                android:padding="0dp" />
 
             <LinearLayout
                 android:id="@+id/row_bottom"
@@ -1275,7 +1275,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center"
-                android:padding="1dp" />
+                android:padding="0dp" />
         </LinearLayout>
     </FrameLayout>
 
