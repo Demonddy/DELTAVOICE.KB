@@ -637,10 +637,25 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     /**
      * Schedule multiple requestShowSelf calls so keyboard reliably appears after upload activity
      * finishes. Activity finishes at 750ms; we call before and after to catch the transition.
+     *
+     * Also posts a delayed runnable (~900ms) so [pendingShowVoiceFromUpload] / [pendingShowVideoFromUpload]
+     * are applied when [onStartInputView] does not run again after the picker (same editor session).
      */
     private fun scheduleKeyboardShowAfterUpload() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
         val handler = Handler(Looper.getMainLooper())
+        handler.postDelayed({
+            if (pendingShowVoiceFromUpload && !recordingFilePath.isNullOrBlank()) {
+                pendingShowVoiceFromUpload = false
+                showVoiceProcessingUI()
+                Toast.makeText(this, getString(R.string.ready_for_processing), Toast.LENGTH_SHORT).show()
+            }
+            if (pendingShowVideoFromUpload && !videoFilePath.isNullOrBlank()) {
+                pendingShowVideoFromUpload = false
+                showVideoPreview()
+                Toast.makeText(this, getString(R.string.ready_for_processing), Toast.LENGTH_SHORT).show()
+            }
+        }, 900)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
         val delays = longArrayOf(150, 400, 700, 1000, 1300)
         for (delay in delays) {
             handler.postDelayed({
@@ -1241,6 +1256,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         
         // Ensure processing UI is exclusive and no other panel can overlap it.
         hideAllOverlays()
+        voiceRecordingContainer.visibility = View.GONE
         hideTopBarsForOverlay()
         keyboardContainer.visibility = View.GONE
         voiceProcessingStep2Container.visibility = View.VISIBLE
@@ -5365,9 +5381,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     /**
-     * Hide video recording UI
+     * Hide video recording UI.
+     * @param showKeyboardAfter When false (e.g. transitioning to preview), do not show the QWERTY keyboard.
      */
-    private fun hideVideoRecording() {
+    private fun hideVideoRecording(showKeyboardAfter: Boolean = true) {
         if (isVideoRecording) {
             stopVideoRecording()
         }
@@ -5375,7 +5392,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         releaseCameraAndStopThread()
         
         videoRecordingContainer?.visibility = View.GONE
-        keyboardContainer.visibility = View.VISIBLE
+        if (showKeyboardAfter) {
+            keyboardContainer.visibility = View.VISIBLE
+        }
         isVideoRecordingVisible = false
         
         // Reset timer
@@ -5406,10 +5425,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Show video preview UI
      */
     private fun showVideoPreview() {
-        hideVideoRecording()
-        
-        videoPreviewContainer?.visibility = View.VISIBLE
+        hideVideoRecording(showKeyboardAfter = false)
+        hideAllOverlays()
+        hideTopBarsForOverlay()
         keyboardContainer.visibility = View.GONE
+        videoPreviewContainer?.visibility = View.VISIBLE
         isVideoPreviewVisible = true
         
         // Setup video player — listener must be registered before setVideoPath so it
