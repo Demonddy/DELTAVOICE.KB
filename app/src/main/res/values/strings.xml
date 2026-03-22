@@ -33,6 +33,8 @@
     <string name="floating_bubble_tap_to_enable">Tap to enable floating bubble</string>
     <string name="floating_bubble_enabled">Bubble active — tap to stop</string>
     <string name="overlay_permission_required">Overlay permission is required for the floating bubble</string>
+    <string name="overlay_attach_keyboard_required">Open the keyboard first to use this feature from the bubble</string>
+    <string name="overlay_feature_unavailable">Could not load this feature. Make sure DeltaVoice is enabled as a keyboard in Settings.</string>
 
     <!-- Permissions -->
     <string name="microphone_permission_required">Microphone permission is required for voice input</string>
@@ -68,8 +70,8 @@
     <string name="ai_chat_title">AI Assistant</string>
     <string name="ai_chat_welcome">Hi! I\'m your AI assistant. Ask me anything — I can help with writing, questions, translations, and more!</string>
     <string name="ai_chat_hint">Type your message…</string>
-    <string name="ai_chat_api_key_title">DeepSeek API Key (optional)</string>
-    <string name="ai_chat_api_key_hint">Add your DeepSeek key to use AI when server is unreachable</string>
+    <string name="ai_chat_api_key_title">OpenAI API Key (optional)</string>
+    <string name="ai_chat_api_key_hint">Add your key to use AI when server is unreachable</string>
     <string name="ai_chat_api_key_saved">API key saved. AI will use it when server is down.</string>
     <string name="ai_chat_api_key_removed">API key removed.</string>
 

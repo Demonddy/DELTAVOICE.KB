@@ -12,14 +12,14 @@ serve(async (req) => {
   }
 
   try {
-    const deepseekApiKey = Deno.env.get('Deepseeka');
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY77') || Deno.env.get('OPENAI_API_KEY');
     
-    if (!deepseekApiKey) {
-      console.error('DeepSeek API key not configured');
+    if (!openAIApiKey) {
+      console.error('OpenAI API key not configured');
       return new Response(
         JSON.stringify({ 
           success: false,
-          error: 'DeepSeek API key not configured',
+          error: 'OpenAI API key not configured',
           content: "I'm having trouble connecting. Please try again later.",
           response: "I'm having trouble connecting. Please try again later."
         }),
@@ -56,21 +56,21 @@ For translations, provide the translation directly without extra explanation.
 Be helpful, accurate, and conversational like ChatGPT.`
     };
 
-    // Prepare messages for DeepSeek
+    // Prepare messages for OpenAI
     let apiMessages = messages;
     if (!messages[0] || messages[0].role !== 'system') {
       apiMessages = [systemMessage, ...messages];
     }
 
-    // Call DeepSeek API
-    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    // Call OpenAI API
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${deepseekApiKey}`,
+        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'gpt-4o-mini',
         messages: apiMessages,
         max_tokens: 1000,
         temperature: 0.7,
@@ -81,7 +81,7 @@ Be helpful, accurate, and conversational like ChatGPT.`
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('🤖 DeepSeek API error:', response.status, errorText);
+      console.error('🤖 OpenAI API error:', response.status, errorText);
       
       return new Response(
         JSON.stringify({ 

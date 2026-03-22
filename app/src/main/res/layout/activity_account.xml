@@ -173,7 +173,7 @@
                     android:layout_height="48dp"
                     android:layout_marginTop="16dp"
                     android:text="Upgrade to Premium"
-                    android:textColor="#1F2937"
+                    android:textColor="@color/premium_banner_text_primary"
                     android:textAllCaps="false"
                     android:textStyle="bold"
                     android:background="@drawable/bg_premium_banner" />

@@ -12,7 +12,27 @@
     <color name="primary">#7C52FF</color>
     <color name="primary_dark">#7C3AED</color>
     <color name="primary_light">#A78BFA</color>
+    <color name="primary_container">#8A4CFC</color>
     <color name="accent">#C084FC</color>
+    <color name="surface_tint">#A78BFA</color>
+    <color name="ripple_primary">#33C084FC</color>
+
+    <!-- Secondary / Tertiary (dark) -->
+    <color name="secondary">#C9B3FD</color>
+    <color name="secondary_container">#544183</color>
+    <color name="on_secondary_container">#E9DDFF</color>
+    <color name="tertiary">#FFB869</color>
+    <color name="tertiary_container">#673D00</color>
+    <color name="tertiary_fixed">#FFDCBB</color>
+    <color name="tertiary_fixed_dim">#FFB869</color>
+    <color name="on_tertiary_fixed">#2C1700</color>
+    <color name="surface_container_lowest">#1A1A1D</color>
+    <color name="surface_container_low">#1F1F23</color>
+    <color name="surface_container">#252529</color>
+    <color name="surface_container_high">#2A2A2E</color>
+    <color name="surface_container_highest">#2F2F33</color>
+    <color name="outline">#9CA3AF</color>
+    <color name="outline_variant">#6B7280</color>
 
     <!-- Background Colors (Dark) -->
     <color name="background_dark">#0F0F10</color>
@@ -47,4 +67,6 @@
     <color name="premium_gold">#FFD700</color>
     <color name="premium_gradient_start">#F59E0B</color>
     <color name="premium_gradient_end">#EAB308</color>
+    <color name="premium_banner_text_primary">#FFDCBB</color>
+    <color name="premium_banner_text_secondary">#E9D5B3</color>
 </resources>

@@ -170,6 +170,15 @@ class OverlayBubbleService : Service() {
         }
     }
 
+    private fun bubbleSizePx(): Int =
+        (48 * resources.displayMetrics.density).toInt()
+
+    private fun statusBarInsetPx(): Int {
+        val id = resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (id > 0) resources.getDimensionPixelSize(id)
+        else (24 * resources.displayMetrics.density).toInt()
+    }
+
     private fun showTopRow() {
         if (topRowView != null) return
 
@@ -183,6 +192,25 @@ class OverlayBubbleService : Service() {
             WindowManager.LayoutParams.TYPE_PHONE
         }
 
+        val dm = resources.displayMetrics
+        val gap = (8 * dm.density).toInt()
+        topRowView?.measure(
+            View.MeasureSpec.makeMeasureSpec(dm.widthPixels, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+        val rowHeight = topRowView?.measuredHeight ?: (72 * dm.density).toInt()
+
+        val bubbleY = bubbleParams?.y
+            ?: (dm.heightPixels / 2 - (24 * dm.density).toInt())
+        val statusTop = statusBarInsetPx()
+        val bubbleBottom = bubbleY + bubbleSizePx()
+
+        // Prefer a strip just above the FAB (right-side bubble); if not enough room, place below.
+        var yPos = bubbleY - rowHeight - gap
+        if (yPos < statusTop) {
+            yPos = bubbleBottom + gap
+        }
+
         topRowParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -190,8 +218,9 @@ class OverlayBubbleService : Service() {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = Gravity.BOTTOM
-            y = (16 * resources.displayMetrics.density).toInt()
+            gravity = Gravity.TOP or Gravity.START
+            x = 0
+            y = yPos
         }
 
         setupTopRowListeners()
@@ -254,6 +283,7 @@ class OverlayBubbleService : Service() {
         }
         bubbleView = null
         featureController = null
+        MainKeyboardService.releaseStandaloneOverlayHostForBubble()
         super.onDestroy()
     }
 

@@ -16,6 +16,7 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.text.TextUtils
 import android.util.Base64
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -117,6 +118,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private lateinit var audioPlaybackSeekBar: android.widget.SeekBar
     private var rootView: View? = null
 
+    /** Bubble overlay: dictionary UI in a separate WindowManager layer. */
+    private var overlayDictionaryRoot: View? = null
+    private var overlayDictionaryClose: (() -> Unit)? = null
+
+    private fun dictContentRoot(): View? = overlayDictionaryRoot ?: rootView
+
     // SeekBar progress updater
     private val seekBarHandler = Handler(Looper.getMainLooper())
     private var seekBarRunnable: Runnable? = null
@@ -157,7 +164,40 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private val backspaceRepeatHandler = Handler(Looper.getMainLooper())
     private var backspaceRepeatRunnable: Runnable? = null
     private var isBackspaceRepeating: Boolean = false
-    private companion object {
+    companion object {
+        /** Current service instance for overlay bubble attach (null when keyboard not active). */
+        var serviceInstance: MainKeyboardService? = null
+
+        /** Overlay-only host when the system has not bound the IME yet. */
+        private var standaloneOverlayInstance: MainKeyboardService? = null
+
+        /**
+         * Returns the running IME if any, otherwise creates a standalone [MainKeyboardService] host
+         * so bubble overlays use the same UI and logic as the keyboard without the IME window.
+         */
+        fun acquireForOverlay(context: Context): MainKeyboardService? {
+            serviceInstance?.let { return it }
+            standaloneOverlayInstance?.let { return it }
+            return try {
+                val h = MainKeyboardService()
+                h.attachBaseContext(context.applicationContext)
+                h.isStandaloneOverlayHost = true
+                h.onCreate()
+                h
+            } catch (e: Exception) {
+                Log.e("DeltaVoice", "acquireForOverlay", e)
+                null
+            }
+        }
+
+        /** Tear down standalone overlay host when the bubble service stops (IME continues unaffected). */
+        fun releaseStandaloneOverlayHostForBubble() {
+            val s = standaloneOverlayInstance ?: return
+            s.cleanupBeforeImeTakeover()
+            if (serviceInstance === s) serviceInstance = null
+            standaloneOverlayInstance = null
+        }
+
         // Performance targets (confirmed): backspace 30-45 chars/sec when held, typing 12-15 chars/sec
         private const val PREDICTION_DELAY_NORMAL_MS = 80L
         private const val PREDICTION_DELAY_FAST_MS = 200L
@@ -215,6 +255,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             "%" to listOf("‰")
         )
     }
+
+    /** True when this instance exists only to host overlay features (system IME not bound). */
+    private var isStandaloneOverlayHost: Boolean = false
 
     // Long-press accent popup state
     private var accentPopup: android.widget.PopupWindow? = null
@@ -437,16 +480,40 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private var isVideoProcessedAudioReady = false
 
     override fun onCreateInputView(): View {
-        // Inflate the keyboard layout
+        if (rootView != null) {
+            applyOrientationOptimizations(rootView!!)
+            return rootView!!
+        }
         val view = LayoutInflater.from(this).inflate(R.layout.keyboard_layout, null)
         rootView = view
-        
+        bindKeyboardLayout(view)
+        return view
+    }
+
+    /**
+     * Inflate and bind the full keyboard layout without the IME window (for floating-bubble features).
+     * Safe to call before the user has opened the keyboard.
+     */
+    fun ensureKeyboardLayoutInflated(): Boolean {
+        if (rootView != null) return true
+        return try {
+            val view = LayoutInflater.from(this).inflate(R.layout.keyboard_layout, null)
+            rootView = view
+            bindKeyboardLayout(view)
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("DeltaVoice", "ensureKeyboardLayoutInflated", e)
+            false
+        }
+    }
+
+    private fun bindKeyboardLayout(view: View) {
         // Re-apply orientation-specific UI sizing each time the view is created.
         applyOrientationOptimizations(view)
-        
+
         // Load saved keyboard language preference
         loadKeyboardLanguagePreference()
-        
+
         // Initialize UI components
         voiceButton = view.findViewById(R.id.btn_voice)
         aiMainButton = view.findViewById(R.id.btn_more)  // btn_ai_main not in layout; btn_more toggles AI mode
@@ -470,37 +537,37 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
         // Setup button click listeners
         setupButtons()
-        
+
         // Setup recording UI
         setupRecordingUI(view)
-        
+
         // Setup processing UI
         setupProcessingUI(view)
-        
+
         // Setup emoji picker
         setupEmojiPicker(view)
-        
+
         // Setup calculator
         setupCalculator(view)
-        
+
         // Setup dictionary
         setupDictionary(view)
-        
+
         // Setup AI Writing Tools
         setupAiWritingTools(view)
-        
+
         // Setup AI Chat
         setupAiChat(view)
-        
+
         // Setup Video Recording
         setupVideoRecording(view)
 
         // Setup keyboard
         setupKeyboard(view)
-        
+
         // Setup language selector
         setupLanguageSelector(view)
-        
+
         // Setup translation button
         setupTranslationButton(view)
 
@@ -512,11 +579,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
         // Initialize Text-to-Speech (fallback)
         textToSpeech = TextToSpeech(this, this)
-        
+
         // Set initial mode
         updateKeyboardMode()
-
-        return view
     }
 
     /**
@@ -580,7 +645,15 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private var pendingShowVideoFromUpload = false
 
     override fun onCreate() {
+        if (!isStandaloneOverlayHost) {
+            standaloneOverlayInstance?.cleanupBeforeImeTakeover()
+            standaloneOverlayInstance = null
+        }
         super.onCreate()
+        serviceInstance = this
+        if (isStandaloneOverlayHost) {
+            standaloneOverlayInstance = this
+        }
         videoUploadReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 if (intent?.action != VideoUploadActivity.ACTION_VIDEO_UPLOADED) return
@@ -637,25 +710,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     /**
      * Schedule multiple requestShowSelf calls so keyboard reliably appears after upload activity
      * finishes. Activity finishes at 750ms; we call before and after to catch the transition.
-     *
-     * Also posts a delayed runnable (~900ms) so [pendingShowVoiceFromUpload] / [pendingShowVideoFromUpload]
-     * are applied when [onStartInputView] does not run again after the picker (same editor session).
      */
     private fun scheduleKeyboardShowAfterUpload() {
-        val handler = Handler(Looper.getMainLooper())
-        handler.postDelayed({
-            if (pendingShowVoiceFromUpload && !recordingFilePath.isNullOrBlank()) {
-                pendingShowVoiceFromUpload = false
-                showVoiceProcessingUI()
-                Toast.makeText(this, getString(R.string.ready_for_processing), Toast.LENGTH_SHORT).show()
-            }
-            if (pendingShowVideoFromUpload && !videoFilePath.isNullOrBlank()) {
-                pendingShowVideoFromUpload = false
-                showVideoPreview()
-                Toast.makeText(this, getString(R.string.ready_for_processing), Toast.LENGTH_SHORT).show()
-            }
-        }, 900)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+        val handler = Handler(Looper.getMainLooper())
         val delays = longArrayOf(150, 400, 700, 1000, 1300)
         for (delay in delays) {
             handler.postDelayed({
@@ -1256,7 +1314,6 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         
         // Ensure processing UI is exclusive and no other panel can overlap it.
         hideAllOverlays()
-        voiceRecordingContainer.visibility = View.GONE
         hideTopBarsForOverlay()
         keyboardContainer.visibility = View.GONE
         voiceProcessingStep2Container.visibility = View.VISIBLE
@@ -3054,7 +3111,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
         
         // Show popup
-        rootView?.let { view ->
+        dictContentRoot()?.let { view ->
             popupWindow.showAtLocation(view, Gravity.CENTER, 0, 0)
         }
     }
@@ -3063,7 +3120,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Update dictionary language display in header
      */
     private fun updateDictLanguageDisplay() {
-        rootView?.let { view ->
+        dictContentRoot()?.let { view ->
             val sourceName = getLanguageName(dictCurrentLanguage)
             val targetName = getLanguageName(dictTargetLanguage)
             view.findViewById<Button>(R.id.dict_source_lang)?.text = sourceName
@@ -3163,7 +3220,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     /**
      * Rebuild dictionary mini keyboard with current language
      */
-    private fun rebuildDictMiniKeyboard(view: View? = rootView) {
+    private fun rebuildDictMiniKeyboard(view: View? = dictContentRoot()) {
         view ?: return
         
         val row0 = view.findViewById<LinearLayout>(R.id.dict_row0)
@@ -3312,7 +3369,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
         
         // Show popup
-        rootView?.let { view ->
+        dictContentRoot()?.let { view ->
             popupWindow.showAtLocation(view, Gravity.CENTER, 0, 0)
         }
     }
@@ -3428,7 +3485,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Update dictionary search display. Uses cached refs to avoid findViewById on every key press.
      */
     private fun updateDictSearchDisplay() {
-        val view = rootView ?: return
+        val view = dictContentRoot() ?: return
         if (dictSearchCachedRoot != view) {
             dictSearchCachedRoot = view
             dictSearchTextView = view.findViewById(R.id.dict_search_text)
@@ -3673,7 +3730,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Show dictionary result with two-language translation
      */
     private fun showDictTwoLanguageResult(word: String, definition: DictResult?, translation: String?, sourceLang: String, targetLang: String) {
-        rootView?.let { view ->
+        dictContentRoot()?.let { view ->
             val resultContainer = view.findViewById<LinearLayout>(R.id.dict_results_container)
             resultContainer?.removeAllViews()
             resultContainer?.visibility = View.VISIBLE
@@ -3867,7 +3924,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Show dictionary result with translations (legacy)
      */
     private fun showDictResultWithTranslations(definition: DictResult?, translations: Map<String, String>, word: String) {
-        rootView?.let { view ->
+        dictContentRoot()?.let { view ->
             val resultContainer = view.findViewById<LinearLayout>(R.id.dict_results_container)
             resultContainer?.removeAllViews()
             resultContainer?.visibility = View.VISIBLE
@@ -4050,7 +4107,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Show dictionary loading state
      */
     private fun showDictLoading() {
-        rootView?.let { view ->
+        dictContentRoot()?.let { view ->
             view.findViewById<TextView>(R.id.dict_placeholder)?.apply {
                 text = "Searching..."
                 visibility = View.VISIBLE
@@ -4067,7 +4124,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Show dictionary result
      */
     private fun showDictResult(result: DictResult) {
-        rootView?.let { view ->
+        dictContentRoot()?.let { view ->
             view.findViewById<TextView>(R.id.dict_placeholder)?.visibility = View.GONE
             
             view.findViewById<TextView>(R.id.dict_word_title)?.apply {
@@ -4101,7 +4158,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Show dictionary error
      */
     private fun showDictError(message: String) {
-        rootView?.let { view ->
+        dictContentRoot()?.let { view ->
             view.findViewById<TextView>(R.id.dict_placeholder)?.apply {
                 text = message
                 visibility = View.VISIBLE
@@ -4118,6 +4175,27 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Show the dictionary
      */
     private fun showDictionary() {
+        if (overlayDictionaryRoot != null) {
+            dictSearchText.clear()
+            updateDictSearchDisplay()
+            dictContentRoot()?.let { view ->
+                view.findViewById<TextView>(R.id.dict_placeholder)?.apply {
+                    text = "Type a word and tap Search to see its definition"
+                    visibility = View.VISIBLE
+                }
+                view.findViewById<TextView>(R.id.dict_word_title)?.visibility = View.GONE
+                view.findViewById<TextView>(R.id.dict_phonetic)?.visibility = View.GONE
+                view.findViewById<TextView>(R.id.dict_part_of_speech)?.visibility = View.GONE
+                view.findViewById<TextView>(R.id.dict_definition)?.visibility = View.GONE
+                view.findViewById<TextView>(R.id.dict_example)?.visibility = View.GONE
+            }
+            dictionaryContainer.visibility = View.VISIBLE
+            isDictionaryVisible = true
+            if (!isNetworkAvailable()) {
+                Toast.makeText(this, getString(R.string.internet_required_dictionary), Toast.LENGTH_LONG).show()
+            }
+            return
+        }
         hideTopBarsForOverlay()
         keyboardContainer.visibility = View.GONE
         emojiPickerContainer?.visibility = View.GONE
@@ -4138,7 +4216,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         updateDictSearchDisplay()
         
         // Reset results
-        rootView?.let { view ->
+        dictContentRoot()?.let { view ->
             view.findViewById<TextView>(R.id.dict_placeholder)?.apply {
                 text = "Type a word and tap Search to see its definition"
                 visibility = View.VISIBLE
@@ -4159,6 +4237,19 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Hide the dictionary
      */
     private fun hideDictionary() {
+        if (overlayDictionaryRoot != null) {
+            val cb = overlayDictionaryClose
+            overlayDictionaryRoot = null
+            overlayDictionaryClose = null
+            dictSearchCachedRoot = null
+            rootView?.let {
+                dictionaryContainer = it.findViewById(R.id.dictionary_include)
+                dictionaryContainer.visibility = View.GONE
+            }
+            isDictionaryVisible = false
+            cb?.invoke()
+            return
+        }
         dictionaryContainer.visibility = View.GONE
         keyboardContainer.visibility = View.VISIBLE
         showTopBarsAfterOverlay()
@@ -4423,57 +4514,54 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
         }
         
-        rootView?.let { view ->
-            popupWindow.showAtLocation(view, Gravity.CENTER, 0, 0)
-        }
+        popupWindow.showAtLocation(aiChatContainer, Gravity.CENTER, 0, 0)
     }
     
     /**
      * Rebuild AI chat mini keyboard with current language
      */
     private fun rebuildAiChatMiniKeyboard() {
-        rootView?.let { view ->
-            val row0 = view.findViewById<LinearLayout>(R.id.ai_chat_row0)
-            val row1 = view.findViewById<LinearLayout>(R.id.ai_chat_row1)
-            val row2 = view.findViewById<LinearLayout>(R.id.ai_chat_row2)
-            val row3 = view.findViewById<LinearLayout>(R.id.ai_chat_row3)
-            
-            row0?.removeAllViews()
-            row1?.removeAllViews()
-            row2?.removeAllViews()
-            row3?.removeAllViews()
-            
-            val numbers = if (aiChatKeyboardLanguage == "ar") {
-                listOf("١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", ".")
-            } else {
-                listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
-            }
-            val layout = dictMiniKeyboardLayouts[aiChatKeyboardLanguage] 
-                ?: dictMiniKeyboardLayouts["en"]!!
-            
-            numbers.forEach { key ->
-                row0?.addView(createAiChatKey(key))
-            }
-            
-            layout.first.forEach { key ->
-                row1?.addView(createAiChatKey(key))
-            }
-            
-            layout.second.forEach { key ->
-                row2?.addView(createAiChatKey(key))
-            }
-            
-            layout.third.forEach { key ->
-                row3?.addView(createAiChatKey(key))
-            }
-            
-            row3?.addView(createAiChatSpecialKey("⌫") {
-                if (aiChatInputText.isNotEmpty()) {
-                    aiChatInputText.deleteCharAt(aiChatInputText.length - 1)
-                    updateAiChatInputDisplay()
-                }
-            })
+        val view = aiChatContainer
+        val row0 = view.findViewById<LinearLayout>(R.id.ai_chat_row0)
+        val row1 = view.findViewById<LinearLayout>(R.id.ai_chat_row1)
+        val row2 = view.findViewById<LinearLayout>(R.id.ai_chat_row2)
+        val row3 = view.findViewById<LinearLayout>(R.id.ai_chat_row3)
+
+        row0?.removeAllViews()
+        row1?.removeAllViews()
+        row2?.removeAllViews()
+        row3?.removeAllViews()
+
+        val numbers = if (aiChatKeyboardLanguage == "ar") {
+            listOf("١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", ".")
+        } else {
+            listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
         }
+        val layout = dictMiniKeyboardLayouts[aiChatKeyboardLanguage]
+            ?: dictMiniKeyboardLayouts["en"]!!
+
+        numbers.forEach { key ->
+            row0?.addView(createAiChatKey(key))
+        }
+
+        layout.first.forEach { key ->
+            row1?.addView(createAiChatKey(key))
+        }
+
+        layout.second.forEach { key ->
+            row2?.addView(createAiChatKey(key))
+        }
+
+        layout.third.forEach { key ->
+            row3?.addView(createAiChatKey(key))
+        }
+
+        row3?.addView(createAiChatSpecialKey("⌫") {
+            if (aiChatInputText.isNotEmpty()) {
+                aiChatInputText.deleteCharAt(aiChatInputText.length - 1)
+                updateAiChatInputDisplay()
+            }
+        })
     }
     
     /**
@@ -4607,7 +4695,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Update AI chat input display. Uses cached refs to avoid findViewById on every key press.
      */
     private fun updateAiChatInputDisplay() {
-        val view = rootView ?: return
+        val view = aiChatContainer
         if (aiChatInputCachedRoot != view) {
             aiChatInputCachedRoot = view
             aiChatInputTextView = view.findViewById(R.id.ai_chat_input_text)
@@ -4737,8 +4825,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Add message to chat UI
      */
     private fun addChatMessage(message: String, isUser: Boolean, isLoading: Boolean = false) {
-        rootView?.let { view ->
-            val messagesContainer = view.findViewById<LinearLayout>(R.id.ai_chat_messages)
+        val view = aiChatContainer
+        val messagesContainer = view.findViewById<LinearLayout>(R.id.ai_chat_messages)
             
             // Create message bubble
             val messageLayout = LinearLayout(this).apply {
@@ -4782,15 +4870,15 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             view.findViewById<ScrollView>(R.id.ai_chat_scroll)?.post {
                 view.findViewById<ScrollView>(R.id.ai_chat_scroll)?.fullScroll(View.FOCUS_DOWN)
             }
-        }
     }
     
     /**
      * Remove loading message
      */
     private fun removeLoadingMessage() {
-        rootView?.let { view ->
-            val messagesContainer = view.findViewById<LinearLayout>(R.id.ai_chat_messages) ?: return@let
+        val view = aiChatContainer
+        run {
+            val messagesContainer = view.findViewById<LinearLayout>(R.id.ai_chat_messages) ?: return@run
             for (i in messagesContainer.childCount - 1 downTo 0) {
                 val child = messagesContainer.getChildAt(i)
                 if (child is LinearLayout) {
@@ -4798,7 +4886,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                         val bubble = child.getChildAt(j)
                         if (bubble?.tag == "loading") {
                             messagesContainer.removeViewAt(i)
-                            return@let
+                            return@run
                         }
                     }
                 }
@@ -4807,7 +4895,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     /**
-     * Call AI API (using DeepSeek API for real responses like ChatGPT)
+     * Call AI API (using OpenAI API for real responses like ChatGPT)
      */
     private suspend fun callAiApi(message: String): String {
         return withContext(Dispatchers.IO) {
@@ -4820,9 +4908,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     aiConversationHistory = aiConversationHistory.takeLast(10).toMutableList()
                 }
                 
-                // Try direct DeepSeek API call only when API key is set (avoids 401)
-                if (getDeepseekApiKey().isNotBlank()) {
-                    val response = callDeepseekDirectly(message)
+                // Try direct OpenAI API call only when API key is set (avoids 401)
+                if (getOpenAiApiKey().isNotBlank()) {
+                    val response = callOpenAiDirectly(message)
                     if (response != null) {
                         aiConversationHistory.add(mapOf("role" to "assistant", "content" to response))
                         return@withContext response
@@ -4852,17 +4940,17 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     /**
-     * Call DeepSeek API directly for ChatGPT-like responses
+     * Call OpenAI API directly for ChatGPT-like responses
      */
-    private fun callDeepseekDirectly(message: String): String? {
+    private fun callOpenAiDirectly(message: String): String? {
         try {
-            val url = java.net.URL("https://api.deepseek.com/v1/chat/completions")
+            val url = java.net.URL("https://api.openai.com/v1/chat/completions")
             val connection = url.openConnection() as java.net.HttpURLConnection
             
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json")
             // Note: For production, store API key securely
-            connection.setRequestProperty("Authorization", "Bearer ${getDeepseekApiKey()}")
+            connection.setRequestProperty("Authorization", "Bearer ${getOpenAiApiKey()}")
             connection.connectTimeout = aiChatConnectTimeoutMs
             connection.readTimeout = aiChatReadTimeoutMs
             connection.doOutput = true
@@ -4883,9 +4971,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
             messagesJson.append("]")
             
-            val requestBody = """{"model":"deepseek-chat","messages":$messagesJson,"max_tokens":1000,"temperature":0.7}"""
+            val requestBody = """{"model":"gpt-4o-mini","messages":$messagesJson,"max_tokens":1000,"temperature":0.7}"""
             
-            android.util.Log.d("DeltaVoice", "Calling DeepSeek API directly...")
+            android.util.Log.d("DeltaVoice", "Calling OpenAI API directly...")
             
             java.io.OutputStreamWriter(connection.outputStream).use { writer ->
                 writer.write(requestBody)
@@ -4893,37 +4981,37 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
             
             val responseCode = connection.responseCode
-            android.util.Log.d("DeltaVoice", "DeepSeek response code: $responseCode")
+            android.util.Log.d("DeltaVoice", "OpenAI response code: $responseCode")
             
             if (responseCode == 200) {
                 val responseText = connection.inputStream.bufferedReader().use { it.readText() }
-                android.util.Log.d("DeltaVoice", "DeepSeek response received: ${responseText.take(200)}")
+                android.util.Log.d("DeltaVoice", "OpenAI response received: ${responseText.take(200)}")
                 connection.disconnect()
                 return parseAiChatResponse(responseText)
             } else {
                 val errorText = connection.errorStream?.bufferedReader()?.use { it.readText() } ?: "Unknown error"
-                android.util.Log.e("DeltaVoice", "DeepSeek API error: $responseCode - $errorText")
+                android.util.Log.e("DeltaVoice", "OpenAI API error: $responseCode - $errorText")
             }
             connection.disconnect()
             
         } catch (e: Exception) {
-            android.util.Log.e("DeltaVoice", "DeepSeek direct call failed: ${e.message}")
+            android.util.Log.e("DeltaVoice", "OpenAI direct call failed: ${e.message}")
         }
         
         return null
     }
     
     /**
-     * Get DeepSeek API key from user preferences (optional).
-     * When set, bypasses Supabase and calls DeepSeek directly — useful when Supabase is unreachable.
+     * Get OpenAI API key from user preferences (optional).
+     * When set, bypasses Supabase and calls OpenAI directly — useful when Supabase is unreachable.
      */
-    private fun getDeepseekApiKey(): String {
+    private fun getOpenAiApiKey(): String {
         return getSharedPreferences("deltavoice_prefs", MODE_PRIVATE)
-            .getString("deepseek_api_key", "") ?: ""
+            .getString("openai_api_key", "") ?: ""
     }
     
     /**
-     * Call DeepSeek via Convex HTTP endpoint (no auth needed, uses Convex env Deepseeka)
+     * Call OpenAI via Convex HTTP endpoint (no auth needed, uses Convex env OPENAI_API_KEY)
      */
     private fun callOpenAiViaConvex(message: String): String? {
         if (!com.deltavoice.config.ConvexConfig.USE_CONVEX_FOR_VOICE_WORKFLOW) return null
@@ -4967,7 +5055,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
 
     /**
-     * Call DeepSeek via Supabase edge function (fallback when Convex unavailable)
+     * Call OpenAI via Supabase edge function (fallback when Convex unavailable)
      */
     private fun callOpenAiViaSupabase(message: String): String? {
         try {
@@ -5011,7 +5099,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             val msg = e.message ?: ""
             if (msg.contains("Unable to resolve host", ignoreCase = true) || msg.contains("No address", ignoreCase = true)) {
                 Handler(android.os.Looper.getMainLooper()).post {
-                    val hint = if (getDeepseekApiKey().isNotBlank()) "" else "\n\nTip: Add your DeepSeek API key in AI Assistant settings to use when server is unreachable."
+                    val hint = if (getOpenAiApiKey().isNotBlank()) "" else "\n\nTip: Add your OpenAI API key in AI Assistant settings to use when server is unreachable."
                     Toast.makeText(this@MainKeyboardService, "Can't reach server. Check Wi‑Fi or mobile data.$hint", Toast.LENGTH_LONG).show()
                 }
             }
@@ -5165,9 +5253,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         aiChatMessages.clear()
         
         // Clear chat UI
-        rootView?.let { view ->
-            view.findViewById<LinearLayout>(R.id.ai_chat_messages)?.removeAllViews()
-        }
+        aiChatContainer.findViewById<LinearLayout>(R.id.ai_chat_messages)?.removeAllViews()
         
         // Add welcome message
         addChatMessage("Hello! 👋 I'm your AI assistant. How can I help you today?", isUser = false)
@@ -5193,13 +5279,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         isAiChatVisible = true
         
         // Ensure AI chat mini keyboard is visible.
-        rootView?.let { v ->
-            v.findViewById<View>(R.id.ai_chat_row0)?.visibility = View.VISIBLE
-            v.findViewById<View>(R.id.ai_chat_row1)?.visibility = View.VISIBLE
-            v.findViewById<View>(R.id.ai_chat_row2)?.visibility = View.VISIBLE
-            v.findViewById<View>(R.id.ai_chat_row3)?.visibility = View.VISIBLE
-            v.findViewById<View>(R.id.ai_chat_mini_keyboard_bottom_row)?.visibility = View.VISIBLE
-        }
+        aiChatContainer.findViewById<View>(R.id.ai_chat_row0)?.visibility = View.VISIBLE
+        aiChatContainer.findViewById<View>(R.id.ai_chat_row1)?.visibility = View.VISIBLE
+        aiChatContainer.findViewById<View>(R.id.ai_chat_row2)?.visibility = View.VISIBLE
+        aiChatContainer.findViewById<View>(R.id.ai_chat_row3)?.visibility = View.VISIBLE
+        aiChatContainer.findViewById<View>(R.id.ai_chat_mini_keyboard_bottom_row)?.visibility = View.VISIBLE
         
         // Reset input
         aiChatInputText.clear()
@@ -5381,10 +5465,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     /**
-     * Hide video recording UI.
-     * @param showKeyboardAfter When false (e.g. transitioning to preview), do not show the QWERTY keyboard.
+     * Hide video recording UI
      */
-    private fun hideVideoRecording(showKeyboardAfter: Boolean = true) {
+    private fun hideVideoRecording() {
         if (isVideoRecording) {
             stopVideoRecording()
         }
@@ -5392,9 +5475,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         releaseCameraAndStopThread()
         
         videoRecordingContainer?.visibility = View.GONE
-        if (showKeyboardAfter) {
-            keyboardContainer.visibility = View.VISIBLE
-        }
+        keyboardContainer.visibility = View.VISIBLE
         isVideoRecordingVisible = false
         
         // Reset timer
@@ -5425,11 +5506,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Show video preview UI
      */
     private fun showVideoPreview() {
-        hideVideoRecording(showKeyboardAfter = false)
-        hideAllOverlays()
-        hideTopBarsForOverlay()
-        keyboardContainer.visibility = View.GONE
+        hideVideoRecording()
+        
         videoPreviewContainer?.visibility = View.VISIBLE
+        keyboardContainer.visibility = View.GONE
         isVideoPreviewVisible = true
         
         // Setup video player — listener must be registered before setVideoPath so it
@@ -7620,8 +7700,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Insert text into the current input field
      */
     private fun insertText(text: String) {
-        val inputConnection: InputConnection? = currentInputConnection
-        inputConnection?.commitText(text, 1)
+        val ic = currentInputConnection
+        if (ic != null) {
+            ic.commitText(text, 1)
+        } else {
+            clipboardManager?.setPrimaryClip(ClipData.newPlainText("deltavoice", text))
+            Toast.makeText(this, getString(R.string.text_copied_clipboard), Toast.LENGTH_SHORT).show()
+        }
     }
 
     /**
@@ -8917,10 +9002,126 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
         mediaRecorder = null
         isRecording = false
-        voiceButton.setImageResource(R.drawable.ic_mic)
+        if (::voiceButton.isInitialized) {
+            voiceButton.setImageResource(R.drawable.ic_mic)
+        }
+    }
+
+    /** Keyboard layout is inflated and bound (works even if the IME window has never been shown). */
+    fun isOverlayAttachReady(): Boolean = ensureKeyboardLayoutInflated()
+
+    fun attachDictionaryFromOverlay(panel: android.view.View, onDismiss: () -> Unit): Boolean {
+        if (!ensureKeyboardLayoutInflated()) return false
+        overlayDictionaryRoot = panel
+        overlayDictionaryClose = onDismiss
+        dictionaryContainer = panel.findViewById(R.id.dictionary_include) ?: return false
+        setupDictionary(panel)
+        showDictionary()
+        return true
+    }
+
+    fun dismissDictionaryOverlayFromBubble() {
+        hideDictionary()
+    }
+
+    fun attachVideoRecordingFromOverlay(panel: android.view.View, onDismiss: () -> Unit): Boolean {
+        if (!ensureKeyboardLayoutInflated()) return false
+        setupVideoRecording(panel)
+        showVideoRecording()
+        return true
+    }
+
+    fun dismissVideoOverlayFromBubble() {
+        hideVideoRecording()
+        rootView?.let { setupVideoRecording(it) }
+    }
+
+    fun attachAiChatFromOverlay(panel: android.view.View, onDismiss: () -> Unit): Boolean {
+        if (!ensureKeyboardLayoutInflated()) return false
+        aiChatContainer = panel.findViewById(R.id.ai_chat_container) ?: return false
+        setupAiChat(panel)
+        showAiChat()
+        return true
+    }
+
+    fun dismissAiChatOverlayFromBubble() {
+        hideAiChat()
+        rootView?.let { setupAiChat(it) }
+    }
+
+    fun attachAiWritingToolsFromOverlay(panel: android.view.View, onDismiss: () -> Unit): Boolean {
+        if (!ensureKeyboardLayoutInflated()) return false
+        aiWritingToolsContainer = panel.findViewById(R.id.ai_writing_tools_include) ?: return false
+        setupAiWritingTools(panel)
+        showAiWritingTools()
+        return true
+    }
+
+    fun dismissAiWritingOverlayFromBubble() {
+        hideAiWritingTools()
+        rootView?.let { setupAiWritingTools(it) }
+    }
+
+    fun attachVoiceRecordingFromOverlay(panel: android.view.View, onDismiss: () -> Unit): Boolean {
+        if (!ensureKeyboardLayoutInflated()) return false
+        voiceRecordingContainer = panel.findViewById(R.id.voice_recording_container) ?: return false
+        recordingStatusText = panel.findViewById(R.id.recording_status_text)
+        recordingMicButton = panel.findViewById(R.id.btn_recording_mic)
+        recordingTimerText = panel.findViewById(R.id.recording_timer_text)
+        setupRecordingUI(panel)
+        showRecordingUI()
+        return true
+    }
+
+    fun dismissVoiceOverlayFromBubble() {
+        hideRecordingUI()
+        rootView?.let {
+            voiceRecordingContainer = it.findViewById(R.id.voice_recording_container)
+            recordingStatusText = it.findViewById(R.id.recording_status_text)
+            recordingMicButton = it.findViewById(R.id.btn_recording_mic)
+            recordingTimerText = it.findViewById(R.id.recording_timer_text)
+            setupRecordingUI(it)
+        }
+    }
+
+    private fun cleanupBeforeImeTakeover() {
+        videoUploadReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (_: Exception) {
+            }
+        }
+        videoUploadReceiver = null
+        audioUploadReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (_: Exception) {
+            }
+        }
+        audioUploadReceiver = null
+        clipboardListener?.let { clipboardManager?.removePrimaryClipChangedListener(it) }
+        clipboardListener = null
+        clipboardManager = null
+        releaseCameraAndStopThread()
+        stopBackspaceRepeat(applyPredictionUpdate = false)
+        predictionComputeJob?.cancel()
+        predictionRunnable?.let { predictionHandler.removeCallbacks(it) }
+        speechRecognizer?.destroy()
+        speechRecognizer = null
+        textToSpeech?.stop()
+        textToSpeech?.shutdown()
+        textToSpeech = null
+        try {
+            releaseMediaRecorder()
+        } catch (_: Exception) {
+        }
+        stopRecordingPlayback()
+        rootView = null
     }
 
     override fun onDestroy() {
+        if (standaloneOverlayInstance === this) standaloneOverlayInstance = null
+        serviceInstance = null
         videoUploadReceiver?.let { unregisterReceiver(it) }
         videoUploadReceiver = null
         audioUploadReceiver?.let { unregisterReceiver(it) }

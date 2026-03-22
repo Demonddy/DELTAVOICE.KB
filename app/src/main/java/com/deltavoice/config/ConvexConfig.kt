@@ -6,8 +6,8 @@ package com.deltavoice.config
  * Setup:
  * 1. Run `npx convex dev` or `npx convex deploy` from project root
  * 2. In Convex Dashboard: Settings > Environment Variables, add:
- *    - OPENAI_API_KEY (or OPENAI_API_KEY77) — for voice workflow
- *    - Deepseeka — for AI chat
+ *    - DEEPSEEK_API (or DEEPSEEKA) - for AI chat
+ *    - OPENAI_API_KEY (or OPENAI_API_KEY77) - for voice workflow (Whisper, translation)
  *    - ELEVENLABS_API_KEY (or ELEVENLABS_API_KEY77)
  * 3. Replace CONVEX_SITE_URL below with your deployment URL from Convex Dashboard
  *    Format: https://<your-deployment>.convex.site

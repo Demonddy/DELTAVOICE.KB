@@ -7,46 +7,68 @@
     <color name="glass_key">#1AFFFFFF</color>
     <color name="glass_key_pressed">#40FFFFFF</color>
 
-    <!-- Ethereal / Lumina — App Primary Colors (light) -->
+    <!-- Lumina Voice / Ethereal — Primary palette -->
     <color name="ic_launcher_background">#712AE2</color>
     <color name="primary">#712AE2</color>
     <color name="primary_dark">#5A00C6</color>
     <color name="primary_light">#8A4CFC</color>
+    <color name="primary_container">#8A4CFC</color>
     <color name="accent">#8A4CFC</color>
-    <!-- Ripple / pressed overlay on primary-tinted surfaces -->
+    <color name="surface_tint">#732EE4</color>
     <color name="ripple_primary">#33712AE2</color>
 
-    <!-- Ethereal — Background / surface (light) -->
+    <!-- Secondary (muted purple) -->
+    <color name="secondary">#665396</color>
+    <color name="secondary_container">#C9B3FD</color>
+    <color name="on_secondary_container">#544183</color>
+
+    <!-- Tertiary (golden brown for badges) -->
+    <color name="tertiary">#855000</color>
+    <color name="tertiary_container">#A76500</color>
+    <color name="tertiary_fixed">#FFDCBB</color>
+    <color name="tertiary_fixed_dim">#FFB869</color>
+    <color name="on_tertiary_fixed">#2C1700</color>
+
+    <!-- Surface scale (light mode) -->
     <color name="background_dark">#FEF7FF</color>
     <color name="background_card">#FFFFFF</color>
     <color name="background_surface">#F8F1FE</color>
     <color name="background_elevated">#F3EBF8</color>
+    <color name="surface_container_lowest">#FFFFFF</color>
+    <color name="surface_container_low">#F8F1FE</color>
+    <color name="surface_container">#F3EBF8</color>
+    <color name="surface_container_high">#EDE5F3</color>
+    <color name="surface_container_highest">#E7E0ED</color>
+    <color name="outline">#7B7486</color>
+    <color name="outline_variant">#CBC3D7</color>
 
-    <!-- Ethereal — Text (light) -->
+    <!-- Text (light) -->
     <color name="text_primary">#1D1A23</color>
     <color name="text_secondary">#494454</color>
     <color name="text_tertiary">#7B7486</color>
     <color name="text_accent">#712AE2</color>
 
-    <!-- Ethereal — Gradients (primary → primary-container) -->
+    <!-- Gradients (primary → primary-container) -->
     <color name="gradient_start">#712AE2</color>
-    <color name="gradient_middle">#7C3AED</color>
+    <color name="gradient_middle">#732EE4</color>
     <color name="gradient_end">#8A4CFC</color>
 
-    <!-- Status Colors -->
+    <!-- Status -->
     <color name="success">#10B981</color>
     <color name="warning">#F59E0B</color>
     <color name="error">#BA1A1A</color>
     <color name="info">#3B82F6</color>
 
-    <!-- Feature Colors (harmonized with Ethereal palette) -->
+    <!-- Feature icons (Ethereal palette) -->
     <color name="video_color">#EC4899</color>
     <color name="voice_color">#712AE2</color>
     <color name="ai_color">#665396</color>
     <color name="themes_color">#855000</color>
 
-    <!-- Premium Colors -->
+    <!-- Premium (tertiary-fixed golden) -->
     <color name="premium_gold">#FFD700</color>
     <color name="premium_gradient_start">#F59E0B</color>
     <color name="premium_gradient_end">#EAB308</color>
+    <color name="premium_banner_text_primary">@color/on_tertiary_fixed</color>
+    <color name="premium_banner_text_secondary">#4A3820</color>
 </resources>

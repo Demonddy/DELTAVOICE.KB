@@ -26,85 +26,134 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center"
+            android:gravity="center_vertical"
             android:padding="2dp">
 
-            <ImageButton
-                android:id="@+id/btn_more"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:src="@drawable/ic_more_vert"
-                android:background="@drawable/ai_circle_button"
-                android:tint="#FFFFFF"
-                android:contentDescription="More options"
-                android:layout_margin="3dp"
-                android:padding="6dp" />
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:layout_margin="2dp">
+                <ImageButton
+                    android:id="@+id/btn_more"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_more_vert"
+                    android:background="@drawable/ai_circle_button"
+                    android:tint="#FFFFFF"
+                    android:contentDescription="More options"
+                    android:padding="6dp" />
+            </FrameLayout>
 
-            <ImageButton
-                android:id="@+id/btn_camera"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:src="@drawable/ic_camera"
-                android:background="@drawable/ai_circle_button"
-                android:tint="#FFFFFF"
-                android:contentDescription="Video Recording"
-                android:layout_margin="3dp"
-                android:padding="6dp" />
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:layout_margin="2dp">
+                <ImageButton
+                    android:id="@+id/btn_camera"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_camera"
+                    android:background="@drawable/ai_circle_button"
+                    android:tint="#FFFFFF"
+                    android:contentDescription="Video Recording"
+                    android:padding="6dp" />
+            </FrameLayout>
 
-            <ImageButton
-                android:id="@+id/btn_list"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:src="@drawable/ic_home"
-                android:background="@drawable/ai_circle_button"
-                android:tint="#FFFFFF"
-                android:contentDescription="Home"
-                android:layout_margin="3dp"
-                android:padding="6dp" />
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:layout_margin="2dp">
+                <ImageButton
+                    android:id="@+id/btn_list"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_home"
+                    android:background="@drawable/ai_circle_button"
+                    android:tint="#FFFFFF"
+                    android:contentDescription="Home"
+                    android:padding="6dp" />
+            </FrameLayout>
 
-            <ImageButton
-                android:id="@+id/btn_text_t"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:src="@drawable/ic_ai_chat"
-                android:background="@drawable/ai_circle_button"
-                android:tint="#FFFFFF"
-                android:contentDescription="AI Chat"
-                android:layout_margin="3dp"
-                android:padding="6dp" />
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:layout_margin="2dp">
+                <ImageButton
+                    android:id="@+id/btn_text_t"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_ai_chat"
+                    android:background="@drawable/ai_circle_button"
+                    android:tint="#FFFFFF"
+                    android:contentDescription="AI Chat"
+                    android:padding="6dp" />
+            </FrameLayout>
 
-            <ImageButton
-                android:id="@+id/btn_kb_plus"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:src="@drawable/ic_kb_plus"
-                android:background="@drawable/ai_circle_button"
-                android:tint="#FFFFFF"
-                android:contentDescription="AI Writing Tools"
-                android:layout_margin="3dp"
-                android:padding="6dp" />
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:layout_margin="2dp">
+                <ImageButton
+                    android:id="@+id/btn_kb_plus"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_kb_plus"
+                    android:background="@drawable/ai_circle_button"
+                    android:tint="#FFFFFF"
+                    android:contentDescription="AI Writing Tools"
+                    android:padding="6dp" />
+            </FrameLayout>
 
-            <ImageButton
-                android:id="@+id/btn_voice"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:src="@drawable/ic_mic"
-                android:background="@drawable/ai_circle_button"
-                android:tint="#FFFFFF"
-                android:contentDescription="@string/voice_input"
-                android:layout_margin="3dp"
-                android:padding="6dp" />
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:layout_margin="2dp">
+                <ImageButton
+                    android:id="@+id/btn_voice"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_mic"
+                    android:background="@drawable/ai_circle_button"
+                    android:tint="#FFFFFF"
+                    android:contentDescription="@string/voice_input"
+                    android:padding="6dp" />
+            </FrameLayout>
 
-            <ImageButton
-                android:id="@+id/btn_app_grid"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:src="@drawable/ic_clipboard"
-                android:background="@drawable/ai_circle_button"
-                android:tint="#FFFFFF"
-                android:contentDescription="Clipboard"
-                android:layout_margin="3dp"
-                android:padding="6dp" />
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:layout_margin="2dp">
+                <ImageButton
+                    android:id="@+id/btn_app_grid"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_clipboard"
+                    android:background="@drawable/ai_circle_button"
+                    android:tint="#FFFFFF"
+                    android:contentDescription="Clipboard"
+                    android:padding="6dp" />
+            </FrameLayout>
         </LinearLayout>
     </FrameLayout>
 

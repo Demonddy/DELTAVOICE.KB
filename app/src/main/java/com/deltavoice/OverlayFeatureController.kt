@@ -3,7 +3,6 @@ package com.deltavoice
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.view.Gravity
@@ -11,32 +10,22 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
-import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.net.HttpURLConnection
-import java.net.URL
-import java.util.Locale
 
 /**
  * Manages feature overlay windows for the floating bubble.
- * Each feature uses the same layout/dimensions as the keyboard.
- * Output goes to clipboard (no InputConnection in overlay context).
+ * Each feature uses the same layouts and [MainKeyboardService] logic as the in-keyboard UI.
+ * When the IME is not running, a standalone keyboard host is created so behavior matches the keyboard.
  */
 class OverlayFeatureController(private val context: Context) {
 
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    private val scope = CoroutineScope(Dispatchers.Main + Job())
     private val overlayViews = mutableListOf<View>()
 
     private val typeOverlay = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -77,6 +66,19 @@ class OverlayFeatureController(private val context: Context) {
     }
 
     private fun dp(pixels: Int): Int = (pixels * context.resources.displayMetrics.density).toInt()
+
+    /** Running IME if any, otherwise standalone host (same bind path as keyboard). */
+    private fun keyboardForOverlayFeatures(): MainKeyboardService? {
+        val svc = MainKeyboardService.acquireForOverlay(context.applicationContext) ?: run {
+            Toast.makeText(context, context.getString(R.string.overlay_feature_unavailable), Toast.LENGTH_LONG).show()
+            return null
+        }
+        if (!svc.ensureKeyboardLayoutInflated()) {
+            Toast.makeText(context, context.getString(R.string.overlay_feature_unavailable), Toast.LENGTH_LONG).show()
+            return null
+        }
+        return svc
+    }
 
     fun showMoreOptions(onDismiss: () -> Unit) {
         val inflater = LayoutInflater.from(context)
@@ -361,108 +363,25 @@ class OverlayFeatureController(private val context: Context) {
     }
 
     fun showDictionary() {
+        val svc = keyboardForOverlayFeatures() ?: return
         val inflater = LayoutInflater.from(context)
-        val view = inflater.inflate(R.layout.overlay_dictionary, null)
+        val panel = inflater.inflate(R.layout.overlay_dictionary_host, null)
         val container = FrameLayout(context).apply {
             setBackgroundColor(0xE6000000.toInt())
         }
-        container.addView(view)
-        container.setOnClickListener { removeOverlay(container) }
-        view.setOnClickListener { } // Prevent taps on dictionary from closing
+        container.addView(panel)
+        panel.setOnClickListener { }
 
         val params = createOverlayParams(
             (context.resources.displayMetrics.widthPixels * 0.95).toInt(),
-            (context.resources.displayMetrics.heightPixels * 0.7).toInt()
+            (context.resources.displayMetrics.heightPixels * 0.78).toInt()
         )
+        if (!svc.attachDictionaryFromOverlay(panel) { removeOverlay(container) }) {
+            return
+        }
         addOverlay(container, params)
-
-        val searchEdit = view.findViewById<EditText>(R.id.dict_search_edit)
-        val placeholder = view.findViewById<TextView>(R.id.dict_placeholder)
-        val wordTitle = view.findViewById<TextView>(R.id.dict_word_title)
-        val phonetic = view.findViewById<TextView>(R.id.dict_phonetic)
-        val partOfSpeech = view.findViewById<TextView>(R.id.dict_part_of_speech)
-        val definition = view.findViewById<TextView>(R.id.dict_definition)
-        val example = view.findViewById<TextView>(R.id.dict_example)
-
-        view.findViewById<ImageButton>(R.id.dict_close_btn)?.setOnClickListener {
-            removeOverlay(container)
-        }
-        view.findViewById<Button>(R.id.dict_search_btn)?.setOnClickListener {
-            val word = searchEdit.text.toString().trim()
-            if (word.isEmpty()) {
-                Toast.makeText(context, "Please type a word to search", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            scope.launch {
-                val result = fetchDictionaryDefinition(word)
-                if (result != null) {
-                    placeholder?.visibility = View.GONE
-                    wordTitle?.visibility = View.VISIBLE
-                    wordTitle?.text = result.word
-                    phonetic?.visibility = if (result.phonetic != null) View.VISIBLE else View.GONE
-                    phonetic?.text = result.phonetic ?: ""
-                    partOfSpeech?.visibility = if (result.partOfSpeech != null) View.VISIBLE else View.GONE
-                    partOfSpeech?.text = result.partOfSpeech ?: ""
-                    definition?.visibility = View.VISIBLE
-                    definition?.text = result.definition ?: ""
-                    example?.visibility = if (result.example != null) View.VISIBLE else View.GONE
-                    example?.text = result.example ?: ""
-                } else {
-                    placeholder?.visibility = View.VISIBLE
-                    placeholder?.text = "No definition found for \"$word\""
-                    wordTitle?.visibility = View.GONE
-                    phonetic?.visibility = View.GONE
-                    partOfSpeech?.visibility = View.GONE
-                    definition?.visibility = View.GONE
-                    example?.visibility = View.GONE
-                }
-            }
-        }
-        view.findViewById<Button>(R.id.dict_copy_btn)?.setOnClickListener {
-            val def = definition?.text?.toString() ?: ""
-            val word = wordTitle?.text?.toString() ?: ""
-            if (def.isNotEmpty() || word.isNotEmpty()) {
-                val text = if (def.isNotEmpty()) "$word: $def" else word
-                clipboardManager.setPrimaryClip(ClipData.newPlainText("dictionary", text))
-                Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private data class DictResult(
-        val word: String,
-        val phonetic: String?,
-        val partOfSpeech: String?,
-        val definition: String?,
-        val example: String?
-    )
-
-    private suspend fun fetchDictionaryDefinition(word: String): DictResult? = withContext(Dispatchers.IO) {
-        try {
-            val url = URL("https://api.dictionaryapi.dev/api/v2/entries/en/$word")
-            val connection = url.openConnection() as HttpURLConnection
-            connection.connectTimeout = 10000
-            connection.readTimeout = 10000
-            if (connection.responseCode == 200) {
-                val response = connection.inputStream.bufferedReader().use { it.readText() }
-                parseDictionaryResponse(response, word)
-            } else null
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    private fun parseDictionaryResponse(json: String, word: String): DictResult? {
-        return try {
-            val phonetic = Regex("\"phonetic\"\\s*:\\s*\"([^\"]+)\"").find(json)?.groupValues?.get(1)
-            val partOfSpeech = Regex("\"partOfSpeech\"\\s*:\\s*\"([^\"]+)\"").find(json)?.groupValues?.get(1)
-            val definition = Regex("\"definition\"\\s*:\\s*\"([^\"]+)\"").find(json)?.groupValues?.get(1)
-            val example = Regex("\"example\"\\s*:\\s*\"([^\"]+)\"").find(json)?.groupValues?.get(1)
-            if (definition != null) {
-                DictResult(word, phonetic, partOfSpeech, definition, example)
-            } else null
-        } catch (_: Exception) {
-            null
+        container.setOnClickListener {
+            svc.dismissDictionaryOverlayFromBubble()
         }
     }
 
@@ -530,31 +449,94 @@ class OverlayFeatureController(private val context: Context) {
     }
 
     fun showVideoRecording() {
-        val intent = Intent(context, VideoRecordingActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val svc = keyboardForOverlayFeatures() ?: return
+        val inflater = LayoutInflater.from(context)
+        val panel = inflater.inflate(R.layout.overlay_video_host, null)
+        val container = FrameLayout(context).apply {
+            setBackgroundColor(0xE6000000.toInt())
         }
-        context.startActivity(intent)
+        container.addView(panel)
+        panel.setOnClickListener { }
+        val params = createOverlayParams(
+            (context.resources.displayMetrics.widthPixels * 0.95).toInt(),
+            (context.resources.displayMetrics.heightPixels * 0.72).toInt()
+        )
+        if (!svc.attachVideoRecordingFromOverlay(panel) { removeOverlay(container) }) {
+            return
+        }
+        addOverlay(container, params)
+        container.setOnClickListener {
+            svc.dismissVideoOverlayFromBubble()
+        }
     }
 
     fun showAiChat() {
-        val intent = Intent(context, AIChatConfigActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val svc = keyboardForOverlayFeatures() ?: return
+        val inflater = LayoutInflater.from(context)
+        val panel = inflater.inflate(R.layout.ai_chat_panel, null)
+        val container = FrameLayout(context).apply {
+            setBackgroundColor(0xE6000000.toInt())
         }
-        context.startActivity(intent)
+        container.addView(panel)
+        panel.setOnClickListener { }
+        val params = createOverlayParams(
+            (context.resources.displayMetrics.widthPixels * 0.95).toInt(),
+            (context.resources.displayMetrics.heightPixels * 0.78).toInt()
+        )
+        if (!svc.attachAiChatFromOverlay(panel) { removeOverlay(container) }) {
+            return
+        }
+        addOverlay(container, params)
+        container.setOnClickListener {
+            svc.dismissAiChatOverlayFromBubble()
+        }
     }
 
     fun showAiWritingTools() {
-        val intent = Intent(context, MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val svc = MainKeyboardService.serviceInstance
+        if (svc == null || !svc.ensureKeyboardLayoutInflated()) {
+            Toast.makeText(context, context.getString(R.string.overlay_feature_unavailable), Toast.LENGTH_LONG).show()
+            return
         }
-        context.startActivity(intent)
-        Toast.makeText(context, "Open keyboard for AI Writing Tools", Toast.LENGTH_SHORT).show()
+        val inflater = LayoutInflater.from(context)
+        val panel = inflater.inflate(R.layout.overlay_ai_writing_host, null)
+        val container = FrameLayout(context).apply {
+            setBackgroundColor(0xE6000000.toInt())
+        }
+        container.addView(panel)
+        panel.setOnClickListener { }
+        val params = createOverlayParams(
+            (context.resources.displayMetrics.widthPixels * 0.95).toInt(),
+            (context.resources.displayMetrics.heightPixels * 0.72).toInt()
+        )
+        if (!svc.attachAiWritingToolsFromOverlay(panel) { removeOverlay(container) }) {
+            return
+        }
+        addOverlay(container, params)
+        container.setOnClickListener {
+            svc.dismissAiWritingOverlayFromBubble()
+        }
     }
 
     fun showVoiceRecording() {
-        val intent = Intent(context, VoiceProcessModeActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val svc = keyboardForOverlayFeatures() ?: return
+        val inflater = LayoutInflater.from(context)
+        val panel = inflater.inflate(R.layout.overlay_voice_panel, null)
+        val container = FrameLayout(context).apply {
+            setBackgroundColor(0xE6000000.toInt())
         }
-        context.startActivity(intent)
+        container.addView(panel)
+        panel.setOnClickListener { }
+        val params = createOverlayParams(
+            (context.resources.displayMetrics.widthPixels * 0.95).toInt(),
+            (context.resources.displayMetrics.heightPixels * 0.55).toInt()
+        )
+        if (!svc.attachVoiceRecordingFromOverlay(panel) { removeOverlay(container) }) {
+            return
+        }
+        addOverlay(container, params)
+        container.setOnClickListener {
+            svc.dismissVoiceOverlayFromBubble()
+        }
     }
 }

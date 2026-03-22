@@ -34,8 +34,9 @@ http.route({
     };
 
     try {
-      const deepseekApiKey = process.env.Deepseeka;
-      if (!deepseekApiKey) {
+      const deepSeekApiKey =
+        process.env.DEEPSEEK_API || process.env.DEEPSEEKA;
+      if (!deepSeekApiKey) {
         return new Response(
           JSON.stringify({
             success: false,
@@ -69,7 +70,7 @@ http.route({
       const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${deepseekApiKey}`,
+          Authorization: `Bearer ${deepSeekApiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
