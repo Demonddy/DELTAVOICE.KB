@@ -484,7 +484,9 @@
                 android:layout_height="40dp"
                 android:src="@drawable/ic_keyboard"
                 android:padding="8dp"
-                android:background="@drawable/bg_icon_circle_surface" />
+                android:background="@drawable/bg_quick_action_icon_circle"
+                android:tint="@color/primary"
+                android:contentDescription="@string/enable_keyboard" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -513,7 +515,9 @@
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@drawable/ic_arrow_right" />
+                android:src="@drawable/ic_arrow_right"
+                android:tint="@color/outline"
+                android:contentDescription="@null" />
         </LinearLayout>
 
         <!-- Floating Bubble Card -->
@@ -534,7 +538,9 @@
                 android:layout_height="40dp"
                 android:src="@drawable/ic_app_grid"
                 android:padding="8dp"
-                android:background="@drawable/bg_icon_circle_surface" />
+                android:background="@drawable/bg_quick_action_icon_circle"
+                android:tint="@color/primary"
+                android:contentDescription="@string/floating_bubble" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -560,10 +566,11 @@
                     android:textSize="13sp" />
             </LinearLayout>
 
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_arrow_right" />
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/switch_floating_bubble"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/floating_bubble" />
         </LinearLayout>
 
         <!-- Account Card -->
@@ -584,7 +591,9 @@
                 android:layout_height="40dp"
                 android:src="@drawable/ic_user_avatar"
                 android:padding="8dp"
-                android:background="@drawable/bg_icon_circle_surface" />
+                android:background="@drawable/bg_quick_action_icon_circle"
+                android:tint="@color/primary"
+                android:contentDescription="@string/account" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -612,7 +621,9 @@
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@drawable/ic_arrow_right" />
+                android:src="@drawable/ic_arrow_right"
+                android:tint="@color/outline"
+                android:contentDescription="@null" />
         </LinearLayout>
 
         <!-- Subscription Card -->
@@ -633,7 +644,8 @@
                 android:layout_height="40dp"
                 android:src="@drawable/ic_crown"
                 android:padding="8dp"
-                android:background="@drawable/bg_icon_circle_surface" />
+                android:background="@drawable/bg_quick_action_icon_circle"
+                android:contentDescription="@string/subscription" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -662,7 +674,9 @@
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@drawable/ic_arrow_right" />
+                android:src="@drawable/ic_arrow_right"
+                android:tint="@color/outline"
+                android:contentDescription="@null" />
         </LinearLayout>
 
         <!-- App Version -->

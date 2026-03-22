@@ -11,12 +11,14 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.LayoutInflater
+import android.widget.CompoundButton
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SwitchCompat
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -27,7 +29,9 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 class MainActivity : AppCompatActivity() {
 
     private lateinit var prefs: SharedPreferences
-    
+    private lateinit var floatingBubbleSwitch: SwitchCompat
+    private var floatingBubbleSwitchListener: CompoundButton.OnCheckedChangeListener? = null
+
     companion object {
         private const val PREFS_NAME = "deltavoice_prefs"
         private const val KEY_FIRST_LAUNCH = "first_launch"
@@ -66,7 +70,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateStats()
-        updateFloatingBubbleStatus()
+        refreshFloatingBubbleSwitch()
     }
     
     /**
@@ -141,22 +145,54 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Setup floating bubble card - request overlay permission and start/stop service
+     * Floating bubble: [SwitchCompat] reflects overlay service; row tap toggles for a larger hit area.
      */
     private fun setupFloatingBubble() {
-        findViewById<LinearLayout>(R.id.card_floating_bubble).setOnClickListener {
-            if (Settings.canDrawOverlays(this)) {
-                toggleOverlayService()
+        floatingBubbleSwitch = findViewById(R.id.switch_floating_bubble)
+        val card = findViewById<LinearLayout>(R.id.card_floating_bubble)
+
+        floatingBubbleSwitchListener = CompoundButton.OnCheckedChangeListener { _, isChecked ->
+            if (!Settings.canDrawOverlays(this)) {
+                if (isChecked) {
+                    requestOverlayPermission()
+                    floatingBubbleSwitch.post {
+                        floatingBubbleSwitch.setOnCheckedChangeListener(null)
+                        floatingBubbleSwitch.isChecked = false
+                        floatingBubbleSwitch.setOnCheckedChangeListener(floatingBubbleSwitchListener)
+                    }
+                }
+                return@OnCheckedChangeListener
+            }
+            if (isChecked) {
+                if (!isOverlayServiceRunning()) startOverlayService()
             } else {
+                if (isOverlayServiceRunning()) stopOverlayService()
+            }
+            updateFloatingBubbleStatusText()
+        }
+        floatingBubbleSwitch.setOnCheckedChangeListener(floatingBubbleSwitchListener)
+
+        // Row tap opens overlay settings if permission missing; otherwise only the switch toggles
+        // (avoids double-toggle from parent + switch).
+        card.setOnClickListener {
+            if (!Settings.canDrawOverlays(this)) {
                 requestOverlayPermission()
             }
         }
-        updateFloatingBubbleStatus()
+
+        refreshFloatingBubbleSwitch()
     }
 
-    private fun updateFloatingBubbleStatus() {
-        val statusView = findViewById<TextView>(R.id.floating_bubble_status)
-        statusView.text = if (isOverlayServiceRunning()) {
+    private fun refreshFloatingBubbleSwitch() {
+        if (!::floatingBubbleSwitch.isInitialized) return
+        floatingBubbleSwitch.setOnCheckedChangeListener(null)
+        floatingBubbleSwitch.isChecked = isOverlayServiceRunning()
+        floatingBubbleSwitch.setOnCheckedChangeListener(floatingBubbleSwitchListener)
+        updateFloatingBubbleStatusText()
+    }
+
+    private fun updateFloatingBubbleStatusText() {
+        findViewById<TextView>(R.id.floating_bubble_status).text = if (isOverlayServiceRunning()) {
             getString(R.string.floating_bubble_enabled)
         } else {
             getString(R.string.floating_bubble_tap_to_enable)
@@ -191,17 +227,8 @@ class MainActivity : AppCompatActivity() {
                 startOverlayService()
                 Toast.makeText(this, "Floating bubble enabled", Toast.LENGTH_SHORT).show()
             }
-            updateFloatingBubbleStatus()
+            refreshFloatingBubbleSwitch()
         }
-    }
-
-    private fun toggleOverlayService() {
-        if (isOverlayServiceRunning()) {
-            stopOverlayService()
-        } else {
-            startOverlayService()
-        }
-        updateFloatingBubbleStatus()
     }
 
     private fun startOverlayService() {

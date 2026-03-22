@@ -1,5 +1,9 @@
 package com.deltavoice
 
+import android.content.Context
+import java.text.Normalizer
+import java.util.Locale
+
 /**
  * Comprehensive multi-language predictive word lists with frequency data.
  * Supports 40+ languages with frequency-ranked dictionaries.
@@ -36,248 +40,107 @@ object PredictiveWordList {
 
     fun getSupportedLanguages(): Set<String> = dictionaries.keys
 
-    // ======================== ENGLISH (2500+ words) ========================
-    private val englishWords: Map<String, Int> by lazy { mapOf(
+    // ======================== ENGLISH (5000 common words, assets) ========================
+    private var englishWordsCache: Map<String, Int>? = null
+
+    /**
+     * Must be called from [Application.onCreate] before prediction dictionaries load.
+     * Loads frequency-ranked word lists from assets (one word per line, no duplicates).
+     * Frequencies: 10000 for the first line down to 1 for the last (per language file).
+     */
+    fun initializePredictiveWordAssets(context: Context) {
+        synchronized(this) {
+            if (englishWordsCache != null) return
+            englishWordsCache = loadPredictiveWordsFromAsset(context, "predictive_en.txt", ::normalizeEnglishWord)
+            frenchWordsCache = loadPredictiveWordsFromAsset(context, "predictive_fr.txt", ::normalizeFrenchWord)
+            arabicWordsCache = loadPredictiveWordsFromAsset(context, "predictive_ar.txt", ::normalizeArabicWord)
+            swahiliWordsCache = loadPredictiveWordsFromAsset(context, "predictive_sw.txt", ::normalizeSwahiliWord)
+            hindiWordsCache = loadPredictiveWordsFromAsset(context, "predictive_hi.txt", ::normalizeHindiWord)
+        }
+    }
+
+    private fun normalizeEnglishWord(s: String): String = s.trim().lowercase(Locale.ROOT)
+
+    private fun normalizeFrenchWord(s: String): String = s.trim().lowercase(Locale.FRENCH)
+
+    private fun normalizeArabicWord(s: String): String {
+        val t = s.trim()
+        if (t.isEmpty()) return t
+        return Normalizer.normalize(t, Normalizer.Form.NFC)
+    }
+
+    private fun normalizeSwahiliWord(s: String): String = s.trim().lowercase(Locale.ROOT)
+
+    /** Devanagari (Hindi): NFC, no Latin-style casing. */
+    private fun normalizeHindiWord(s: String): String {
+        val t = s.trim()
+        if (t.isEmpty()) return t
+        return Normalizer.normalize(t, Normalizer.Form.NFC)
+    }
+
+    private fun loadPredictiveWordsFromAsset(
+        context: Context,
+        assetName: String,
+        normalizeLine: (String) -> String
+    ): Map<String, Int> {
+        return try {
+            val lines = context.assets.open(assetName).bufferedReader().use { it.readLines() }
+            val seen = LinkedHashSet<String>()
+            val unique = lines.map(normalizeLine).filter { it.isNotEmpty() && seen.add(it) }
+            if (unique.isEmpty()) return emptyMap()
+            val maxIdx = unique.size - 1
+            unique.mapIndexed { i, w ->
+                val freq = if (maxIdx == 0) 10_000 else 10_000 - (i * 9_999 / maxIdx)
+                w to freq
+            }.toMap()
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
+    /** Minimal lists if assets are missing (should not happen in release). */
+    private fun embeddedEnglishFallback(): Map<String, Int> = mapOf(
         "the" to 10000, "be" to 9900, "to" to 9800, "of" to 9700, "and" to 9600,
         "a" to 9500, "in" to 9400, "that" to 9300, "have" to 9200, "i" to 9100,
         "it" to 9000, "for" to 8900, "not" to 8800, "on" to 8700, "with" to 8600,
-        "he" to 8500, "as" to 8400, "you" to 8300, "do" to 8200, "at" to 8100,
-        "this" to 8000, "but" to 7900, "his" to 7800, "by" to 7700, "from" to 7600,
-        "they" to 7500, "we" to 7400, "say" to 7300, "her" to 7200, "she" to 7100,
-        "or" to 7000, "an" to 6900, "will" to 6800, "my" to 6700, "one" to 6600,
-        "all" to 6500, "would" to 6400, "there" to 6300, "their" to 6200, "what" to 6100,
-        "so" to 6000, "up" to 5900, "out" to 5800, "if" to 5700, "about" to 5600,
-        "who" to 5500, "get" to 5400, "which" to 5300, "go" to 5200, "me" to 5100,
-        "when" to 5000, "make" to 4900, "can" to 4800, "like" to 4700, "time" to 4600,
-        "no" to 4500, "just" to 4400, "him" to 4300, "know" to 4200, "take" to 4100,
-        "people" to 4000, "into" to 3950, "year" to 3900, "your" to 3850, "good" to 3800,
-        "some" to 3750, "could" to 3700, "them" to 3650, "see" to 3600, "other" to 3550,
-        "than" to 3500, "then" to 3450, "now" to 3400, "look" to 3350, "only" to 3300,
-        "come" to 3250, "its" to 3200, "over" to 3150, "think" to 3100, "also" to 3050,
-        "back" to 3000, "after" to 2950, "use" to 2900, "two" to 2850, "how" to 2800,
-        "our" to 2750, "work" to 2700, "first" to 2650, "well" to 2600, "way" to 2550,
-        "even" to 2500, "new" to 2450, "want" to 2400, "because" to 2350, "any" to 2300,
-        "these" to 2250, "give" to 2200, "day" to 2150, "most" to 2100, "us" to 2050,
-        "is" to 9950, "are" to 9850, "was" to 9750, "were" to 8050, "been" to 7050,
-        "being" to 5050, "has" to 8150, "had" to 7550, "does" to 6050, "did" to 5550,
-        "doing" to 4050, "should" to 4550, "may" to 4450, "might" to 3950, "must" to 3850,
-        "shall" to 2950, "need" to 3750, "here" to 3650, "where" to 3550, "why" to 3450,
-        "very" to 3350, "still" to 3250, "too" to 3150, "much" to 3050, "many" to 2950,
-        "before" to 2850, "between" to 2750, "both" to 2650, "each" to 2550, "every" to 2450,
-        "own" to 2350, "same" to 2250, "through" to 2150, "during" to 2050, "long" to 1950,
-        "right" to 1900, "great" to 1850, "little" to 1800, "life" to 1750, "world" to 1700,
-        "school" to 1650, "still" to 1600, "last" to 1550, "head" to 1500, "hand" to 1450,
-        "high" to 1400, "place" to 1350, "home" to 1300, "small" to 1250, "number" to 1200,
-        "off" to 1150, "end" to 1100, "turn" to 1050, "show" to 1000, "part" to 975,
-        "start" to 950, "point" to 925, "city" to 900, "play" to 875, "run" to 850,
-        "move" to 825, "live" to 800, "night" to 775, "read" to 750, "keep" to 725,
-        "help" to 700, "talk" to 675, "house" to 650, "try" to 625, "again" to 600,
-        "old" to 575, "call" to 550, "put" to 525, "tell" to 500, "ask" to 475,
-        "country" to 450, "open" to 425, "close" to 400, "learn" to 375, "word" to 350,
-        "leave" to 325, "late" to 300, "hard" to 275, "begin" to 250, "stop" to 225,
-        "change" to 200, "name" to 175, "next" to 150, "side" to 125, "kind" to 100,
-        // Common conversational words
-        "hello" to 5000, "hey" to 4500, "hi" to 4800, "bye" to 3500, "goodbye" to 3000,
-        "please" to 4000, "thanks" to 4200, "thank" to 4100, "sorry" to 3800, "yes" to 5500,
-        "no" to 5400, "ok" to 5600, "okay" to 5500, "sure" to 3700, "really" to 3600,
-        "actually" to 3500, "probably" to 3000, "maybe" to 3200, "perhaps" to 2500,
-        "definitely" to 2800, "absolutely" to 2600, "exactly" to 2700,
-        // Communication
-        "message" to 3500, "email" to 3200, "phone" to 3100, "call" to 3000, "text" to 2900,
-        "send" to 2800, "write" to 2700, "reply" to 2600, "answer" to 2500, "question" to 2400,
-        // Emotions
-        "love" to 4500, "happy" to 3800, "sad" to 3200, "angry" to 2800, "excited" to 2600,
-        "worried" to 2400, "afraid" to 2200, "surprised" to 2100, "tired" to 2000,
-        "beautiful" to 3000, "wonderful" to 2800, "amazing" to 3200, "awesome" to 3100,
-        "terrible" to 2200, "horrible" to 2000, "perfect" to 2700, "great" to 3500,
-        "nice" to 3300, "fine" to 3100, "cool" to 2900, "bad" to 2800,
-        // People and relationships
-        "friend" to 3500, "family" to 3400, "mother" to 3000, "father" to 2900, "brother" to 2700,
-        "sister" to 2600, "son" to 2500, "daughter" to 2400, "husband" to 2300, "wife" to 2200,
-        "baby" to 2100, "child" to 2000, "children" to 1900, "man" to 2800, "woman" to 2700,
-        "girl" to 2600, "boy" to 2500, "person" to 2400, "teacher" to 2000, "doctor" to 1900,
-        "student" to 1800, "boss" to 1700, "colleague" to 1500, "neighbor" to 1400,
-        // Time
-        "today" to 4000, "tomorrow" to 3800, "yesterday" to 3600, "morning" to 3200,
-        "afternoon" to 2800, "evening" to 2700, "night" to 2600, "week" to 3000,
-        "month" to 2900, "year" to 2800, "hour" to 2500, "minute" to 2400, "second" to 2300,
-        "always" to 2500, "never" to 2400, "sometimes" to 2300, "often" to 2200, "usually" to 2100,
-        "soon" to 2000, "later" to 1900, "early" to 1800, "already" to 1700,
-        "monday" to 1600, "tuesday" to 1500, "wednesday" to 1400, "thursday" to 1300,
-        "friday" to 1200, "saturday" to 1100, "sunday" to 1000,
-        "january" to 900, "february" to 850, "march" to 800, "april" to 750,
-        "may" to 700, "june" to 650, "july" to 600, "august" to 550,
-        "september" to 500, "october" to 450, "november" to 400, "december" to 350,
-        // Places
-        "house" to 2500, "office" to 2300, "store" to 2100, "restaurant" to 2000,
-        "hospital" to 1800, "airport" to 1600, "hotel" to 1500, "park" to 1400,
-        "church" to 1300, "bank" to 1200, "library" to 1100, "market" to 1000,
-        "street" to 900, "road" to 850, "building" to 800, "room" to 2200,
-        // Food and drink
-        "food" to 2500, "water" to 2800, "coffee" to 2200, "tea" to 2000, "milk" to 1800,
-        "bread" to 1600, "rice" to 1500, "meat" to 1400, "chicken" to 1300, "fish" to 1200,
-        "fruit" to 1100, "vegetable" to 1000, "sugar" to 900, "salt" to 850,
-        "breakfast" to 1500, "lunch" to 1400, "dinner" to 1300, "meal" to 1200,
-        "eat" to 2500, "drink" to 2300, "cook" to 1800, "order" to 1600,
-        // Technology
-        "computer" to 2000, "internet" to 1900, "website" to 1800, "app" to 2500,
-        "download" to 1500, "upload" to 1400, "password" to 1600, "account" to 1700,
-        "login" to 1500, "search" to 1800, "update" to 1600, "delete" to 1400,
-        "save" to 1300, "share" to 1700, "post" to 1600, "photo" to 1800,
-        "video" to 1900, "music" to 1700, "game" to 1600, "file" to 1400,
-        "screen" to 1300, "button" to 1200, "link" to 1100, "page" to 1000,
-        // Work and business
-        "business" to 1800, "meeting" to 1700, "project" to 1600, "team" to 1500,
-        "company" to 1400, "schedule" to 1300, "appointment" to 1200, "deadline" to 1100,
-        "report" to 1000, "document" to 950, "presentation" to 900, "budget" to 850,
-        "salary" to 800, "job" to 2200, "career" to 1200, "experience" to 1300,
-        "interview" to 1100, "manager" to 1000, "employee" to 950, "customer" to 900,
-        // Travel
-        "travel" to 1500, "trip" to 1400, "vacation" to 1300, "flight" to 1200,
-        "ticket" to 1100, "passport" to 1000, "luggage" to 900, "map" to 850,
-        "direction" to 800, "north" to 750, "south" to 700, "east" to 650, "west" to 600,
-        // Weather
-        "weather" to 1500, "rain" to 1300, "sun" to 1200, "snow" to 1100, "wind" to 1000,
-        "hot" to 1400, "cold" to 1300, "warm" to 1200, "cool" to 1100,
-        "cloud" to 900, "storm" to 800, "temperature" to 700,
-        // Body
-        "body" to 1200, "face" to 1100, "eye" to 1000, "mouth" to 900, "hair" to 850,
-        "heart" to 1100, "brain" to 900, "stomach" to 800, "arm" to 750, "leg" to 700,
-        "foot" to 650, "finger" to 600, "tooth" to 550, "ear" to 500, "nose" to 475,
-        // Colors
-        "red" to 1200, "blue" to 1100, "green" to 1000, "yellow" to 900, "black" to 1300,
-        "white" to 1200, "brown" to 800, "pink" to 700, "purple" to 650, "orange" to 600,
-        "gray" to 550, "grey" to 500,
-        // Numbers as words
-        "zero" to 800, "three" to 1200, "four" to 1100, "five" to 1000, "six" to 900,
-        "seven" to 850, "eight" to 800, "nine" to 750, "ten" to 700,
-        "hundred" to 600, "thousand" to 550, "million" to 500,
-        // Common verbs
-        "bring" to 2200, "buy" to 2100, "carry" to 1800, "catch" to 1700, "choose" to 1600,
-        "clean" to 1500, "climb" to 1200, "cover" to 1300, "cross" to 1200, "cry" to 1100,
-        "cut" to 1400, "dance" to 1100, "describe" to 1000, "destroy" to 900, "develop" to 1100,
-        "die" to 1300, "discover" to 900, "draw" to 1100, "dream" to 1000, "drive" to 1300,
-        "drop" to 1100, "enjoy" to 1200, "enter" to 1100, "escape" to 800, "examine" to 700,
-        "exist" to 900, "expect" to 1000, "experience" to 1100, "explain" to 1200,
-        "express" to 900, "fail" to 1000, "fall" to 1200, "feed" to 800, "feel" to 2500,
-        "fight" to 1100, "fill" to 900, "find" to 2800, "finish" to 1300, "fly" to 1100,
-        "follow" to 1400, "forget" to 1500, "forgive" to 800, "grow" to 1300, "guess" to 900,
-        "hang" to 800, "happen" to 1600, "hate" to 1200, "hear" to 2000, "hide" to 900,
-        "hit" to 1100, "hold" to 1400, "hope" to 1500, "hurt" to 1200, "imagine" to 1100,
-        "improve" to 1000, "include" to 1100, "increase" to 900, "join" to 1000, "jump" to 800,
-        "kill" to 1200, "kiss" to 900, "knock" to 700, "laugh" to 1100, "lay" to 800,
-        "lead" to 1100, "lie" to 1000, "lift" to 800, "light" to 1200, "listen" to 1500,
-        "lose" to 1400, "miss" to 1300, "notice" to 900, "offer" to 1000, "own" to 1200,
-        "pass" to 1100, "pay" to 1500, "pick" to 1000, "plan" to 1200, "prepare" to 1000,
-        "press" to 800, "promise" to 900, "protect" to 800, "prove" to 700, "pull" to 900,
-        "push" to 800, "raise" to 900, "reach" to 1000, "realize" to 1100, "receive" to 1000,
-        "recognize" to 800, "record" to 900, "reduce" to 800, "refuse" to 700, "relate" to 600,
-        "release" to 700, "remain" to 800, "remember" to 1500, "remove" to 900, "repeat" to 800,
-        "replace" to 700, "report" to 800, "represent" to 600, "require" to 700, "rest" to 900,
-        "result" to 700, "return" to 1100, "reveal" to 600, "ride" to 800, "ring" to 700,
-        "rise" to 800, "roll" to 700, "rule" to 800, "save" to 1200, "scream" to 600,
-        "sell" to 1100, "separate" to 600, "serve" to 800, "set" to 1200, "settle" to 700,
-        "shake" to 700, "shoot" to 800, "shout" to 600, "shut" to 700, "sign" to 800,
-        "sing" to 800, "sit" to 1200, "sleep" to 1300, "smile" to 1000, "sort" to 700,
-        "speak" to 1500, "spend" to 1100, "stand" to 1200, "steal" to 600, "stick" to 700,
-        "strike" to 600, "study" to 1200, "succeed" to 700, "suffer" to 600, "suggest" to 800,
-        "supply" to 600, "support" to 900, "suppose" to 700, "surprise" to 800,
-        "survive" to 600, "swim" to 700, "teach" to 1000, "test" to 900, "throw" to 800,
-        "touch" to 800, "train" to 800, "treat" to 700, "trust" to 800, "understand" to 1600,
-        "visit" to 900, "vote" to 600, "wait" to 1400, "wake" to 900, "walk" to 1200,
-        "warn" to 600, "wash" to 700, "watch" to 1300, "wear" to 900, "win" to 1100,
-        "wish" to 1000, "wonder" to 800, "worry" to 900, "write" to 1500,
-        // Common adjectives
-        "able" to 1500, "big" to 2000, "best" to 2200, "better" to 2100, "certain" to 1000,
-        "clear" to 1100, "common" to 900, "current" to 800, "dark" to 900, "deep" to 800,
-        "different" to 1200, "difficult" to 1100, "easy" to 1400, "empty" to 800,
-        "enough" to 1200, "entire" to 700, "exact" to 600, "fair" to 700, "far" to 1000,
-        "fast" to 1100, "final" to 800, "free" to 1500, "fresh" to 700, "front" to 800,
-        "full" to 1200, "funny" to 1000, "future" to 900, "heavy" to 800, "huge" to 900,
-        "human" to 800, "important" to 1400, "impossible" to 800, "interested" to 900,
-        "interesting" to 1000, "large" to 1100, "local" to 700, "main" to 800, "major" to 700,
-        "modern" to 600, "natural" to 700, "necessary" to 800, "normal" to 900, "obvious" to 600,
-        "original" to 600, "past" to 800, "personal" to 700, "physical" to 600, "political" to 500,
-        "poor" to 800, "popular" to 700, "possible" to 1000, "powerful" to 600, "private" to 700,
-        "public" to 800, "quick" to 900, "quiet" to 700, "ready" to 1200, "real" to 1300,
-        "recent" to 700, "rich" to 800, "safe" to 900, "serious" to 800, "short" to 900,
-        "similar" to 700, "simple" to 900, "single" to 800, "slow" to 800, "social" to 600,
-        "soft" to 600, "special" to 800, "strange" to 700, "strong" to 1000, "sudden" to 500,
-        "sweet" to 700, "tall" to 600, "thin" to 500, "total" to 600, "traditional" to 500,
-        "true" to 1200, "ugly" to 500, "usual" to 600, "wide" to 600, "wild" to 500,
-        "wrong" to 1100, "young" to 1000,
-        // Common nouns
-        "air" to 1000, "animal" to 900, "area" to 800, "art" to 700, "attention" to 600,
-        "bed" to 1100, "bit" to 900, "blood" to 800, "boat" to 600, "book" to 1200,
-        "bottom" to 600, "box" to 700, "car" to 1500, "case" to 800, "center" to 700,
-        "century" to 500, "chance" to 700, "class" to 800, "clothes" to 700, "color" to 800,
-        "community" to 600, "condition" to 600, "control" to 700, "corner" to 500,
-        "cost" to 700, "couple" to 600, "course" to 700, "court" to 500, "culture" to 500,
-        "cup" to 600, "decision" to 700, "design" to 600, "development" to 500, "difference" to 600,
-        "dog" to 1100, "door" to 900, "dream" to 800, "dress" to 600, "drive" to 800,
-        "earth" to 700, "edge" to 500, "education" to 600, "effect" to 600, "effort" to 500,
-        "energy" to 600, "environment" to 500, "event" to 700, "evidence" to 500, "example" to 700,
-        "eye" to 1000, "fact" to 800, "fear" to 700, "feeling" to 700, "field" to 600,
-        "figure" to 500, "fire" to 800, "floor" to 600, "force" to 600, "form" to 600,
-        "garden" to 500, "glass" to 600, "god" to 800, "gold" to 600, "government" to 600,
-        "group" to 700, "growth" to 500, "gun" to 600, "half" to 800, "health" to 700,
-        "heat" to 500, "hill" to 400, "history" to 600, "hole" to 500, "horse" to 500,
-        "idea" to 900, "image" to 600, "industry" to 500, "information" to 800,
-        "interest" to 700, "island" to 400, "issue" to 600, "king" to 500, "kitchen" to 600,
-        "knowledge" to 600, "land" to 700, "language" to 700, "law" to 600, "letter" to 700,
-        "level" to 600, "line" to 800, "list" to 700, "lot" to 900, "love" to 1500,
-        "machine" to 500, "material" to 500, "matter" to 600, "memory" to 700, "method" to 500,
-        "mind" to 900, "model" to 500, "moment" to 700, "money" to 1200, "mountain" to 400,
-        "movie" to 800, "nature" to 500, "news" to 800, "note" to 600, "oil" to 500,
-        "opinion" to 500, "opportunity" to 500, "pain" to 600, "paper" to 600, "parent" to 700,
-        "party" to 700, "pattern" to 400, "peace" to 500, "period" to 500, "picture" to 700,
-        "piece" to 600, "plan" to 800, "plant" to 400, "player" to 500, "position" to 500,
-        "power" to 700, "practice" to 500, "pressure" to 500, "price" to 600, "problem" to 900,
-        "process" to 500, "product" to 500, "production" to 400, "program" to 600,
-        "property" to 400, "purpose" to 400, "quality" to 500, "race" to 500, "radio" to 400,
-        "rate" to 500, "reason" to 700, "record" to 500, "region" to 400, "relationship" to 600,
-        "religion" to 400, "research" to 500, "resource" to 400, "response" to 500,
-        "river" to 400, "rock" to 500, "role" to 500, "scene" to 500, "science" to 500,
-        "season" to 400, "security" to 500, "sense" to 600, "service" to 600, "shape" to 400,
-        "ship" to 400, "situation" to 600, "size" to 500, "skill" to 500, "skin" to 400,
-        "society" to 400, "song" to 600, "sort" to 500, "sound" to 600, "source" to 400,
-        "space" to 600, "sport" to 500, "stage" to 400, "standard" to 400, "star" to 500,
-        "state" to 600, "station" to 400, "step" to 500, "stone" to 400, "story" to 700,
-        "strategy" to 400, "structure" to 400, "style" to 500, "success" to 600, "surface" to 400,
-        "system" to 600, "table" to 600, "task" to 400, "technology" to 600, "test" to 500,
-        "theory" to 400, "thought" to 600, "top" to 700, "trade" to 400, "training" to 400,
-        "tree" to 500, "trouble" to 500, "truth" to 500, "type" to 600, "union" to 300,
-        "unit" to 400, "value" to 500, "variety" to 300, "view" to 500, "voice" to 600,
-        "wall" to 500, "war" to 600, "wave" to 300, "weight" to 400, "window" to 500,
-        "winter" to 400, "woman" to 800, "wood" to 400,
-        // Common adverbs and prepositions
-        "above" to 800, "across" to 700, "almost" to 900, "along" to 700, "already" to 900,
-        "although" to 700, "among" to 600, "around" to 900, "away" to 1000, "behind" to 700,
-        "below" to 600, "beside" to 500, "beyond" to 500, "down" to 1200, "else" to 800,
-        "especially" to 600, "ever" to 800, "everything" to 800, "everywhere" to 400,
-        "finally" to 700, "forever" to 500, "forward" to 500, "generally" to 400,
-        "however" to 700, "indeed" to 400, "inside" to 600, "instead" to 600, "maybe" to 1000,
-        "nearly" to 600, "never" to 1200, "nobody" to 500, "nothing" to 800, "nowhere" to 300,
-        "obviously" to 400, "once" to 700, "outside" to 600, "probably" to 800,
-        "quite" to 700, "rather" to 600, "seriously" to 500, "simply" to 500,
-        "since" to 700, "somehow" to 400, "something" to 1000, "somewhere" to 400,
-        "still" to 1000, "suddenly" to 500, "together" to 800, "tonight" to 600,
-        "toward" to 500, "twice" to 400, "under" to 700, "unless" to 500, "until" to 700,
-        "upon" to 500, "whatever" to 600, "whenever" to 400, "whether" to 500, "while" to 700,
-        "within" to 500, "without" to 700, "yet" to 700,
-        // Contractions
-        "don't" to 5000, "can't" to 4500, "won't" to 3500, "didn't" to 4000,
-        "isn't" to 3500, "wasn't" to 3000, "aren't" to 2500, "weren't" to 2000,
-        "haven't" to 2500, "hasn't" to 2000, "couldn't" to 2500, "wouldn't" to 2200,
-        "shouldn't" to 2000, "i'm" to 5000, "i've" to 4000, "i'll" to 4500,
-        "i'd" to 3500, "you're" to 4000, "you've" to 3000, "you'll" to 3200,
-        "he's" to 3500, "she's" to 3200, "it's" to 4500, "we're" to 3500,
-        "we've" to 2500, "we'll" to 2800, "they're" to 3000, "they've" to 2200,
-        "they'll" to 2500, "that's" to 4000, "there's" to 3500, "here's" to 2800,
-        "what's" to 3800, "who's" to 2500, "let's" to 3000, "doesn't" to 3000,
-        // Common phrases starter words
-        "gonna" to 3000, "wanna" to 2800, "gotta" to 2500, "kinda" to 2000, "sorta" to 1500
-    )}
+        "you" to 8300, "do" to 8200, "at" to 8100, "is" to 9950, "are" to 9850
+    )
+
+    private fun embeddedFrenchFallback(): Map<String, Int> = mapOf(
+        "de" to 10000, "la" to 9800, "le" to 9700, "et" to 9600, "les" to 9400
+    )
+
+    private fun embeddedArabicFallback(): Map<String, Int> = mapOf(
+        "في" to 10000, "من" to 9800, "على" to 9600, "إلى" to 9400, "أن" to 9200
+    )
+
+    private fun embeddedSwahiliFallback(): Map<String, Int> = mapOf(
+        "na" to 10000, "ya" to 9500, "wa" to 9200, "ni" to 9000, "kwa" to 8500
+    )
+
+    private fun embeddedHindiFallback(): Map<String, Int> = mapOf(
+        "और" to 10000, "है" to 9800, "की" to 9600, "में" to 9400, "यह" to 9200
+    )
+
+    private val englishWords: Map<String, Int>
+        get() = englishWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedEnglishFallback()
+
+    private var frenchWordsCache: Map<String, Int>? = null
+    private var arabicWordsCache: Map<String, Int>? = null
+    private var swahiliWordsCache: Map<String, Int>? = null
+    private var hindiWordsCache: Map<String, Int>? = null
+
+    private val frenchWords: Map<String, Int>
+        get() = frenchWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedFrenchFallback()
+
+    private val arabicWords: Map<String, Int>
+        get() = arabicWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedArabicFallback()
+
+    private val swahiliWords: Map<String, Int>
+        get() = swahiliWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedSwahiliFallback()
+
+    private val hindiWords: Map<String, Int>
+        get() = hindiWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedHindiFallback()
 
     // ======================== SPANISH (2000+ words) ========================
     private val spanishWords: Map<String, Int> by lazy { mapOf(
@@ -339,46 +202,6 @@ object PredictiveWordList {
         "perdón" to 2000, "disculpa" to 1500, "claro" to 1800, "vale" to 1600,
         "bien" to 4000, "mal" to 2500, "sí" to 5000, "aquí" to 2500, "allí" to 2000,
         "ahora" to 3500, "después" to 2800, "siempre" to 2500, "nunca" to 2200
-    )}
-
-    // ======================== FRENCH (2000+ words) ========================
-    private val frenchWords: Map<String, Int> by lazy { mapOf(
-        "de" to 10000, "la" to 9800, "le" to 9700, "et" to 9600, "les" to 9400,
-        "des" to 9200, "en" to 9000, "un" to 8800, "du" to 8600, "une" to 8500,
-        "que" to 8400, "est" to 8300, "dans" to 8200, "qui" to 8100, "ce" to 8000,
-        "pas" to 7900, "plus" to 7800, "pour" to 7700, "sur" to 7600, "au" to 7500,
-        "il" to 7400, "par" to 7300, "ne" to 7200, "avec" to 7100, "se" to 7000,
-        "son" to 6900, "sa" to 6800, "mais" to 6700, "sont" to 6600, "tout" to 6500,
-        "on" to 6400, "elle" to 6300, "nous" to 6200, "vous" to 6100, "ces" to 6000,
-        "être" to 8000, "avoir" to 7500, "faire" to 7000, "dire" to 6000, "aller" to 5500,
-        "voir" to 5000, "venir" to 4500, "pouvoir" to 4000, "vouloir" to 3800, "devoir" to 3600,
-        "savoir" to 3400, "falloir" to 3200, "prendre" to 3000, "donner" to 2800,
-        "mettre" to 2600, "passer" to 2400, "parler" to 2200, "trouver" to 2000,
-        "croire" to 1800, "connaître" to 1600, "demander" to 1500, "rester" to 1400,
-        "laisser" to 1300, "penser" to 1200, "appeler" to 1100, "tenir" to 1000,
-        "porter" to 950, "regarder" to 900, "aimer" to 850, "écrire" to 800,
-        "lire" to 750, "sortir" to 700, "manger" to 680, "boire" to 650,
-        "dormir" to 620, "courir" to 580, "travailler" to 560, "jouer" to 540,
-        "aussi" to 5500, "même" to 5000, "bien" to 4800, "sans" to 4600, "donc" to 4400,
-        "alors" to 4200, "très" to 4000, "encore" to 3800, "toujours" to 3600, "jamais" to 3400,
-        "entre" to 3200, "après" to 3000, "avant" to 2800, "sous" to 2600, "chez" to 2400,
-        "puis" to 2200, "ici" to 2000, "là" to 1900, "où" to 1800, "quand" to 1700,
-        "comment" to 1600, "pourquoi" to 1500, "comme" to 1400,
-        "homme" to 2500, "femme" to 2300, "enfant" to 2100, "monde" to 2000, "temps" to 1900,
-        "vie" to 1800, "jour" to 1700, "maison" to 1600, "pays" to 1500, "travail" to 1400,
-        "chose" to 1300, "famille" to 1200, "ami" to 1100, "eau" to 1050, "père" to 1000,
-        "mère" to 950, "frère" to 900, "soeur" to 850, "fils" to 800, "fille" to 780,
-        "coeur" to 760, "tête" to 740, "main" to 720, "corps" to 700, "rue" to 680,
-        "ville" to 660, "école" to 640, "argent" to 620, "nourriture" to 600,
-        "grand" to 2000, "petit" to 1800, "bon" to 1700, "nouveau" to 1600, "vieux" to 1400,
-        "jeune" to 1200, "beau" to 1100, "joli" to 1000, "long" to 900, "court" to 800,
-        "haut" to 750, "bas" to 700, "premier" to 650, "dernier" to 600, "seul" to 550,
-        "autre" to 500, "chaque" to 480, "certain" to 460, "quelque" to 440, "plusieurs" to 420,
-        "bonjour" to 5000, "bonsoir" to 3000, "merci" to 4500, "oui" to 5500, "non" to 5400,
-        "salut" to 4000, "au revoir" to 3500, "pardon" to 2500, "excusez" to 2000,
-        "s'il vous plaît" to 3000, "peut-être" to 2500, "bien sûr" to 2200,
-        "amour" to 2000, "mort" to 1000, "guerre" to 800, "paix" to 700, "liberté" to 600,
-        "droit" to 550, "force" to 500, "esprit" to 480, "raison" to 460, "question" to 440
     )}
 
     // ======================== GERMAN (2000+ words) ========================
@@ -515,66 +338,6 @@ object PredictiveWordList {
         "сегодня" to 2500, "завтра" to 2200, "вчера" to 2000, "сейчас" to 2500,
         "здесь" to 2500, "там" to 2000, "где" to 1800, "почему" to 1600,
         "всегда" to 2000, "никогда" to 1800, "иногда" to 1500, "очень" to 3000
-    )}
-
-    // ======================== ARABIC (1000+ words) ========================
-    private val arabicWords: Map<String, Int> by lazy { mapOf(
-        "في" to 10000, "من" to 9800, "على" to 9600, "إلى" to 9400, "أن" to 9200,
-        "هذا" to 9000, "التي" to 8800, "الذي" to 8600, "هو" to 8400, "هي" to 8200,
-        "كان" to 8000, "ما" to 7800, "لا" to 7600, "مع" to 7400, "عن" to 7200,
-        "لم" to 7000, "قد" to 6800, "بعد" to 6600, "قبل" to 6400, "بين" to 6200,
-        "عند" to 6000, "حتى" to 5800, "كل" to 5600, "هذه" to 5400, "أو" to 5200,
-        "ذلك" to 5000, "تلك" to 4800, "هناك" to 4600, "أيضاً" to 4400, "ثم" to 4200,
-        "لكن" to 4000, "أنا" to 3800, "نحن" to 3600, "أنت" to 3400, "هم" to 3200,
-        "أنتم" to 3000, "كذلك" to 2800, "فقط" to 2600, "لأن" to 2400, "منذ" to 2200,
-        "يكون" to 6500, "يعمل" to 5000, "يقول" to 4800, "يعرف" to 4600, "يريد" to 4400,
-        "يستطيع" to 4200, "يذهب" to 4000, "يأتي" to 3800, "يجب" to 3600,
-        "يتكلم" to 3400, "يرى" to 3200, "يسمع" to 3000, "يفعل" to 2800,
-        "يأكل" to 2600, "يشرب" to 2400, "ينام" to 2200, "يكتب" to 2000,
-        "يقرأ" to 1800, "يشتري" to 1600, "يبيع" to 1400, "يدفع" to 1200,
-        "رجل" to 2500, "امرأة" to 2300, "طفل" to 2100, "عالم" to 2000, "يوم" to 1900,
-        "حياة" to 1800, "بيت" to 1700, "مدينة" to 1600, "بلد" to 1500, "عمل" to 1400,
-        "عائلة" to 1300, "صديق" to 1200, "ماء" to 1100, "طعام" to 1000, "مال" to 950,
-        "حب" to 900, "قلب" to 850, "عين" to 800, "يد" to 750, "رأس" to 700,
-        "مدرسة" to 650, "كتاب" to 600, "باب" to 550, "طريق" to 500,
-        "كبير" to 2000, "صغير" to 1800, "جديد" to 1600, "قديم" to 1400, "جيد" to 1200,
-        "سيء" to 1000, "جميل" to 900, "قبيح" to 600, "طويل" to 500, "قصير" to 450,
-        "قوي" to 400, "ضعيف" to 350, "سعيد" to 300, "حزين" to 280, "مهم" to 260,
-        "مرحبا" to 5000, "أهلا" to 4500, "شكرا" to 4000, "من فضلك" to 3500,
-        "نعم" to 5500, "مع السلامة" to 3000, "عفوا" to 2500,
-        "ربما" to 2000, "طبعا" to 1800, "بالطبع" to 1600,
-        "اليوم" to 2500, "غدا" to 2200, "أمس" to 2000, "الآن" to 2500,
-        "هنا" to 2500, "هناك" to 2000, "أين" to 1800, "لماذا" to 1600,
-        "دائما" to 2000, "أبدا" to 1800, "أحيانا" to 1500, "جدا" to 3000
-    )}
-
-    // ======================== HINDI (1000+ words) ========================
-    private val hindiWords: Map<String, Int> by lazy { mapOf(
-        "और" to 10000, "है" to 9800, "की" to 9600, "में" to 9400, "यह" to 9200,
-        "हैं" to 9000, "को" to 8800, "से" to 8600, "पर" to 8400, "कि" to 8200,
-        "नहीं" to 8000, "या" to 7800, "एक" to 7600, "हो" to 7400, "था" to 7200,
-        "कर" to 7000, "मैं" to 6800, "तुम" to 6600, "वह" to 6400, "हम" to 6200,
-        "आप" to 6000, "ये" to 5800, "वे" to 5600, "इस" to 5400, "उस" to 5200,
-        "कौन" to 5000, "क्या" to 4800, "कब" to 4600, "कहाँ" to 4400, "कैसे" to 4200,
-        "क्यों" to 4000, "कितना" to 3800, "सब" to 3600, "कुछ" to 3400, "बहुत" to 3200,
-        "थोड़ा" to 3000, "यहाँ" to 2800, "वहाँ" to 2600, "अब" to 2400, "तो" to 2200,
-        "होना" to 7000, "करना" to 6500, "जाना" to 6000, "आना" to 5500, "देना" to 5000,
-        "लेना" to 4500, "कहना" to 4000, "बोलना" to 3800, "सुनना" to 3600,
-        "देखना" to 3400, "जानना" to 3200, "समझना" to 3000, "चाहना" to 2800,
-        "सकना" to 2600, "रहना" to 2400, "खाना" to 2200, "पीना" to 2000,
-        "सोना" to 1800, "चलना" to 1600, "दौड़ना" to 1400, "पढ़ना" to 1200,
-        "लिखना" to 1100, "खेलना" to 1000, "खरीदना" to 900, "बेचना" to 800,
-        "आदमी" to 2500, "औरत" to 2300, "बच्चा" to 2100, "दुनिया" to 2000, "दिन" to 1900,
-        "ज़िंदगी" to 1800, "घर" to 1700, "देश" to 1600, "शहर" to 1500, "काम" to 1400,
-        "परिवार" to 1300, "दोस्त" to 1200, "पानी" to 1100, "खाना" to 1000, "पैसा" to 950,
-        "प्यार" to 900, "दिल" to 850, "आँख" to 800, "हाथ" to 750, "सिर" to 700,
-        "स्कूल" to 650, "किताब" to 600, "रास्ता" to 550, "सड़क" to 500,
-        "बड़ा" to 2000, "छोटा" to 1800, "नया" to 1600, "पुराना" to 1400, "अच्छा" to 1200,
-        "बुरा" to 1000, "सुंदर" to 900, "लंबा" to 700, "मजबूत" to 600, "ज़रूरी" to 500,
-        "नमस्ते" to 5000, "धन्यवाद" to 4500, "शुक्रिया" to 4000, "कृपया" to 3500,
-        "हाँ" to 5500, "अलविदा" to 3000, "माफ़ कीजिए" to 2500,
-        "शायद" to 2000, "बिल्कुल" to 1800, "ज़रूर" to 1600,
-        "आज" to 2500, "कल" to 2200, "अभी" to 2500, "हमेशा" to 2000, "कभी नहीं" to 1800
     )}
 
     // ======================== JAPANESE (1000+ words, romaji + kana) ========================
@@ -1197,25 +960,6 @@ object PredictiveWordList {
         "ngayon" to 2500, "bukas" to 2200, "kahapon" to 2000, "ngayon" to 2500,
         "palagi" to 2000, "hindi kailanman" to 1800, "minsan" to 1500, "sobra" to 3000,
         "dito" to 2500, "doon" to 2000, "saan" to 1800, "bakit" to 1600
-    )}
-
-    // ======================== SWAHILI (600+ words) ========================
-    private val swahiliWords: Map<String, Int> by lazy { mapOf(
-        "na" to 10000, "ya" to 9500, "wa" to 9200, "ni" to 9000, "kwa" to 8500,
-        "katika" to 8200, "la" to 8000, "kuwa" to 7800, "mimi" to 7500, "wewe" to 7200,
-        "yeye" to 7000, "sisi" to 6800, "wao" to 6500, "hii" to 6200, "hiyo" to 6000,
-        "kufanya" to 5500, "kwenda" to 5000, "kuja" to 4800, "kusema" to 4500,
-        "kujua" to 4200, "kutaka" to 4000, "kuona" to 3800, "kupa" to 3500,
-        "kula" to 3200, "kunywa" to 3000, "kulala" to 2800, "kusoma" to 2600,
-        "kuandika" to 2400, "kununua" to 2200, "kuuza" to 2000, "kujifunza" to 1800,
-        "mtu" to 3000, "nyumba" to 2800, "dunia" to 2500, "siku" to 2200,
-        "kubwa" to 2000, "ndogo" to 1800, "mpya" to 1600, "zamani" to 1400,
-        "nzuri" to 1200, "mbaya" to 1000, "nzuri" to 800, "muhimu" to 600,
-        "habari" to 5000, "asante" to 4500, "tafadhali" to 3500, "ndiyo" to 5500,
-        "hapana" to 5000, "labda" to 2000, "kwaheri" to 3000, "pole" to 2500,
-        "leo" to 2500, "kesho" to 2200, "jana" to 2000, "sasa" to 2500,
-        "daima" to 2000, "kamwe" to 1800, "wakati mwingine" to 1500, "sana" to 3000,
-        "hapa" to 2500, "pale" to 2000, "wapi" to 1800, "kwa nini" to 1600
     )}
 
     // ======================== HEBREW (600+ words) ========================

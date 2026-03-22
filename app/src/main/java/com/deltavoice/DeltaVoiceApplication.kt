@@ -18,6 +18,7 @@ class DeltaVoiceApplication : Application() {
     override fun onCreate() {
         applyAppTheme()
         super.onCreate()
+        PredictiveWordList.initializePredictiveWordAssets(applicationContext)
     }
 
     private fun applyAppTheme() {
