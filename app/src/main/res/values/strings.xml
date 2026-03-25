@@ -35,6 +35,11 @@
     <string name="overlay_permission_required">Overlay permission is required for the floating bubble</string>
     <string name="overlay_attach_keyboard_required">Open the keyboard first to use this feature from the bubble</string>
     <string name="overlay_feature_unavailable">Could not load this feature. Make sure DeltaVoice is enabled as a keyboard in Settings.</string>
+    <string name="overlay_top_row_layout_title">Top row layout</string>
+    <string name="overlay_top_row_layout_horizontal">Horizontal strip</string>
+    <string name="overlay_top_row_layout_arc">Arc band</string>
+    <string name="overlay_top_row_layout_help">Arc wraps icons around the bubble when it is at the side of the screen; a full-width bar is used when the bubble is centered.</string>
+    <string name="overlay_top_row_width_label">Width: %d%%</string>
 
     <!-- Permissions -->
     <string name="microphone_permission_required">Microphone permission is required for voice input</string>
@@ -168,6 +173,15 @@
 
     <!-- Video config -->
     <string name="video_title">Video</string>
+    <!-- Aliases used by activity_video_config layouts (must match @string/ ids) -->
+    <string name="video_processing_screen_title">Video</string>
+    <string name="video_processing_screen_subtitle">Record &amp; translate videos</string>
+    <string name="processing_options_title">Processing options</string>
+    <string name="label_target_language">Target language</string>
+    <string name="label_voice_style">Voice style</string>
+    <string name="video_hint_record_page">Record and process video on this page.</string>
+    <string name="smart_tip_title">Tip</string>
+    <string name="smart_tip_video_body">Upload or record a video, choose language and voice style, then process to translate.</string>
     <string name="record_translate_videos_subtitle">Record &amp; translate videos</string>
     <string name="processing_options">Processing options</string>
     <string name="target_language">Target language</string>
@@ -217,6 +231,13 @@
 
     <!-- Voice config -->
     <string name="voice_input_cloning_subtitle">Voice input &amp; cloning</string>
+    <!-- Aliases used by activity_voice_config layouts -->
+    <string name="voice_processing_screen_title">Voice</string>
+    <string name="voice_processing_screen_subtitle">Voice input &amp; cloning</string>
+    <string name="processing_mode_section">Processing mode</string>
+    <string name="label_voice_persona">Voice style</string>
+    <string name="voice_hint_record_page">Record and process voice on this page.</string>
+    <string name="smart_tip_voice_body">Upload or record audio, choose processing mode and language, then process.</string>
     <string name="processing_mode">Processing mode</string>
     <string name="record_process_voice_hint">Record and process voice on this page.</string>
     <string name="process">Process</string>

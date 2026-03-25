@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Ethereal: selected mode — surface lowest + primary border + soft elevation -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="#1E1B3A" />
-    <stroke android:width="2dp" android:color="#7C3AED" />
-    <corners android:radius="12dp" />
+    <solid android:color="@color/surface_container_lowest" />
+    <stroke android:width="2dp" android:color="@color/primary" />
+    <corners android:radius="@dimen/card_corner_radius" />
 </shape>
-

@@ -481,12 +481,12 @@ class VoiceConfigActivity : AppCompatActivity() {
         if (!::btnVoiceViewList.isInitialized || !::btnVoiceViewGrid.isInitialized) return
         if (isVoiceGridViewMode) {
             btnVoiceViewGrid.background = ContextCompat.getDrawable(this, R.drawable.voice_mode_button_purple)
-            btnVoiceViewGrid.setTextColor(ContextCompat.getColor(this, R.color.text_primary))
+            btnVoiceViewGrid.setTextColor(ContextCompat.getColor(this, R.color.on_primary))
             btnVoiceViewList.background = ContextCompat.getDrawable(this, R.drawable.bg_card_dark)
             btnVoiceViewList.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
         } else {
             btnVoiceViewList.background = ContextCompat.getDrawable(this, R.drawable.voice_mode_button_purple)
-            btnVoiceViewList.setTextColor(ContextCompat.getColor(this, R.color.text_primary))
+            btnVoiceViewList.setTextColor(ContextCompat.getColor(this, R.color.on_primary))
             btnVoiceViewGrid.background = ContextCompat.getDrawable(this, R.drawable.bg_card_dark)
             btnVoiceViewGrid.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
         }

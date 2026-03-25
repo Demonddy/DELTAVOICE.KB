@@ -365,12 +365,12 @@ class VideoConfigActivity : AppCompatActivity() {
         if (!::btnViewList.isInitialized || !::btnViewGrid.isInitialized) return
         if (isGridViewMode) {
             btnViewGrid.background = ContextCompat.getDrawable(this, R.drawable.voice_mode_button_purple)
-            btnViewGrid.setTextColor(ContextCompat.getColor(this, R.color.text_primary))
+            btnViewGrid.setTextColor(ContextCompat.getColor(this, R.color.on_primary))
             btnViewList.background = ContextCompat.getDrawable(this, R.drawable.bg_card_dark)
             btnViewList.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
         } else {
             btnViewList.background = ContextCompat.getDrawable(this, R.drawable.voice_mode_button_purple)
-            btnViewList.setTextColor(ContextCompat.getColor(this, R.color.text_primary))
+            btnViewList.setTextColor(ContextCompat.getColor(this, R.color.on_primary))
             btnViewGrid.background = ContextCompat.getDrawable(this, R.drawable.bg_card_dark)
             btnViewGrid.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
         }

@@ -15,8 +15,8 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.ImageButton
-import android.widget.LinearLayout
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 
@@ -125,7 +125,8 @@ class OverlayBubbleService : Service() {
             (48 * resources.displayMetrics.density).toInt(),
             (48 * resources.displayMetrics.density).toInt(),
             type,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -183,44 +184,60 @@ class OverlayBubbleService : Service() {
         if (topRowView != null) return
 
         val inflater = LayoutInflater.from(this)
-        topRowView = inflater.inflate(R.layout.overlay_top_row, null)
-
-        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
-
+        val widthScale = OverlayPrefs.getTopRowWidthScale(this)
         val dm = resources.displayMetrics
-        val gap = (8 * dm.density).toInt()
-        topRowView?.measure(
-            View.MeasureSpec.makeMeasureSpec(dm.widthPixels, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        val bp = bubbleParams ?: return
+        val bubbleSize = bubbleSizePx()
+        val (bubbleCx, _) = OverlayTopRowPlacer.bubbleCenterPx(bp, bubbleSize)
+
+        val useArc = OverlayTopRowPlacer.shouldShowArcBand(
+            OverlayPrefs.getTopRowStyle(this),
+            bubbleCx,
+            dm.widthPixels
         )
-        val rowHeight = topRowView?.measuredHeight ?: (72 * dm.density).toInt()
 
-        val bubbleY = bubbleParams?.y
-            ?: (dm.heightPixels / 2 - (24 * dm.density).toInt())
-        val statusTop = statusBarInsetPx()
-        val bubbleBottom = bubbleY + bubbleSizePx()
+        if (useArc) {
+            topRowView = inflater.inflate(R.layout.overlay_top_row_arc, null)
+            val root = topRowView as FrameLayout
+            val geom = OverlayTopRowPlacer.layoutArcBand(
+                root,
+                bp,
+                bubbleSize,
+                dm.density,
+                widthScale,
+                dm.widthPixels,
+                dm.heightPixels
+            )
+            topRowParams = OverlayTopRowPlacer.createOverlayLayoutParams(
+                width = geom.width,
+                height = geom.height,
+                x = geom.x,
+                y = geom.y,
+                gravity = Gravity.TOP or Gravity.START
+            )
+        } else {
+            val stripWidth = (dm.widthPixels * widthScale).toInt().coerceAtLeast(1)
+            topRowView = inflater.inflate(R.layout.overlay_top_row, null)
+            topRowView?.measure(
+                View.MeasureSpec.makeMeasureSpec(stripWidth, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+            )
+            val rowHeight = topRowView?.measuredHeight ?: (72 * dm.density).toInt()
+            val gap = (8 * dm.density).toInt()
+            val bubbleY = bp.y
+            val statusTop = statusBarInsetPx()
+            val bubbleBottom = bubbleY + bubbleSize
 
-        // Prefer a strip just above the FAB (right-side bubble); if not enough room, place below.
-        var yPos = bubbleY - rowHeight - gap
-        if (yPos < statusTop) {
-            yPos = bubbleBottom + gap
-        }
+            var yPos = bubbleY - rowHeight - gap
+            if (yPos < statusTop) {
+                yPos = bubbleBottom + gap
+            }
 
-        topRowParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            type,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = 0
-            y = yPos
+            topRowParams = OverlayTopRowPlacer.horizontalTopRowParams(
+                stripWidth,
+                yPos,
+                dm.widthPixels
+            )
         }
 
         setupTopRowListeners()

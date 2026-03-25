@@ -13,6 +13,8 @@
     <color name="primary_dark">#7C3AED</color>
     <color name="primary_light">#A78BFA</color>
     <color name="primary_container">#8A4CFC</color>
+    <color name="primary_fixed">#4E3B7C</color>
+    <color name="on_primary">#FFFFFF</color>
     <color name="accent">#C084FC</color>
     <color name="surface_tint">#A78BFA</color>
     <color name="ripple_primary">#33C084FC</color>
@@ -26,6 +28,7 @@
     <color name="tertiary_fixed">#FFDCBB</color>
     <color name="tertiary_fixed_dim">#FFB869</color>
     <color name="on_tertiary_fixed">#2C1700</color>
+    <color name="on_tertiary_fixed_variant">#673D00</color>
     <color name="surface_container_lowest">#1A1A1D</color>
     <color name="surface_container_low">#1F1F23</color>
     <color name="surface_container">#252529</color>
@@ -69,4 +72,6 @@
     <color name="premium_gradient_end">#EAB308</color>
     <color name="premium_banner_text_primary">#FFDCBB</color>
     <color name="premium_banner_text_secondary">#E9D5B3</color>
+
+    <color name="spinner_popup_background">#2A3140</color>
 </resources>

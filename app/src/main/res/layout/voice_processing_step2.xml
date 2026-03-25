@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shared: keyboard_layout + overlay_voice_panel — voice Step 2 processing UI -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/voice_processing_step2_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#111521"
+    android:padding="16dp"
+    android:visibility="gone">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginBottom="16dp">
+
+        <LinearLayout
+            android:id="@+id/audio_player_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/audio_player_background"
+            android:paddingStart="6dp"
+            android:paddingEnd="16dp">
+
+            <ImageButton
+                android:id="@+id/btn_play_recording"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_play"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Play recording"
+                android:padding="8dp"
+                android:tint="#3B82F6" />
+
+            <SeekBar
+                android:id="@+id/audio_playback_seekbar"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"
+                android:max="100"
+                android:progress="0"
+                android:progressTint="#3B82F6"
+                android:thumbTint="#3B82F6"
+                android:progressBackgroundTint="#2A3140" />
+
+            <TextView
+                android:id="@+id/audio_duration_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0:00"
+                android:textColor="#9CA3AF"
+                android:textSize="13sp"
+                android:layout_marginEnd="6dp" />
+
+            <ImageButton
+                android:id="@+id/btn_send_raw_recording"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/ic_send"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Send recorded voice without processing"
+                android:padding="6dp"
+                android:tint="#10B981" />
+        </LinearLayout>
+
+        <com.deltavoice.ui.ShimmerView
+            android:id="@+id/voice_processing_shimmer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/voice_mode_title"
+            android:textSize="16sp"
+            android:textColor="#E5E7EB" />
+
+        <ImageButton
+            android:id="@+id/keyboard_button_close_processing"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Close"
+            android:padding="4dp" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/voice_mode_subtitle"
+        android:textSize="13sp"
+        android:textColor="#A3A3A3"
+        android:paddingBottom="12dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="3">
+
+        <LinearLayout
+            android:id="@+id/keyboard_option_full"
+            android:layout_width="0dp"
+            android:layout_height="100dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/voice_mode_card_selected"
+            android:padding="8dp"
+            android:layout_marginEnd="6dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_lightning"
+                android:tint="@color/accent" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/voice_mode_full"
+                android:textColor="#EDEFF4"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:paddingTop="4dp"
+                android:gravity="center"
+                android:lineSpacingMultiplier="1.1" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/voice_mode_full_desc"
+                android:textColor="#B8BCC7"
+                android:textSize="9sp"
+                android:gravity="center"
+                android:paddingTop="2dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/keyboard_option_voice"
+            android:layout_width="0dp"
+            android:layout_height="100dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/voice_mode_card_unselected"
+            android:padding="8dp"
+            android:layout_marginHorizontal="6dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_mic"
+                android:tint="#EDEFF4" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/voice_mode_voice_only"
+                android:textColor="#EDEFF4"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:paddingTop="4dp"
+                android:gravity="center"
+                android:lineSpacingMultiplier="1.1" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/voice_mode_voice_only_desc"
+                android:textColor="#B8BCC7"
+                android:textSize="9sp"
+                android:gravity="center"
+                android:paddingTop="2dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/keyboard_option_text"
+            android:layout_width="0dp"
+            android:layout_height="100dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/voice_mode_card_unselected"
+            android:padding="8dp"
+            android:layout_marginStart="6dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_text_t"
+                android:tint="#EDEFF4" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/voice_mode_text_only"
+                android:textColor="#EDEFF4"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:paddingTop="4dp"
+                android:gravity="center"
+                android:lineSpacingMultiplier="1.1" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/voice_mode_text_only_desc"
+                android:textColor="#B8BCC7"
+                android:textSize="9sp"
+                android:gravity="center"
+                android:paddingTop="2dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="16dp">
+
+        <LinearLayout
+            android:id="@+id/language_spinner_container"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/voice_mode_pill_background"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
+
+            <ImageView
+                android:id="@+id/language_icon"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_globe"
+                android:tint="#EDEFF4" />
+
+            <Spinner
+                android:id="@+id/keyboard_spinner_language"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:spinnerMode="dropdown"
+                android:popupBackground="#2A3140"
+                android:layout_marginStart="8dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/voice_spinner_container"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/voice_mode_pill_background"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
+
+            <ImageView
+                android:id="@+id/voice_icon"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_speaker"
+                android:tint="#EDEFF4" />
+
+            <Spinner
+                android:id="@+id/keyboard_spinner_voice"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:spinnerMode="dropdown"
+                android:popupBackground="#2A3140"
+                android:layout_marginStart="8dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/keyboard_button_action"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="16dp"
+        android:text="@string/voice_mode_action_done"
+        android:drawableStart="@drawable/ic_ai_mode"
+        android:drawablePadding="10dp"
+        android:background="@drawable/voice_mode_button_purple"
+        android:textColor="#FFFFFF"
+        android:textAllCaps="false"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:gravity="center" />
+</LinearLayout>

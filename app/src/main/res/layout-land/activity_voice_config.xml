@@ -196,7 +196,7 @@
                         android:layout_weight="1"
                         android:layout_marginStart="8dp"
                         android:spinnerMode="dropdown"
-                        android:popupBackground="#2A3140" />
+                        android:popupBackground="@color/spinner_popup_background" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -221,7 +221,7 @@
                         android:layout_weight="1"
                         android:layout_marginStart="8dp"
                         android:spinnerMode="dropdown"
-                        android:popupBackground="#2A3140" />
+                        android:popupBackground="@color/spinner_popup_background" />
                 </LinearLayout>
             </LinearLayout>
         </ScrollView>
@@ -258,13 +258,13 @@
                     <Button
                         android:id="@+id/btn_upload_voice"
                         android:layout_width="0dp"
-                        android:layout_height="48dp"
+                        android:layout_height="52dp"
                         android:layout_weight="1"
-                        android:text="  Upload"
+                        android:text="@string/add_voice"
                         android:drawableStart="@drawable/ic_upload"
                         android:drawablePadding="8dp"
-                        android:background="@drawable/voice_mode_button_purple"
-                        android:textColor="@color/text_primary"
+                        android:background="@drawable/bg_button_secondary"
+                        android:textColor="@color/on_secondary_container"
                         android:textAllCaps="false"
                         android:textSize="14sp"
                         android:textStyle="bold"
@@ -274,13 +274,13 @@
                     <Button
                         android:id="@+id/btn_record_voice"
                         android:layout_width="0dp"
-                        android:layout_height="48dp"
+                        android:layout_height="52dp"
                         android:layout_weight="1"
-                        android:text="  Record"
+                        android:text="@string/start_recording"
                         android:drawableStart="@drawable/ic_mic"
                         android:drawablePadding="8dp"
                         android:background="@drawable/voice_mode_button_purple"
-                        android:textColor="@color/text_primary"
+                        android:textColor="@color/on_primary"
                         android:textAllCaps="false"
                         android:textSize="14sp"
                         android:textStyle="bold"
@@ -337,12 +337,12 @@
                     <Button
                         android:id="@+id/btn_process_voice"
                         android:layout_width="match_parent"
-                        android:layout_height="44dp"
-                        android:text="  Process"
+                        android:layout_height="48dp"
+                        android:text="@string/process"
                         android:drawableStart="@drawable/ic_ai_mode"
                         android:drawablePadding="8dp"
                         android:background="@drawable/voice_mode_button_purple"
-                        android:textColor="@color/text_primary"
+                        android:textColor="@color/on_primary"
                         android:textAllCaps="false"
                         android:textSize="14sp"
                         android:gravity="center"
@@ -378,7 +378,7 @@
                             android:textStyle="bold"
                             android:textSize="12sp"
                             android:background="@drawable/voice_mode_button_purple"
-                            android:textColor="@color/text_primary" />
+                            android:textColor="@color/on_primary" />
 
                         <Button
                             android:id="@+id/btn_voice_view_grid"

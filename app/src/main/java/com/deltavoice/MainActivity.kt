@@ -15,6 +15,8 @@ import android.widget.CompoundButton
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.RadioGroup
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -64,6 +66,7 @@ class MainActivity : AppCompatActivity() {
         setupUI()
         setupBottomNav()
         setupFloatingBubble()
+        setupOverlayTopRowSettings()
         updateStats()
     }
     
@@ -189,6 +192,51 @@ class MainActivity : AppCompatActivity() {
         floatingBubbleSwitch.isChecked = isOverlayServiceRunning()
         floatingBubbleSwitch.setOnCheckedChangeListener(floatingBubbleSwitchListener)
         updateFloatingBubbleStatusText()
+    }
+
+    /**
+     * Top row layout (horizontal vs arc) and width scale — read by [OverlayBubbleService].
+     */
+    private fun setupOverlayTopRowSettings() {
+        val radio = findViewById<RadioGroup>(R.id.radio_overlay_top_row_style)
+        val seek = findViewById<SeekBar>(R.id.seek_overlay_top_row_width)
+        val widthLabel = findViewById<TextView>(R.id.overlay_top_row_width_label)
+
+        fun refreshWidthLabel(scale: Float) {
+            val pct = (scale * 100f).toInt().coerceIn(65, 100)
+            widthLabel.text = getString(R.string.overlay_top_row_width_label, pct)
+        }
+
+        radio.setOnCheckedChangeListener(null)
+        when (OverlayPrefs.getTopRowStyle(this)) {
+            OverlayPrefs.STYLE_ARC -> radio.check(R.id.radio_top_row_arc)
+            else -> radio.check(R.id.radio_top_row_horizontal)
+        }
+        val scale = OverlayPrefs.getTopRowWidthScale(this)
+        seek.progress = ((scale - 0.65f) / 0.35f * 100f).toInt().coerceIn(0, 100)
+        refreshWidthLabel(scale)
+
+        radio.setOnCheckedChangeListener { _, checkedId ->
+            val style = if (checkedId == R.id.radio_top_row_arc) {
+                OverlayPrefs.STYLE_ARC
+            } else {
+                OverlayPrefs.STYLE_HORIZONTAL
+            }
+            OverlayPrefs.setTopRowStyle(this, style)
+        }
+        seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                val s = 0.65f + (progress / 100f) * 0.35f
+                refreshWidthLabel(s)
+                if (fromUser) {
+                    OverlayPrefs.setTopRowWidthScale(this@MainActivity, s)
+                }
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
     }
 
     private fun updateFloatingBubbleStatusText() {

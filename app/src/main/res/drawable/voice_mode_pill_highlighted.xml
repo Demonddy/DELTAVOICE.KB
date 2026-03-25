@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Ethereal: pill dropdown — surface lowest, full radius -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#2A3140" />
-    <corners android:radius="24dp" />
+    <solid android:color="@color/surface_container_lowest" />
+    <corners android:radius="9999dp" />
     <stroke
-        android:width="2dp"
-        android:color="#7C3AED" />
+        android:width="1dp"
+        android:color="@color/outline_variant" />
 </shape>

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background_dark"
@@ -12,43 +11,49 @@
         android:orientation="vertical"
         android:padding="20dp">
 
-        <!-- Header -->
+        <!-- Top bar -->
         <ImageButton
             android:id="@+id/btn_back"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_gravity="start"
             android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Back"
+            android:contentDescription="@string/back"
             android:src="@drawable/ic_arrow_back"
-            android:tint="@color/text_primary"
-            android:layout_marginBottom="16dp" />
+            android:tint="@color/outline"
+            android:layout_marginBottom="8dp" />
 
+        <!-- Hero -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Voice"
+            android:text="@string/voice_processing_screen_title"
             android:textColor="@color/text_primary"
-            android:textSize="24sp"
-            android:textStyle="bold"
+            android:textSize="28sp"
+            android:fontFamily="@font/plus_jakarta_sans_semibold"
+            android:letterSpacing="-0.02"
             android:layout_marginBottom="4dp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Voice input &amp; cloning"
+            android:text="@string/voice_processing_screen_subtitle"
             android:textColor="@color/text_secondary"
-            android:textSize="14sp"
+            android:textSize="16sp"
+            android:fontFamily="@font/manrope_regular"
             android:layout_marginBottom="24dp" />
 
-        <!-- Workflow modes -->
+        <!-- Processing mode -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Processing mode"
+            android:text="@string/processing_mode_section"
             android:textColor="@color/text_primary"
-            android:textSize="16sp"
+            android:textSize="14sp"
             android:textStyle="bold"
+            android:fontFamily="@font/plus_jakarta_sans_semibold"
+            android:letterSpacing="0.06"
+            android:textAllCaps="true"
             android:layout_marginBottom="12dp" />
 
         <LinearLayout
@@ -60,7 +65,8 @@
             <LinearLayout
                 android:id="@+id/card_full"
                 android:layout_width="0dp"
-                android:layout_height="110dp"
+                android:layout_height="wrap_content"
+                android:minHeight="120dp"
                 android:layout_weight="1"
                 android:layout_marginEnd="6dp"
                 android:orientation="vertical"
@@ -72,16 +78,18 @@
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:src="@drawable/ic_lightning"
-                    android:contentDescription="Full conversion"
-                    android:tint="@color/voice_color" />
+                    android:contentDescription="@string/voice_mode_full"
+                    android:tint="@color/primary" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/voice_mode_full"
                     android:textColor="@color/text_primary"
-                    android:textSize="12sp"
+                    android:textSize="11sp"
                     android:textStyle="bold"
+                    android:fontFamily="@font/plus_jakarta_sans_semibold"
+                    android:gravity="center"
                     android:paddingTop="8dp" />
 
                 <TextView
@@ -90,13 +98,16 @@
                     android:text="@string/voice_mode_full_desc"
                     android:textColor="@color/text_secondary"
                     android:textSize="10sp"
+                    android:fontFamily="@font/manrope_regular"
+                    android:gravity="center"
                     android:paddingTop="4dp" />
             </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/card_voice_only"
                 android:layout_width="0dp"
-                android:layout_height="110dp"
+                android:layout_height="wrap_content"
+                android:minHeight="120dp"
                 android:layout_weight="1"
                 android:layout_marginHorizontal="6dp"
                 android:orientation="vertical"
@@ -108,16 +119,18 @@
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:src="@drawable/ic_mic"
-                    android:contentDescription="Voice only"
-                    android:tint="@color/voice_color" />
+                    android:contentDescription="@string/voice_mode_voice_only"
+                    android:tint="@color/primary" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/voice_mode_voice_only"
                     android:textColor="@color/text_primary"
-                    android:textSize="12sp"
+                    android:textSize="11sp"
                     android:textStyle="bold"
+                    android:fontFamily="@font/plus_jakarta_sans_semibold"
+                    android:gravity="center"
                     android:paddingTop="8dp" />
 
                 <TextView
@@ -126,13 +139,16 @@
                     android:text="@string/voice_mode_voice_only_desc"
                     android:textColor="@color/text_secondary"
                     android:textSize="10sp"
+                    android:fontFamily="@font/manrope_regular"
+                    android:gravity="center"
                     android:paddingTop="4dp" />
             </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/card_text_only"
                 android:layout_width="0dp"
-                android:layout_height="110dp"
+                android:layout_height="wrap_content"
+                android:minHeight="120dp"
                 android:layout_weight="1"
                 android:layout_marginStart="6dp"
                 android:orientation="vertical"
@@ -144,16 +160,18 @@
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:src="@drawable/ic_text_t"
-                    android:contentDescription="Text only"
-                    android:tint="@color/voice_color" />
+                    android:contentDescription="@string/voice_mode_text_only"
+                    android:tint="@color/primary" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/voice_mode_text_only"
                     android:textColor="@color/text_primary"
-                    android:textSize="12sp"
+                    android:textSize="11sp"
                     android:textStyle="bold"
+                    android:fontFamily="@font/plus_jakarta_sans_semibold"
+                    android:gravity="center"
                     android:paddingTop="8dp" />
 
                 <TextView
@@ -162,80 +180,105 @@
                     android:text="@string/voice_mode_text_only_desc"
                     android:textColor="@color/text_secondary"
                     android:textSize="10sp"
+                    android:fontFamily="@font/manrope_regular"
+                    android:gravity="center"
                     android:paddingTop="4dp" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Language & Voice -->
+        <!-- Config surface card -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
+            android:orientation="vertical"
+            android:background="@color/surface_container"
+            android:padding="20dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/label_target_language"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.08"
+                android:textAllCaps="true"
+                android:layout_marginBottom="8dp" />
 
             <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:layout_marginEnd="8dp"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:background="@drawable/voice_mode_pill_highlighted"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp">
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:layout_marginBottom="16dp">
 
                 <ImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:src="@drawable/ic_globe"
-                    android:tint="@color/voice_color" />
+                    android:tint="@color/outline" />
 
                 <Spinner
                     android:id="@+id/spinner_language"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginStart="10dp"
                     android:spinnerMode="dropdown"
-                    android:popupBackground="#2A3140" />
+                    android:popupBackground="@color/spinner_popup_background" />
             </LinearLayout>
 
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/label_voice_persona"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.08"
+                android:textAllCaps="true"
+                android:layout_marginBottom="8dp" />
+
             <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:background="@drawable/voice_mode_pill_highlighted"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp">
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp">
 
                 <ImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:src="@drawable/ic_speaker"
-                    android:tint="@color/voice_color" />
+                    android:tint="@color/outline" />
 
                 <Spinner
                     android:id="@+id/spinner_voice"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginStart="10dp"
                     android:spinnerMode="dropdown"
-                    android:popupBackground="#2A3140" />
+                    android:popupBackground="@color/spinner_popup_background" />
             </LinearLayout>
         </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Record and process voice on this page."
+            android:text="@string/voice_hint_record_page"
             android:textColor="@color/text_tertiary"
             android:textSize="12sp"
+            android:fontFamily="@font/manrope_regular"
             android:layout_marginBottom="16dp" />
 
-        <!-- Upload and Record buttons -->
+        <!-- Primary actions: secondary upload + primary record -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -245,37 +288,39 @@
             <Button
                 android:id="@+id/btn_upload_voice"
                 android:layout_width="0dp"
-                android:layout_height="52dp"
+                android:layout_height="56dp"
                 android:layout_weight="1"
-                android:text="  Upload"
+                android:text="@string/add_voice"
                 android:drawableStart="@drawable/ic_upload"
                 android:drawablePadding="10dp"
-                android:background="@drawable/voice_mode_button_purple"
-                android:textColor="@color/text_primary"
+                android:background="@drawable/bg_button_secondary"
+                android:textColor="@color/on_secondary_container"
                 android:textAllCaps="false"
                 android:textSize="15sp"
                 android:textStyle="bold"
+                android:fontFamily="@font/plus_jakarta_sans_semibold"
                 android:gravity="center"
                 android:layout_marginEnd="6dp" />
 
             <Button
                 android:id="@+id/btn_record_voice"
                 android:layout_width="0dp"
-                android:layout_height="52dp"
+                android:layout_height="56dp"
                 android:layout_weight="1"
-                android:text="  Record"
+                android:text="@string/start_recording"
                 android:drawableStart="@drawable/ic_mic"
                 android:drawablePadding="10dp"
                 android:background="@drawable/voice_mode_button_purple"
-                android:textColor="@color/text_primary"
+                android:textColor="@color/on_primary"
                 android:textAllCaps="false"
                 android:textSize="15sp"
                 android:textStyle="bold"
+                android:fontFamily="@font/plus_jakarta_sans_semibold"
                 android:gravity="center"
                 android:layout_marginStart="6dp" />
         </LinearLayout>
 
-        <!-- Recording / Processing section (visible after recording) -->
+        <!-- Recording / Processing -->
         <LinearLayout
             android:id="@+id/voice_recording_section"
             android:layout_width="match_parent"
@@ -300,7 +345,7 @@
                     android:src="@drawable/ic_play"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
                     android:contentDescription="Play"
-                    android:tint="@color/voice_color" />
+                    android:tint="@color/primary" />
 
                 <TextView
                     android:id="@+id/recording_status"
@@ -324,14 +369,16 @@
             <Button
                 android:id="@+id/btn_process_voice"
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:text="  Process"
+                android:layout_height="56dp"
+                android:text="@string/process"
                 android:drawableStart="@drawable/ic_ai_mode"
                 android:drawablePadding="8dp"
                 android:background="@drawable/voice_mode_button_purple"
-                android:textColor="@color/text_primary"
+                android:textColor="@color/on_primary"
                 android:textAllCaps="false"
-                android:textSize="14sp"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:fontFamily="@font/plus_jakarta_sans_semibold"
                 android:gravity="center"
                 android:layout_marginBottom="12dp" />
 
@@ -365,7 +412,7 @@
                     android:textStyle="bold"
                     android:textSize="12sp"
                     android:background="@drawable/voice_mode_button_purple"
-                    android:textColor="@color/text_primary" />
+                    android:textColor="@color/on_primary" />
 
                 <Button
                     android:id="@+id/btn_voice_view_grid"
@@ -387,6 +434,50 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- Smart tip -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="@drawable/bg_smart_tip_tertiary"
+            android:padding="16dp"
+            android:gravity="top">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_lightning"
+                android:tint="@color/tertiary_container"
+                android:layout_marginEnd="12dp"
+                android:contentDescription="@null" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/smart_tip_title"
+                    android:textColor="@color/on_tertiary_fixed"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:fontFamily="@font/plus_jakarta_sans_semibold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/smart_tip_voice_body"
+                    android:textColor="@color/on_tertiary_fixed_variant"
+                    android:textSize="13sp"
+                    android:fontFamily="@font/manrope_regular"
+                    android:layout_marginTop="4dp"
+                    android:lineSpacingMultiplier="1.15" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

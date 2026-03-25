@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="#7C3AED" />
-    <corners android:radius="10dp" />
-</shape>
-
+<!-- Ethereal primary CTA — alias for gradient pill (legacy name kept for Kotlin) -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/ripple_primary">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="135"
+                android:startColor="@color/primary"
+                android:endColor="@color/primary_container" />
+            <corners android:radius="9999dp" />
+        </shape>
+    </item>
+</ripple>

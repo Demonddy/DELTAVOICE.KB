@@ -13,6 +13,8 @@
     <color name="primary_dark">#5A00C6</color>
     <color name="primary_light">#8A4CFC</color>
     <color name="primary_container">#8A4CFC</color>
+    <color name="primary_fixed">#EADDFF</color>
+    <color name="on_primary">#FFFFFF</color>
     <color name="accent">#8A4CFC</color>
     <color name="surface_tint">#732EE4</color>
     <color name="ripple_primary">#33712AE2</color>
@@ -28,6 +30,7 @@
     <color name="tertiary_fixed">#FFDCBB</color>
     <color name="tertiary_fixed_dim">#FFB869</color>
     <color name="on_tertiary_fixed">#2C1700</color>
+    <color name="on_tertiary_fixed_variant">#673D00</color>
 
     <!-- Surface scale (light mode) -->
     <color name="background_dark">#FEF7FF</color>
@@ -71,4 +74,7 @@
     <color name="premium_gradient_end">#EAB308</color>
     <color name="premium_banner_text_primary">@color/on_tertiary_fixed</color>
     <color name="premium_banner_text_secondary">#4A3820</color>
+
+    <!-- Spinner dropdown (theme-aware) -->
+    <color name="spinner_popup_background">#FFFFFF</color>
 </resources>

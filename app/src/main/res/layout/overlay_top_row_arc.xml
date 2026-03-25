@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Same button IDs as overlay_top_row — positions set in code (edge scatter arc). -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/arc_top_row_root"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <View
+        android:id="@+id/arc_band_glass_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_arc_band_glass"
+        android:clickable="false"
+        android:focusable="false"
+        android:importantForAccessibility="no" />
+
+    <ImageButton
+        android:id="@+id/btn_more"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/ic_more_vert"
+        android:background="@drawable/ai_circle_button"
+        android:tint="#FFFFFF"
+        android:contentDescription="More options"
+        android:padding="10dp" />
+
+    <ImageButton
+        android:id="@+id/btn_camera"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/ic_camera"
+        android:background="@drawable/ai_circle_button"
+        android:tint="#FFFFFF"
+        android:contentDescription="Video Recording"
+        android:padding="10dp" />
+
+    <ImageButton
+        android:id="@+id/btn_list"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/ic_home"
+        android:background="@drawable/ai_circle_button"
+        android:tint="#FFFFFF"
+        android:contentDescription="Home"
+        android:padding="10dp" />
+
+    <ImageButton
+        android:id="@+id/btn_text_t"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/ic_ai_chat"
+        android:background="@drawable/ai_circle_button"
+        android:tint="#FFFFFF"
+        android:contentDescription="AI Chat"
+        android:padding="10dp" />
+
+    <ImageButton
+        android:id="@+id/btn_kb_plus"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/ic_kb_plus"
+        android:background="@drawable/ai_circle_button"
+        android:tint="#FFFFFF"
+        android:contentDescription="AI Writing Tools"
+        android:padding="10dp" />
+
+    <ImageButton
+        android:id="@+id/btn_voice"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/ic_mic"
+        android:background="@drawable/ai_circle_button"
+        android:tint="#FFFFFF"
+        android:contentDescription="Voice input"
+        android:padding="10dp" />
+
+    <ImageButton
+        android:id="@+id/btn_app_grid"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/ic_clipboard"
+        android:background="@drawable/ai_circle_button"
+        android:tint="#FFFFFF"
+        android:contentDescription="Clipboard"
+        android:padding="10dp" />
+</FrameLayout>

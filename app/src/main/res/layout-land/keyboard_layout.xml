@@ -25,6 +25,7 @@
             android:id="@+id/ai_features_row"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:padding="2dp">
@@ -155,55 +156,56 @@
                     android:padding="6dp" />
             </FrameLayout>
         </LinearLayout>
-    </FrameLayout>
 
-    <!-- Predictive text suggestions -->
-    <LinearLayout
-        android:id="@+id/predictions_container"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:visibility="gone"
-        android:padding="2dp"
-        android:minHeight="36dp">
-
-        <HorizontalScrollView
-            android:layout_width="0dp"
+        <!-- Predictive text suggestions -->
+        <LinearLayout
+            android:id="@+id/predictions_container"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:scrollbars="none"
-            android:fillViewport="true">
+            android:layout_gravity="center_vertical"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:visibility="gone"
+            android:padding="2dp"
+            android:minHeight="36dp">
 
-            <LinearLayout
-                android:id="@+id/predictions_row"
-                android:layout_width="wrap_content"
+            <HorizontalScrollView
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical" />
-        </HorizontalScrollView>
+                android:layout_weight="1"
+                android:scrollbars="none"
+                android:fillViewport="true">
 
-        <ImageButton
-            android:id="@+id/predictions_voice_btn"
-            android:layout_width="34dp"
-            android:layout_height="34dp"
-            android:src="@drawable/ic_mic"
-            android:background="@drawable/ai_circle_button"
-            android:contentDescription="Voice input"
-            android:layout_marginStart="3dp"
-            android:padding="7dp" />
+                <LinearLayout
+                    android:id="@+id/predictions_row"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical" />
+            </HorizontalScrollView>
 
-        <ImageButton
-            android:id="@+id/predictions_return_btn"
-            android:layout_width="34dp"
-            android:layout_height="34dp"
-            android:src="@drawable/ic_arrow_back"
-            android:background="@drawable/ai_circle_button"
-            android:tint="#FFFFFF"
-            android:contentDescription="Return to icons"
-            android:layout_marginStart="3dp"
-            android:padding="7dp" />
-    </LinearLayout>
+            <ImageButton
+                android:id="@+id/predictions_voice_btn"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:src="@drawable/ic_mic"
+                android:background="@drawable/ai_circle_button"
+                android:contentDescription="Voice input"
+                android:layout_marginStart="3dp"
+                android:padding="7dp" />
+
+            <ImageButton
+                android:id="@+id/predictions_return_btn"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:src="@drawable/ic_arrow_back"
+                android:background="@drawable/ai_circle_button"
+                android:tint="#FFFFFF"
+                android:contentDescription="Return to icons"
+                android:layout_marginStart="3dp"
+                android:padding="7dp" />
+        </LinearLayout>
+    </FrameLayout>
 
     <!-- AI Features Container (Language Selector) -->
     <LinearLayout

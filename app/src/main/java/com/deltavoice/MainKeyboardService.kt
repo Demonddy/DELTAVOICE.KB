@@ -24,6 +24,7 @@ import android.view.animation.LinearInterpolator
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
+import android.graphics.drawable.Drawable
 import android.graphics.Color
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
@@ -254,6 +255,41 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             "&" to listOf("§"),
             "%" to listOf("‰")
         )
+
+        /**
+         * Gboard-style Arabic long-press alternates (key label / commit value → variants).
+         * Covers alif/hamza forms, lam-alef, waw/yeh/heh, common letter pairs.
+         */
+        private val ARABIC_LONG_PRESS_MAP: Map<String, List<String>> = mapOf(
+            "ا" to listOf("أ", "إ", "آ"),
+            "أ" to listOf("إ", "آ", "ا"),
+            "إ" to listOf("أ", "آ", "ا"),
+            "آ" to listOf("أ", "إ", "ا"),
+            "ل" to listOf("لا"),
+            "و" to listOf("ؤ"),
+            "ي" to listOf("ئ", "ى"),
+            "ى" to listOf("ي"),
+            "ه" to listOf("ة"),
+            "ة" to listOf("ه"),
+            "ء" to listOf("أ", "إ", "ؤ", "ئ"),
+            "ؤ" to listOf("و"),
+            "ئ" to listOf("ي"),
+            "د" to listOf("ذ"),
+            "ذ" to listOf("د"),
+            "ط" to listOf("ظ"),
+            "ظ" to listOf("ط"),
+            "س" to listOf("ش"),
+            "ش" to listOf("س"),
+            "ص" to listOf("ض"),
+            "ض" to listOf("ص"),
+            "ث" to listOf("ت"),
+            "ت" to listOf("ث"),
+            "ج" to listOf("ح"),
+            "ح" to listOf("خ", "ج"),
+            "خ" to listOf("ح"),
+            "ع" to listOf("غ"),
+            "غ" to listOf("ع")
+        )
     }
 
     /** True when this instance exists only to host overlay features (system IME not bound). */
@@ -265,6 +301,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private var accentPopupChars: List<String> = emptyList()
     private var accentPopupViews: List<TextView> = emptyList()
     private var accentPopupAnchor: View? = null
+    private var accentPopupAnchorOriginalBackground: Drawable? = null
     private var longPressHandler = Handler(Looper.getMainLooper())
     private var longPressRunnable: Runnable? = null
     private var isLongPressActive = false
@@ -710,10 +747,25 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     /**
      * Schedule multiple requestShowSelf calls so keyboard reliably appears after upload activity
      * finishes. Activity finishes at 750ms; we call before and after to catch the transition.
+     *
+     * Also posts a delayed runnable (~900ms) so pending voice/video upload UI is applied when
+     * [onStartInputView] does not run again after the picker (same editor session).
      */
     private fun scheduleKeyboardShowAfterUpload() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
         val handler = Handler(Looper.getMainLooper())
+        handler.postDelayed({
+            if (pendingShowVoiceFromUpload && !recordingFilePath.isNullOrBlank()) {
+                pendingShowVoiceFromUpload = false
+                showVoiceProcessingUI()
+                Toast.makeText(this, getString(R.string.ready_for_processing), Toast.LENGTH_SHORT).show()
+            }
+            if (pendingShowVideoFromUpload && !videoFilePath.isNullOrBlank()) {
+                pendingShowVideoFromUpload = false
+                showVideoPreview()
+                Toast.makeText(this, getString(R.string.ready_for_processing), Toast.LENGTH_SHORT).show()
+            }
+        }, 900)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
         val delays = longArrayOf(150, 400, 700, 1000, 1300)
         for (delay in delays) {
             handler.postDelayed({
@@ -1314,6 +1366,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         
         // Ensure processing UI is exclusive and no other panel can overlap it.
         hideAllOverlays()
+        voiceRecordingContainer.visibility = View.GONE
         hideTopBarsForOverlay()
         keyboardContainer.visibility = View.GONE
         voiceProcessingStep2Container.visibility = View.VISIBLE
@@ -4336,8 +4389,6 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
         isClipboardVisible = true
         lastRenderedSuggestions = emptyList()
-        val topBar = (aiRow.parent as? View)
-        topBar?.visibility = View.GONE
         aiRow.visibility = View.GONE
         predictionsContainer.visibility = View.VISIBLE
         predictionsRow.removeAllViews()
@@ -5442,26 +5493,28 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     /**
      * Show video recording UI
      */
-    private fun showVideoRecording() {
+    /** @return false if the recording UI could not be shown (e.g. no camera permission). */
+    private fun showVideoRecording(): Boolean {
         // Check camera permission
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             Toast.makeText(this, "Camera permission required", Toast.LENGTH_SHORT).show()
-            return
+            return false
         }
-        
+
         // Hide other components
         hideAllOverlays()
-        
+
         // Show video recording container
         videoRecordingContainer?.visibility = View.VISIBLE
         keyboardContainer.visibility = View.GONE
         isVideoRecordingVisible = true
-        
+
         // Start camera preview
         startBackgroundThread()
         if (cameraPreview?.isAvailable == true) {
             openCamera()
         }
+        return true
     }
     
     /**
@@ -6476,8 +6529,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         rootView?.let { v ->
             val topBar = v.findViewById<View>(R.id.top_bar_container)
             val predictionsContainer = v.findViewById<View>(R.id.predictions_container)
+            val aiRow = v.findViewById<View>(R.id.ai_features_row)
             topBar?.visibility = View.VISIBLE
             predictionsContainer?.visibility = View.GONE
+            aiRow?.visibility = View.VISIBLE
         }
 
         emojiPickerContainer?.visibility = View.GONE
@@ -6782,6 +6837,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         accentPopupAnchor = anchor
         isLongPressActive = true
 
+        accentPopupAnchorOriginalBackground = anchor.background?.constantState?.newDrawable()?.mutate()
+        anchor.background = ContextCompat.getDrawable(this, R.drawable.accent_key_longpress_background)
+
         val density = resources.displayMetrics.density
         val cellW = (44 * density).toInt()
         val cellH = (48 * density).toInt()
@@ -6920,6 +6978,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
 
     private fun dismissAccentPopup() {
+        accentPopupAnchor?.let { anchor ->
+            accentPopupAnchorOriginalBackground?.let { anchor.background = it }
+            accentPopupAnchorOriginalBackground = null
+        }
         accentPopup?.dismiss()
         accentPopup = null
         accentPopupChars = emptyList()
@@ -6931,8 +6993,15 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         longPressRunnable = null
     }
 
-    /** Returns lowercase + uppercase variants for letters; symbol variants for numbers/symbols. */
+    /** Latin/symbol variants from [ACCENT_MAP]; Arabic from [ARABIC_LONG_PRESS_MAP] (Gboard-style). */
     private fun getAccentsForKey(value: String): List<String> {
+        if (value.isEmpty()) return emptyList()
+        if (value.length == 1) {
+            val cp = value.codePointAt(0)
+            if (isArabicCodePoint(cp)) {
+                return ARABIC_LONG_PRESS_MAP[value] ?: emptyList()
+            }
+        }
         val key = if (value.length == 1) value.lowercase() else value
         return ACCENT_MAP[key] ?: emptyList()
     }
@@ -7369,7 +7438,6 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     private fun showPredictionsHideIcons(aiRow: View, predictionsContainer: View, predictionsRow: LinearLayout, suggestions: List<String>, autoCorrect: String? = null) {
-        val topBar = (aiRow.parent as? View)
         if (suggestions == lastRenderedSuggestions &&
             aiRow.visibility == View.GONE &&
             predictionsContainer.visibility == View.VISIBLE) {
@@ -7377,7 +7445,6 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
 
         lastRenderedSuggestions = suggestions.toList()
-        topBar?.visibility = View.GONE
         aiRow.visibility = View.GONE
         predictionsContainer.visibility = View.VISIBLE
         predictionsRow.removeAllViews()
@@ -7412,12 +7479,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     private fun showIconsHidePredictions(aiRow: View, predictionsContainer: View) {
-        val topBar = (aiRow.parent as? View)
         if (aiRow.visibility == View.VISIBLE && predictionsContainer.visibility == View.GONE) return
         lastRenderedSuggestions = emptyList()
         pendingAutoCorrect = null
         isClipboardVisible = false
-        topBar?.visibility = View.VISIBLE
         aiRow.visibility = View.VISIBLE
         predictionsContainer.visibility = View.GONE
     }
@@ -9027,8 +9092,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     fun attachVideoRecordingFromOverlay(panel: android.view.View, onDismiss: () -> Unit): Boolean {
         if (!ensureKeyboardLayoutInflated()) return false
         setupVideoRecording(panel)
-        showVideoRecording()
-        return true
+        return showVideoRecording()
     }
 
     fun dismissVideoOverlayFromBubble() {

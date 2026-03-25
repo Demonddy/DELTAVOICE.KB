@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ethereal: Smart tip / AI suggestion (tertiary-fixed) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/tertiary_fixed" />
+    <corners android:radius="@dimen/card_corner_radius" />
+</shape>
