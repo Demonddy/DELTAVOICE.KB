@@ -40,12 +40,13 @@ object PredictiveWordList {
 
     fun getSupportedLanguages(): Set<String> = dictionaries.keys
 
-    // ======================== ENGLISH (5000 common words, assets) ========================
+    // ======================== ENGLISH (~10k common words, assets) ========================
     private var englishWordsCache: Map<String, Int>? = null
 
     /**
      * Must be called from [Application.onCreate] before prediction dictionaries load.
-     * Loads frequency-ranked word lists from assets (one word per line, no duplicates).
+     * Loads frequency-ranked word lists from assets (one word per line, no duplicates):
+     * predictive_en, fr, ar, sw, hi, es, pt.
      * Frequencies: 10000 for the first line down to 1 for the last (per language file).
      */
     fun initializePredictiveWordAssets(context: Context) {
@@ -56,6 +57,8 @@ object PredictiveWordList {
             arabicWordsCache = loadPredictiveWordsFromAsset(context, "predictive_ar.txt", ::normalizeArabicWord)
             swahiliWordsCache = loadPredictiveWordsFromAsset(context, "predictive_sw.txt", ::normalizeSwahiliWord)
             hindiWordsCache = loadPredictiveWordsFromAsset(context, "predictive_hi.txt", ::normalizeHindiWord)
+            spanishWordsCache = loadPredictiveWordsFromAsset(context, "predictive_es.txt", ::normalizeSpanishWord)
+            portugueseWordsCache = loadPredictiveWordsFromAsset(context, "predictive_pt.txt", ::normalizePortugueseWord)
         }
     }
 
@@ -77,6 +80,12 @@ object PredictiveWordList {
         if (t.isEmpty()) return t
         return Normalizer.normalize(t, Normalizer.Form.NFC)
     }
+
+    private fun normalizeSpanishWord(s: String): String =
+        s.trim().lowercase(Locale.forLanguageTag("es"))
+
+    private fun normalizePortugueseWord(s: String): String =
+        s.trim().lowercase(Locale.forLanguageTag("pt"))
 
     private fun loadPredictiveWordsFromAsset(
         context: Context,
@@ -122,6 +131,14 @@ object PredictiveWordList {
         "और" to 10000, "है" to 9800, "की" to 9600, "में" to 9400, "यह" to 9200
     )
 
+    private fun embeddedSpanishFallback(): Map<String, Int> = mapOf(
+        "de" to 10000, "la" to 9800, "que" to 9600, "el" to 9500, "en" to 9400
+    )
+
+    private fun embeddedPortugueseFallback(): Map<String, Int> = mapOf(
+        "de" to 10000, "a" to 9800, "o" to 9600, "que" to 9400, "e" to 9200
+    )
+
     private val englishWords: Map<String, Int>
         get() = englishWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedEnglishFallback()
 
@@ -129,6 +146,8 @@ object PredictiveWordList {
     private var arabicWordsCache: Map<String, Int>? = null
     private var swahiliWordsCache: Map<String, Int>? = null
     private var hindiWordsCache: Map<String, Int>? = null
+    private var spanishWordsCache: Map<String, Int>? = null
+    private var portugueseWordsCache: Map<String, Int>? = null
 
     private val frenchWords: Map<String, Int>
         get() = frenchWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedFrenchFallback()
@@ -142,67 +161,11 @@ object PredictiveWordList {
     private val hindiWords: Map<String, Int>
         get() = hindiWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedHindiFallback()
 
-    // ======================== SPANISH (2000+ words) ========================
-    private val spanishWords: Map<String, Int> by lazy { mapOf(
-        "de" to 10000, "la" to 9800, "que" to 9600, "el" to 9500, "en" to 9400,
-        "y" to 9300, "a" to 9200, "los" to 9000, "se" to 8800, "del" to 8600,
-        "las" to 8500, "un" to 8400, "por" to 8300, "con" to 8200, "no" to 8100,
-        "una" to 8000, "su" to 7900, "para" to 7800, "es" to 7700, "al" to 7600,
-        "lo" to 7500, "como" to 7400, "más" to 7300, "pero" to 7200, "sus" to 7100,
-        "le" to 7000, "ya" to 6900, "o" to 6800, "este" to 6700, "si" to 6600,
-        "porque" to 6500, "esta" to 6400, "entre" to 6300, "cuando" to 6200, "muy" to 6100,
-        "sin" to 6000, "sobre" to 5900, "también" to 5800, "me" to 5700, "hasta" to 5600,
-        "hay" to 5500, "donde" to 5400, "quien" to 5300, "desde" to 5200, "todo" to 5100,
-        "nos" to 5000, "durante" to 4900, "todos" to 4800, "uno" to 4700, "les" to 4600,
-        "ni" to 4500, "contra" to 4400, "otros" to 4300, "ese" to 4200, "eso" to 4100,
-        "ante" to 4000, "ellos" to 3900, "e" to 3800, "esto" to 3700, "mi" to 3600,
-        "antes" to 3500, "algunos" to 3400, "qué" to 3300, "unos" to 3200, "yo" to 3100,
-        "otro" to 3000, "otras" to 2900, "otra" to 2800, "él" to 2700, "tanto" to 2600,
-        "esa" to 2500, "estos" to 2400, "mucho" to 2300, "quienes" to 2200, "nada" to 2100,
-        "muchos" to 2000, "cual" to 1900, "poco" to 1800, "ella" to 1700, "estar" to 1600,
-        "estas" to 1500, "algunas" to 1400, "algo" to 1300, "nosotros" to 1200,
-        // Common verbs
-        "ser" to 8000, "haber" to 7500, "tener" to 7000, "hacer" to 6500, "poder" to 6000,
-        "decir" to 5500, "ir" to 5000, "ver" to 4500, "dar" to 4000, "saber" to 3800,
-        "querer" to 3600, "llegar" to 3400, "pasar" to 3200, "deber" to 3000, "poner" to 2800,
-        "parecer" to 2600, "quedar" to 2400, "creer" to 2200, "hablar" to 2000, "llevar" to 1800,
-        "dejar" to 1600, "seguir" to 1400, "encontrar" to 1200, "llamar" to 1100, "venir" to 1000,
-        "pensar" to 950, "salir" to 900, "volver" to 850, "tomar" to 800, "conocer" to 750,
-        "vivir" to 700, "sentir" to 650, "tratar" to 600, "mirar" to 550, "contar" to 500,
-        "empezar" to 480, "esperar" to 460, "buscar" to 440, "existir" to 420, "entrar" to 400,
-        "trabajar" to 380, "escribir" to 360, "perder" to 340, "producir" to 320, "ocurrir" to 300,
-        "entender" to 280, "pedir" to 260, "recibir" to 240, "recordar" to 220, "terminar" to 200,
-        "permitir" to 180, "aparecer" to 160, "conseguir" to 150, "comenzar" to 140,
-        "servir" to 130, "sacar" to 120, "necesitar" to 110, "mantener" to 100,
-        "resultar" to 95, "leer" to 90, "caer" to 85, "cambiar" to 80, "presentar" to 75,
-        "crear" to 70, "abrir" to 65, "considerar" to 60, "oír" to 55, "acabar" to 50,
-        "comprar" to 600, "vender" to 500, "pagar" to 480, "comer" to 700, "beber" to 500,
-        "dormir" to 600, "correr" to 400, "jugar" to 500, "cantar" to 350, "bailar" to 300,
-        // Common nouns
-        "tiempo" to 3000, "vida" to 2800, "casa" to 2600, "mundo" to 2400, "día" to 2200,
-        "hombre" to 2000, "parte" to 1800, "mujer" to 1600, "lugar" to 1400, "trabajo" to 1200,
-        "cosa" to 1100, "país" to 1000, "momento" to 950, "gobierno" to 900, "nombre" to 850,
-        "forma" to 800, "pueblo" to 750, "problema" to 700, "familia" to 650, "punto" to 600,
-        "estado" to 580, "ciudad" to 560, "agua" to 540, "historia" to 520, "grupo" to 500,
-        "manera" to 480, "caso" to 460, "cuerpo" to 440, "iglesia" to 420, "verdad" to 400,
-        "guerra" to 380, "tierra" to 360, "ejemplo" to 340, "dinero" to 320, "fuerza" to 300,
-        "niño" to 280, "muerte" to 260, "padre" to 240, "madre" to 220, "razón" to 200,
-        "hijo" to 190, "amigo" to 180, "puerta" to 170, "calle" to 160, "noche" to 150,
-        "mano" to 140, "ojo" to 130, "palabra" to 120, "comida" to 110, "escuela" to 100,
-        "amor" to 1500, "corazón" to 800, "cabeza" to 500, "cuerpo" to 450,
-        // Common adjectives
-        "gran" to 2500, "bueno" to 2200, "nuevo" to 2000, "primero" to 1800, "último" to 1600,
-        "largo" to 1400, "grande" to 1200, "mejor" to 1100, "mismo" to 1000, "pequeño" to 900,
-        "solo" to 800, "importante" to 700, "viejo" to 600, "malo" to 500, "joven" to 450,
-        "bonito" to 400, "feo" to 300, "feliz" to 350, "triste" to 280, "rico" to 260,
-        "pobre" to 240, "fuerte" to 220, "difícil" to 200, "fácil" to 190,
-        // Greetings and common phrases
-        "hola" to 5000, "gracias" to 4500, "buenas" to 3500, "buenos" to 3500,
-        "días" to 3000, "noches" to 2500, "tardes" to 2200, "adiós" to 3000,
-        "perdón" to 2000, "disculpa" to 1500, "claro" to 1800, "vale" to 1600,
-        "bien" to 4000, "mal" to 2500, "sí" to 5000, "aquí" to 2500, "allí" to 2000,
-        "ahora" to 3500, "después" to 2800, "siempre" to 2500, "nunca" to 2200
-    )}
+    private val spanishWords: Map<String, Int>
+        get() = spanishWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedSpanishFallback()
+
+    private val portugueseWords: Map<String, Int>
+        get() = portugueseWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedPortugueseFallback()
 
     // ======================== GERMAN (2000+ words) ========================
     private val germanWords: Map<String, Int> by lazy { mapOf(
@@ -272,37 +235,6 @@ object PredictiveWordList {
         "sempre" to 2200, "mai" to 2000, "anche" to 2500, "già" to 2000,
         "qui" to 2000, "dove" to 1800, "quando" to 1600, "perché" to 1400,
         "oggi" to 2500, "domani" to 2200, "ieri" to 2000
-    )}
-
-    // ======================== PORTUGUESE (1500+ words) ========================
-    private val portugueseWords: Map<String, Int> by lazy { mapOf(
-        "de" to 10000, "a" to 9800, "o" to 9600, "que" to 9400, "e" to 9200,
-        "do" to 9000, "da" to 8800, "em" to 8600, "um" to 8400, "para" to 8200,
-        "é" to 8000, "com" to 7800, "não" to 7600, "uma" to 7400, "os" to 7200,
-        "no" to 7000, "se" to 6800, "na" to 6600, "por" to 6400, "mais" to 6200,
-        "as" to 6000, "dos" to 5800, "como" to 5600, "mas" to 5400, "foi" to 5200,
-        "ao" to 5000, "ele" to 4800, "ela" to 4600, "ou" to 4400, "ser" to 4200,
-        "quando" to 4000, "muito" to 3800, "há" to 3600, "nos" to 3400, "já" to 3200,
-        "está" to 3000, "eu" to 2800, "também" to 2600, "só" to 2400, "pelo" to 2200,
-        "pela" to 2000, "até" to 1800, "isso" to 1600, "entre" to 1400, "depois" to 1200,
-        "ter" to 7000, "fazer" to 6500, "poder" to 6000, "dizer" to 5500, "ir" to 5000,
-        "ver" to 4500, "vir" to 4000, "dar" to 3800, "saber" to 3600, "querer" to 3400,
-        "falar" to 3200, "ficar" to 3000, "encontrar" to 2800, "conhecer" to 2600,
-        "trabalhar" to 2400, "comer" to 2200, "beber" to 2000, "dormir" to 1800,
-        "comprar" to 1600, "vender" to 1400, "pagar" to 1200, "ler" to 1000,
-        "escrever" to 900, "jogar" to 850, "correr" to 800,
-        "tempo" to 2500, "vida" to 2300, "mundo" to 2100, "casa" to 2000, "dia" to 1900,
-        "homem" to 1800, "mulher" to 1700, "país" to 1600, "família" to 1500, "trabalho" to 1400,
-        "amigo" to 1300, "água" to 1200, "comida" to 1100, "dinheiro" to 1000, "amor" to 950,
-        "coração" to 900, "escola" to 850, "cidade" to 800, "rua" to 750,
-        "grande" to 2000, "pequeno" to 1800, "bom" to 1600, "novo" to 1400, "velho" to 1200,
-        "bonito" to 1000, "feio" to 700, "longo" to 600, "forte" to 550,
-        "olá" to 5000, "obrigado" to 4500, "obrigada" to 4200, "por favor" to 3500,
-        "sim" to 5500, "tchau" to 3500, "adeus" to 3000, "desculpa" to 2500,
-        "oi" to 4800, "bom dia" to 3800, "boa tarde" to 3200, "boa noite" to 3000,
-        "tudo" to 3000, "nada" to 2000, "bem" to 3500, "mal" to 1500,
-        "sempre" to 2200, "nunca" to 2000, "aqui" to 2500, "ali" to 2000,
-        "hoje" to 2500, "amanhã" to 2200, "ontem" to 2000, "agora" to 2500
     )}
 
     // ======================== RUSSIAN (1500+ words) ========================

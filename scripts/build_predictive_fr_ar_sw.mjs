@@ -1,10 +1,11 @@
 /**
- * Builds predictive_fr.txt, predictive_ar.txt, predictive_sw.txt (5000 unique lines each).
+ * Builds predictive_fr.txt, predictive_ar.txt, predictive_sw.txt (~10k unique lines each).
  * Sources:
  *   tmp_fr.txt, tmp_ar.txt — HermitDave frequency format ("word count")
  *   tmp_sw_dic.txt — LibreOffice sw_TZ.dic (hunspell)
  *   Swahili: merged tokens from worddata/sw.txt + word_data [sw], then hunspell to fill.
  */
+const TARGET_COUNT = 10_000;
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -25,7 +26,7 @@ function isArabicWord(w) {
   return hasArabicLetter(t);
 }
 
-function write5000(name, words) {
+function writePredictive(name, words) {
   const outPath = path.join(outDir, name);
   const seen = new Set();
   const out = [];
@@ -34,7 +35,7 @@ function write5000(name, words) {
     if (!t || seen.has(t)) continue;
     seen.add(t);
     out.push(t);
-    if (out.length >= 5000) break;
+    if (out.length >= TARGET_COUNT) break;
   }
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(outPath, out.join("\n") + "\n", "utf8");
@@ -96,11 +97,11 @@ function isSwahiliToken(w) {
 
 // French
 const frWords = loadFreqFile(path.join(root, "tmp_fr.txt"));
-write5000("predictive_fr.txt", frWords);
+writePredictive("predictive_fr.txt", frWords);
 
 // Arabic: drop punctuation-only lines
 const arRaw = loadFreqFile(path.join(root, "tmp_ar.txt"));
-write5000("predictive_ar.txt", arRaw.filter(isArabicWord));
+writePredictive("predictive_ar.txt", arRaw.filter(isArabicWord));
 
 // Swahili: curated first (frequency-ish), then hunspell Latin tokens
 const swSeed = loadSwahiliSeed(root);
@@ -109,4 +110,4 @@ const swCombined = [
   ...swSeed,
   ...swHun.filter(isSwahiliToken),
 ];
-write5000("predictive_sw.txt", swCombined);
+writePredictive("predictive_sw.txt", swCombined);

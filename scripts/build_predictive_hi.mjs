@@ -1,8 +1,9 @@
 /**
- * Builds app/src/main/assets/predictive_hi.txt (5000 Devanagari words).
+ * Builds app/src/main/assets/predictive_hi.txt (~10k Devanagari words).
  * Requires tmp_hi.txt from:
  *   https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/hi/hi_full.txt
  */
+const TARGET_COUNT = 10_000;
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -44,7 +45,7 @@ for (const w of raw) {
   if (seen.has(t)) continue;
   seen.add(t);
   out.push(t);
-  if (out.length >= 5000) break;
+  if (out.length >= TARGET_COUNT) break;
 }
 
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
