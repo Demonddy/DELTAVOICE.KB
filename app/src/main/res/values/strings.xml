@@ -386,12 +386,42 @@
     <!-- Themes -->
     <string name="upgrade_premium_unlock_theme">Upgrade to Premium to unlock this theme!</string>
     <string name="theme_changed">Theme changed to %s</string>
+    <string name="theme_preview_section">Preview</string>
+    <string name="theme_apply">Apply theme</string>
+    <string name="theme_custom">Custom color</string>
+    <string name="theme_color_picker_title">Choose accent color</string>
+    <string name="theme_staged_hint">Tap Apply to use this look on the keyboard.</string>
 
     <!-- Search -->
     <string name="type_something_search">Type something to search</string>
     <string name="could_not_open_search">Could not open search</string>
-    <string name="search_in_app_hint">Type a query and tap Search to see results below.</string>
+    <string name="search_in_app_hint">Search features, settings, your activity, subscription, policies, and clipboard history. Works offline.</string>
     <string name="search_hint">Search…</string>
+    <string name="exit_to_home">Exit to home</string>
+    <string name="search_empty_state">Type a few letters to search the app — features, stats, policies, services, and more.</string>
+    <string name="search_no_results">No matches. Try different keywords.</string>
+    <string name="search_category_features">Features</string>
+    <string name="search_category_activity">Your activity</string>
+    <string name="search_category_clipboard">Clipboard</string>
+    <string name="search_category_policy">Policy</string>
+    <string name="search_category_subscription">Subscription</string>
+    <string name="search_category_services">Services</string>
+    <string name="search_settings_subtitle">Sounds, keyboard height, language, permissions</string>
+    <string name="search_permissions_title">App permissions</string>
+    <string name="search_permissions_subtitle">Microphone, camera, and storage</string>
+    <string name="search_dictionary_subtitle">Word lookup and translation from the keyboard</string>
+    <string name="search_policy_open_settings">Open in Settings</string>
+    <string name="search_service_translation_desc">Cloud translation via Supabase edge functions</string>
+    <string name="search_service_voice_title">Voice to text</string>
+    <string name="search_service_voice_desc">Speech recognition and processing through the app backend</string>
+    <string name="search_service_ai_backend_title">AI assistant service</string>
+    <string name="search_service_ai_backend_desc">Chat completions when online; optional local API key</string>
+    <string name="search_activity_videos_title">Videos processed: %d</string>
+    <string name="search_activity_voices_title">Voice messages: %d</string>
+    <string name="search_activity_chats_title">AI chats: %d</string>
+    <string name="search_subscription_manage_hint">Manage plan and billing in Account</string>
+    <string name="search_clipboard_tap_copy">Clipboard history — tap to copy</string>
+    <string name="search_copied">Copied to clipboard</string>
 
     <!-- AI writing tools (calculator layout) -->
     <string name="del">⌫ Del</string>

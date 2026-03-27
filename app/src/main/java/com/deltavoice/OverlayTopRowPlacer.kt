@@ -61,8 +61,8 @@ object OverlayTopRowPlacer {
     }
 
     /**
-     * Lays out arc icons in an **outward** sector toward the nearest screen edge (scatter),
-     * with uniform angle spacing, [widthScale] on radius, and 48dp touch targets.
+     * Lays out arc icons in a sector that opens **toward the screen center** (away from the nearest
+     * horizontal edge), with uniform angle spacing, [widthScale] on radius, and 48dp touch targets.
      * Glass underlay fills the window ([R.id.arc_band_glass_bg]).
      */
     fun layoutArcBand(
@@ -82,17 +82,19 @@ object OverlayTopRowPlacer {
         val (cx, cy) = bubbleCenterPx(bubbleParams, bubbleSizePx)
         val bubbleOnRight = cx >= screenWidthPx / 2f
 
-        // Outward toward physical edge: right sector vs left sector (standard math: 0° = +x right)
+        // Standard math: 0° = +x (right). Arc must open *into* the screen (toward center), not toward
+        // the physical edge — otherwise left/right sectors are mirrored and the strip hugs the wrong edge.
+        // Right-half bubble → sweep left of bubble (122°–238°); left-half bubble → sweep right (-58°–58°).
         val startDeg: Float
         val endDeg: Float
         val maxAbsDeg: Float
         if (bubbleOnRight) {
-            startDeg = -58f
-            endDeg = 58f
-            maxAbsDeg = 58f
-        } else {
             startDeg = 122f
             endDeg = 238f
+            maxAbsDeg = 58f
+        } else {
+            startDeg = -58f
+            endDeg = 58f
             maxAbsDeg = 58f
         }
 
@@ -100,13 +102,15 @@ object OverlayTopRowPlacer {
         val rFloor = 56f * density
 
         val rMaxHorizontal = if (bubbleOnRight) {
-            screenWidthPx - marginPx - cx - half
-        } else {
             cx - marginPx - half
+        } else {
+            screenWidthPx - marginPx - cx - half
         }
 
-        // Vertical: right-sector max |sin| = sin(58°); left sector 122°–238° includes 90°, so max |sin| = 1
+        // Vertical: narrow sector (-58°–58°) uses sin(58°); wide sector (122°–238°) includes 90° → max |sin| = 1
         val rMaxVertical = if (bubbleOnRight) {
+            min(cy - marginPx, screenHeightPx - marginPx - cy)
+        } else {
             val sinMaxSweep = sin(maxAbsDeg * PI / 180.0).toFloat()
             if (sinMaxSweep > 0.02f) {
                 min(
@@ -116,8 +120,6 @@ object OverlayTopRowPlacer {
             } else {
                 Float.MAX_VALUE
             }
-        } else {
-            min(cy - marginPx, screenHeightPx - marginPx - cy)
         }
 
         val r = min(baseR, min(rMaxHorizontal, rMaxVertical)).coerceAtLeast(rFloor)

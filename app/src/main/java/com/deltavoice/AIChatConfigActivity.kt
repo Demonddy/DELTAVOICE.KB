@@ -17,6 +17,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import com.deltavoice.ui.ShimmerView
 import android.graphics.Color
 import com.deltavoice.config.ConvexConfig
@@ -33,6 +34,8 @@ import java.net.URL
 /**
  * AI Chat page - Chat with AI directly on this page.
  * No keyboard navigation required.
+ *
+ * Always uses dark UI regardless of app light/dark setting (local night mode).
  */
 class AIChatConfigActivity : AppCompatActivity() {
 
@@ -46,6 +49,7 @@ class AIChatConfigActivity : AppCompatActivity() {
     private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        delegate.setLocalNightMode(AppCompatDelegate.MODE_NIGHT_YES)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_ai_chat_config)
 
@@ -218,7 +222,21 @@ class AIChatConfigActivity : AppCompatActivity() {
             if (directResponse != null) return directResponse
         }
 
-        // Try Supabase first. The configured Convex chat route may be unavailable.
+        // Convex first (primary), then Supabase fallback
+        return try {
+            callOpenAiViaConvex() ?: callOpenAiViaSupabase()
+        } catch (e: Exception) {
+            if (e.message?.contains("Unable to resolve host", ignoreCase = true) == true) {
+                mainHandler.post {
+                    val hint = if (openAiKey.isNotBlank()) "" else "\n\nTip: Tap the ⚙ icon to add your OpenAI API key for when the server is unreachable."
+                    Toast.makeText(this, "Can't reach server. Check Wi‑Fi or mobile data.$hint", Toast.LENGTH_LONG).show()
+                }
+            }
+            null
+        }
+    }
+
+    private fun callOpenAiViaSupabase(): String? {
         return try {
             val apiKey = SupabaseConfig.SUPABASE_ANON_KEY
             val supabaseUrl = SupabaseConfig.SUPABASE_URL
@@ -249,20 +267,16 @@ class AIChatConfigActivity : AppCompatActivity() {
                 parseAiResponse(responseText)?.let { return it }
             }
             connection.disconnect()
-            callOpenAiViaConvex()
+            null
         } catch (e: Exception) {
-            if (e.message?.contains("Unable to resolve host", ignoreCase = true) == true) {
-                mainHandler.post {
-                    val hint = if (openAiKey.isNotBlank()) "" else "\n\nTip: Tap the ⚙ icon to add your OpenAI API key for when the server is unreachable."
-                    Toast.makeText(this, "Can't reach server. Check Wi‑Fi or mobile data.$hint", Toast.LENGTH_LONG).show()
-                }
-            }
-            callOpenAiViaConvex()
+            android.util.Log.e("AIChatConfig", "Supabase AI call failed: ${e.message}")
+            null
         }
     }
 
     private fun callOpenAiViaConvex(): String? {
         if (!ConvexConfig.USE_CONVEX_FOR_VOICE_WORKFLOW) return null
+        if (ConvexConfig.CONVEX_SITE_URL.contains("YOUR_DEPLOYMENT")) return null
         return try {
             val url = URL(ConvexConfig.AI_CHAT_URL)
             val connection = url.openConnection() as HttpURLConnection

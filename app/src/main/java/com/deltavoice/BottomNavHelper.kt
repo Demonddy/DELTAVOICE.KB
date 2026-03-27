@@ -7,7 +7,7 @@ import androidx.core.content.ContextCompat
 
 /**
  * Highlights the active icon in the bottom navigation bar.
- * Call from MainActivity (nav_home) or SearchActivity (nav_search).
+ * Call from [MainActivity] when setting the active tab.
  */
 object BottomNavHelper {
 

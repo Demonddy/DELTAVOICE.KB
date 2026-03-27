@@ -1270,6 +1270,7 @@
 
     <!-- Main Keyboard Panel: Gboard-style compact landscape rows -->
     <FrameLayout
+        android:id="@+id/keyboard_panel_frame"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/glass_keyboard_panel_background"

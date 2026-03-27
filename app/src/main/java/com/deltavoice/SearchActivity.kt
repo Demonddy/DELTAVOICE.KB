@@ -1,122 +1,119 @@
 package com.deltavoice
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.provider.Settings
 import android.view.View
 import android.view.inputmethod.EditorInfo
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.EditText
-import android.widget.FrameLayout
+import android.widget.ImageButton
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.deltavoice.util.NetworkUtils
-import com.google.android.material.snackbar.Snackbar
-import java.net.URLEncoder
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.deltavoice.search.AppSearchIndex
+import com.deltavoice.search.SearchAction
+import com.deltavoice.search.SearchResultsAdapter
+import com.deltavoice.search.SearchableItem
 
 /**
- * Search screen - displays results in-app via WebView.
+ * In-app search across features, activity stats, policies, services, subscription, and clipboard.
  */
 class SearchActivity : AppCompatActivity() {
 
-    private lateinit var webView: WebView
+    private lateinit var searchInput: EditText
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var emptyView: TextView
+    private lateinit var adapter: SearchResultsAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_search)
 
-        webView = findViewById(R.id.search_webview)
-        webView.settings.javaScriptEnabled = true
-        webView.webViewClient = WebViewClient() // Keep navigation in-app
+        findViewById<ImageButton>(R.id.btn_exit_home).setOnClickListener {
+            startActivity(
+                Intent(this, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
+            )
+            finish()
+        }
 
-        val searchInput = findViewById<EditText>(R.id.search_input)
+        searchInput = findViewById(R.id.search_input)
+        recyclerView = findViewById(R.id.search_results)
+        emptyView = findViewById(R.id.search_empty)
+
+        adapter = SearchResultsAdapter { item -> onResultClick(item) }
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.adapter = adapter
+
         searchInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                performSearch(searchInput.text.toString())
+                refreshResults()
                 true
             } else false
         }
 
-        searchInput.post {
-            if (!NetworkUtils.isConnected(this)) {
-                showInternetRequiredSnackbar()
+        searchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                refreshResults()
             }
-        }
+        })
 
-        setupBottomNav()
+        showEmptyPrompt()
     }
 
-    private fun setupBottomNav() {
-        findViewById<FrameLayout>(R.id.nav_home).setOnClickListener {
-            finish()
-        }
-        findViewById<FrameLayout>(R.id.nav_camera).setOnClickListener {
-            startActivity(Intent(this, VideoRecordingActivity::class.java))
-        }
-        findViewById<FrameLayout>(R.id.nav_add).setOnClickListener {
-            showAddMediaBottomSheet()
-        }
-        findViewById<FrameLayout>(R.id.nav_mic).setOnClickListener {
-            startActivity(Intent(this, VoiceConfigActivity::class.java))
-        }
-        findViewById<FrameLayout>(R.id.nav_search).setOnClickListener {
-            // Already on search
-        }
-
-        BottomNavHelper.setActiveItem(this, R.id.nav_search)
+    private fun showEmptyPrompt() {
+        emptyView.visibility = View.VISIBLE
+        emptyView.setText(R.string.search_empty_state)
+        recyclerView.visibility = View.GONE
+        adapter.submitList(emptyList())
     }
 
-    private fun showAddMediaBottomSheet() {
-        val dialog = com.google.android.material.bottomsheet.BottomSheetDialog(this)
-        val view = layoutInflater.inflate(R.layout.bottom_sheet_add_media, null)
-        dialog.setContentView(view)
-
-        view.findViewById<android.widget.LinearLayout>(R.id.option_video).setOnClickListener {
-            dialog.dismiss()
-            startActivity(Intent(this, VideoConfigActivity::class.java))
-        }
-        view.findViewById<android.widget.LinearLayout>(R.id.option_voice).setOnClickListener {
-            dialog.dismiss()
-            startActivity(Intent(this, VoiceConfigActivity::class.java))
-        }
-        dialog.show()
-    }
-
-    private fun performSearch(query: String) {
-        val trimmed = query.trim()
-        if (trimmed.isEmpty()) {
-            Toast.makeText(this, getString(R.string.type_something_search), Toast.LENGTH_SHORT).show()
+    private fun refreshResults() {
+        val q = searchInput.text?.toString().orEmpty().trim()
+        if (q.isEmpty()) {
+            showEmptyPrompt()
             return
         }
-        if (!NetworkUtils.isConnected(this)) {
-            showInternetRequiredSnackbar()
-            return
+        val results = AppSearchIndex.search(this, q)
+        if (results.isEmpty()) {
+            emptyView.visibility = View.VISIBLE
+            emptyView.setText(R.string.search_no_results)
+            recyclerView.visibility = View.GONE
+            adapter.submitList(emptyList())
+        } else {
+            emptyView.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+            adapter.submitList(results)
         }
-        val encoded = URLEncoder.encode(trimmed, "UTF-8")
-        val searchUrl = "https://www.google.com/search?q=$encoded"
-        webView.visibility = View.VISIBLE
-        webView.loadUrl(searchUrl)
     }
 
-    private fun showInternetRequiredSnackbar() {
-        val snackbar = Snackbar.make(
-            findViewById(android.R.id.content),
-            getString(R.string.internet_required_search),
-            Snackbar.LENGTH_LONG
-        ).apply {
-            setAction(R.string.internet_required_action_settings) {
+    private fun onResultClick(item: SearchableItem) {
+        when (val a = item.action) {
+            is SearchAction.LaunchActivity -> {
+                startActivity(Intent(this, a.clazz).apply { a.extras?.let { putExtras(it) } })
+            }
+            SearchAction.OpenKeyboardSettings -> {
                 try {
-                    startActivity(Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
                 } catch (_: Exception) {
-                    startActivity(Intent(android.provider.Settings.ACTION_SETTINGS)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    Toast.makeText(this, getString(R.string.could_not_open_search), Toast.LENGTH_SHORT).show()
                 }
             }
-            setActionTextColor(Color.parseColor("#A78BFA"))
+            is SearchAction.CopyToClipboard -> {
+                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cm.setPrimaryClip(ClipData.newPlainText("deltavoice", a.text))
+                Toast.makeText(this, getString(R.string.search_copied), Toast.LENGTH_SHORT).show()
+            }
         }
-        snackbar.view.setBackgroundColor(Color.parseColor("#1F2937"))
-        snackbar.show()
     }
 }

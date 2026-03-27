@@ -4968,10 +4968,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     }
                 }
                 
-                // Use Supabase first (primary), then Convex fallback. Strict total timeout so chat never hangs.
+                // Convex first (primary), then Supabase fallback. Strict total timeout so chat never hangs.
                 val edgeResponse = if (isNetworkAvailable()) {
                     withTimeoutOrNull(aiChatEdgeTotalTimeoutMs) {
-                        callOpenAiViaSupabase(message) ?: callOpenAiViaConvex(message)
+                        callOpenAiViaConvex(message) ?: callOpenAiViaSupabase(message)
                     }
                 } else null
                 if (edgeResponse != null) {
@@ -5054,7 +5054,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     
     /**
      * Get OpenAI API key from user preferences (optional).
-     * When set, bypasses Supabase and calls OpenAI directly — useful when Supabase is unreachable.
+     * When set, bypasses cloud edge endpoints and calls OpenAI directly.
      */
     private fun getOpenAiApiKey(): String {
         return getSharedPreferences("deltavoice_prefs", MODE_PRIVATE)
@@ -5062,7 +5062,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     /**
-     * Call OpenAI via Convex HTTP endpoint (no auth needed, uses Convex env OPENAI_API_KEY)
+     * Call OpenAI via Convex HTTP endpoint (primary for AI chat; no auth, uses Convex env OPENAI_API_KEY).
      */
     private fun callOpenAiViaConvex(message: String): String? {
         if (!com.deltavoice.config.ConvexConfig.USE_CONVEX_FOR_VOICE_WORKFLOW) return null
@@ -5106,7 +5106,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
 
     /**
-     * Call OpenAI via Supabase edge function (fallback when Convex unavailable)
+     * Call OpenAI via Supabase edge function (fallback when Convex is unavailable).
      */
     private fun callOpenAiViaSupabase(message: String): String? {
         try {

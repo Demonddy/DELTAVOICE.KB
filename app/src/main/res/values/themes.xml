@@ -15,6 +15,20 @@
         <item name="android:fontFamily">@font/manrope_regular</item>
     </style>
 
+    <!-- Overlay bubble panels: MaterialComponents parent required for MaterialCardView and Material widgets in Service context -->
+    <style name="Theme.DeltaVoice.Material" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/background_dark</item>
+        <item name="android:statusBarColor">@color/surface_container_low</item>
+        <item name="android:navigationBarColor">@color/background_dark</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorAccent">@color/accent</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:colorControlActivated">@color/accent</item>
+        <item name="android:fontFamily">@font/manrope_regular</item>
+    </style>
+
     <!-- Headline style: Plus Jakarta Sans (use with android:textAppearance) -->
     <style name="TextAppearance.DeltaVoice.Headline" parent="TextAppearance.AppCompat.Title">
         <item name="android:fontFamily">@font/plus_jakarta_sans_semibold</item>
