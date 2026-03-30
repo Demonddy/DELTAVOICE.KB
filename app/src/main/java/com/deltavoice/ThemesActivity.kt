@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.deltavoice.debug.DebugSession44
 import com.deltavoice.theme.KeyboardThemeStore
 import com.deltavoice.ui.KeyboardThemePreviewView
 
@@ -24,6 +25,8 @@ class ThemesActivity : AppCompatActivity() {
 
     private var stagedThemeId: String = KeyboardThemeStore.THEME_DARK_PURPLE
     private var stagedCustomColor: Int = Color.parseColor("#A78BFA")
+    /** `-1` = use theme accent for icons. */
+    private var stagedIconColor: Int = -1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,6 +36,7 @@ class ThemesActivity : AppCompatActivity() {
         stagedThemeId = prefs.getString(KeyboardThemeStore.KEY_SELECTED_THEME, KeyboardThemeStore.THEME_DARK_PURPLE)
             ?: KeyboardThemeStore.THEME_DARK_PURPLE
         stagedCustomColor = prefs.getInt(KeyboardThemeStore.KEY_CUSTOM_THEME_COLOR, stagedCustomColor)
+        stagedIconColor = prefs.getInt(KeyboardThemeStore.KEY_ICON_COLOR, -1)
 
         previewView = findViewById(R.id.theme_keyboard_preview)
         stagedLabel = findViewById(R.id.theme_staged_label)
@@ -78,11 +82,13 @@ class ThemesActivity : AppCompatActivity() {
 
         findViewById<LinearLayout>(R.id.theme_custom)?.setOnClickListener { showCustomColorDialog() }
 
+        findViewById<Button>(R.id.btn_theme_icon_color)?.setOnClickListener { showIconColorDialog() }
+
         refreshPreview()
     }
 
     private fun refreshPreview() {
-        val pal = KeyboardThemeStore.paletteForThemeId(stagedThemeId, stagedCustomColor)
+        val pal = KeyboardThemeStore.paletteForThemeId(stagedThemeId, stagedCustomColor, stagedIconColor)
         previewView.palette = pal
         stagedLabel.text = getString(R.string.theme_staged_hint) + "\n" + displayNameFor(stagedThemeId)
     }
@@ -98,7 +104,19 @@ class ThemesActivity : AppCompatActivity() {
         KeyboardThemeStore.prefs(this).edit()
             .putString(KeyboardThemeStore.KEY_SELECTED_THEME, stagedThemeId)
             .putInt(KeyboardThemeStore.KEY_CUSTOM_THEME_COLOR, stagedCustomColor)
+            .putInt(KeyboardThemeStore.KEY_ICON_COLOR, stagedIconColor)
             .apply()
+        // #region agent log
+        DebugSession44.log(
+            this, "H1", "ThemesActivity.applyStagedTheme",
+            "prefs_written_after_apply",
+            mapOf(
+                "stagedThemeId" to stagedThemeId,
+                "stagedCustomColor" to stagedCustomColor.toString(),
+                "stagedIconColor" to stagedIconColor.toString()
+            )
+        )
+        // #endregion
         Toast.makeText(this, getString(R.string.theme_changed, displayNameFor(stagedThemeId)), Toast.LENGTH_SHORT).show()
     }
 
@@ -162,6 +180,78 @@ class ThemesActivity : AppCompatActivity() {
             .setNegativeButton(android.R.string.cancel) { _, _ ->
                 stagedThemeId = snapshotTheme
                 stagedCustomColor = snapshotColor
+                refreshPreview()
+            }
+            .show()
+    }
+
+    private fun showIconColorDialog() {
+        val snapshot = stagedIconColor
+        val basePal = KeyboardThemeStore.paletteForThemeId(stagedThemeId, stagedCustomColor, -1)
+        val initialRgb = if (stagedIconColor == -1) {
+            Triple(Color.red(basePal.iconTint), Color.green(basePal.iconTint), Color.blue(basePal.iconTint))
+        } else {
+            Triple(Color.red(stagedIconColor), Color.green(stagedIconColor), Color.blue(stagedIconColor))
+        }
+
+        val pad = (16 * resources.displayMetrics.density).toInt()
+        val dialogView = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, pad, pad, pad)
+        }
+
+        fun label(text: String) = TextView(this).apply {
+            this.text = text
+            setTextColor(ContextCompat.getColor(this@ThemesActivity, R.color.text_primary))
+        }
+
+        val rBar = SeekBar(this).apply { max = 255 }
+        val gBar = SeekBar(this).apply { max = 255 }
+        val bBar = SeekBar(this).apply { max = 255 }
+
+        fun readColor(): Int = Color.rgb(rBar.progress, gBar.progress, bBar.progress)
+
+        fun applyFromBars() {
+            stagedIconColor = readColor()
+            refreshPreview()
+        }
+
+        val (ir, ig, ib) = initialRgb
+        rBar.progress = ir
+        gBar.progress = ig
+        bBar.progress = ib
+
+        val listener = object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) applyFromBars()
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        }
+        rBar.setOnSeekBarChangeListener(listener)
+        gBar.setOnSeekBarChangeListener(listener)
+        bBar.setOnSeekBarChangeListener(listener)
+
+        dialogView.addView(label("R"))
+        dialogView.addView(rBar)
+        dialogView.addView(label("G"))
+        dialogView.addView(gBar)
+        dialogView.addView(label("B"))
+        dialogView.addView(bBar)
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.theme_icon_color_picker_title)
+            .setView(dialogView)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                stagedIconColor = readColor()
+                refreshPreview()
+            }
+            .setNeutralButton(R.string.theme_icon_color_reset) { _, _ ->
+                stagedIconColor = -1
+                refreshPreview()
+            }
+            .setNegativeButton(android.R.string.cancel) { _, _ ->
+                stagedIconColor = snapshot
                 refreshPreview()
             }
             .show()

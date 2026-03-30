@@ -13,4 +13,6 @@ data class KeyboardThemePalette(
     @ColorInt val accentSoft: Int,
     @ColorInt val keyText: Int,
     @ColorInt val keyTextMuted: Int,
+    /** Toolbar circles, shift/backspace, and bottom-row icon keys; overridable via [KeyboardThemeStore.KEY_ICON_COLOR]. */
+    @ColorInt val iconTint: Int,
 )

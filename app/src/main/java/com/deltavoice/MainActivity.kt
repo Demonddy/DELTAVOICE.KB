@@ -155,7 +155,7 @@ class MainActivity : AppCompatActivity() {
         val card = findViewById<LinearLayout>(R.id.card_floating_bubble)
 
         floatingBubbleSwitchListener = CompoundButton.OnCheckedChangeListener { _, isChecked ->
-            if (!Settings.canDrawOverlays(this)) {
+            if (!canDrawOverlaysCompat()) {
                 if (isChecked) {
                     requestOverlayPermission()
                     floatingBubbleSwitch.post {
@@ -178,7 +178,7 @@ class MainActivity : AppCompatActivity() {
         // Row tap opens overlay settings if permission missing; otherwise only the switch toggles
         // (avoids double-toggle from parent + switch).
         card.setOnClickListener {
-            if (!Settings.canDrawOverlays(this)) {
+            if (!canDrawOverlaysCompat()) {
                 requestOverlayPermission()
             }
         }
@@ -187,7 +187,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshFloatingBubbleSwitch() {
-        if (!::floatingBubbleSwitch.isInitialized) return
         floatingBubbleSwitch.setOnCheckedChangeListener(null)
         floatingBubbleSwitch.isChecked = isOverlayServiceRunning()
         floatingBubbleSwitch.setOnCheckedChangeListener(floatingBubbleSwitchListener)
@@ -259,19 +258,33 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun canDrawOverlaysCompat(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Settings.canDrawOverlays(this)
+        } else {
+            true
+        }
+    }
+
     private fun requestOverlayPermission() {
         Toast.makeText(this, getString(R.string.overlay_permission_required), Toast.LENGTH_LONG).show()
-        val intent = Intent(
-            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-            Uri.parse("package:$packageName")
-        )
-        startActivityForResult(intent, OVERLAY_PERMISSION_REQUEST)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            startActivityForResult(intent, OVERLAY_PERMISSION_REQUEST)
+        } else {
+            startActivity(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+            )
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == OVERLAY_PERMISSION_REQUEST) {
-            if (Settings.canDrawOverlays(this)) {
+            if (canDrawOverlaysCompat()) {
                 startOverlayService()
                 Toast.makeText(this, "Floating bubble enabled", Toast.LENGTH_SHORT).show()
             }

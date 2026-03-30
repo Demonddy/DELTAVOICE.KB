@@ -12,9 +12,11 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.MediaController
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
+import android.widget.VideoView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -48,6 +50,8 @@ class VideoConfigActivity : AppCompatActivity() {
     private lateinit var processedViewSelector: LinearLayout
     private lateinit var btnViewList: Button
     private lateinit var btnViewGrid: Button
+    private lateinit var videoPreview: VideoView
+    private lateinit var videoPreviewContainer: LinearLayout
 
     private var videoFilePath: String? = null
     private var processedAudioPath: String? = null
@@ -75,9 +79,7 @@ class VideoConfigActivity : AppCompatActivity() {
         if (result.resultCode == RESULT_OK) {
             val path = result.data?.getStringExtra(VideoRecordingActivity.EXTRA_VIDEO_PATH)
             if (!path.isNullOrBlank()) {
-                videoFilePath = path
-                processingSection.visibility = View.VISIBLE
-                videoStatus.text = "Video recorded. Tap Process to translate."
+                onVideoSelected(path, getString(R.string.video_recorded_tap_process))
             }
         }
     }
@@ -86,9 +88,7 @@ class VideoConfigActivity : AppCompatActivity() {
         if (result.resultCode == RESULT_OK) {
             val path = result.data?.getStringExtra(VideoUploadActivity.EXTRA_RESULT_PATH)
             if (!path.isNullOrBlank()) {
-                videoFilePath = path
-                processingSection.visibility = View.VISIBLE
-                videoStatus.text = "Video uploaded. Tap Process to translate."
+                onVideoSelected(path, getString(R.string.video_uploaded_tap_process))
                 Toast.makeText(this, getString(R.string.ready_for_processing), Toast.LENGTH_SHORT).show()
             }
         }
@@ -114,6 +114,8 @@ class VideoConfigActivity : AppCompatActivity() {
         processedViewSelector = findViewById(R.id.processed_view_selector)
         btnViewList = findViewById(R.id.btn_view_list)
         btnViewGrid = findViewById(R.id.btn_view_grid)
+        videoPreview = findViewById(R.id.video_preview)
+        videoPreviewContainer = findViewById(R.id.video_preview_container)
 
         findViewById<ImageButton>(R.id.btn_back).setOnClickListener { finish() }
 
@@ -159,11 +161,63 @@ class VideoConfigActivity : AppCompatActivity() {
     private fun applyVideoPathFromIntent(intent: Intent?) {
         val path = intent?.getStringExtra(EXTRA_VIDEO_PATH)
         if (!path.isNullOrBlank() && File(path).exists()) {
-            videoFilePath = path
-            processingSection.visibility = View.VISIBLE
-            videoStatus.text = "Video recorded. Tap Process to translate."
+            onVideoSelected(path, getString(R.string.video_recorded_tap_process))
             intent?.removeExtra(EXTRA_VIDEO_PATH)
         }
+    }
+
+    private fun onVideoSelected(path: String, statusText: String) {
+        videoFilePath = path
+        processingSection.visibility = View.VISIBLE
+        videoStatus.text = statusText
+        bindVideoPreview(path)
+    }
+
+    private fun bindVideoPreview(path: String?) {
+        if (path.isNullOrBlank()) {
+            videoPreviewContainer.visibility = View.GONE
+            stopVideoPreview()
+            return
+        }
+        val file = File(path)
+        if (!file.exists()) {
+            videoPreviewContainer.visibility = View.GONE
+            stopVideoPreview()
+            return
+        }
+        videoPreviewContainer.visibility = View.VISIBLE
+        stopVideoPreview()
+        videoPreview.post {
+            val mc = MediaController(this)
+            mc.setAnchorView(videoPreview)
+            videoPreview.setMediaController(mc)
+            videoPreview.setVideoURI(Uri.fromFile(file))
+            videoPreview.setOnPreparedListener { it.isLooping = false }
+        }
+    }
+
+    private fun stopVideoPreview() {
+        try {
+            videoPreview.stopPlayback()
+        } catch (_: Exception) {
+        }
+        videoPreview.setOnPreparedListener(null)
+        videoPreview.setMediaController(null)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (::videoPreview.isInitialized) {
+            try {
+                videoPreview.pause()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        stopVideoPreview()
+        super.onDestroy()
     }
 
     override fun onResume() {
@@ -192,7 +246,13 @@ class VideoConfigActivity : AppCompatActivity() {
 
         val langCode = languages.getOrNull(spinnerLanguage.selectedItemPosition)?.second ?: "en"
         val voiceStyle = voiceStyles.getOrNull(spinnerVoice.selectedItemPosition)?.second ?: "aria"
-        val langName = languages.getOrNull(spinnerLanguage.selectedItemPosition)?.first ?: "English"
+
+        if (::videoPreview.isInitialized) {
+            try {
+                videoPreview.pause()
+            } catch (_: Exception) {
+            }
+        }
 
         isProcessing = true
         btnProcess.isEnabled = false
@@ -206,7 +266,7 @@ class VideoConfigActivity : AppCompatActivity() {
                     withContext(Dispatchers.Main) {
                         Toast.makeText(this@VideoConfigActivity, "No audio in video", Toast.LENGTH_LONG).show()
                         btnProcess.isEnabled = true
-                        videoStatus.text = "Video recorded. Tap Process to translate."
+                        videoStatus.text = getString(R.string.video_recorded_tap_process)
                     }
                     return@launch
                 }
@@ -285,7 +345,9 @@ class VideoConfigActivity : AppCompatActivity() {
                 isProcessing = false
                 withContext(Dispatchers.Main) {
                     btnProcess.isEnabled = true
-                    if (processedVideos.isEmpty()) videoStatus.text = "Video recorded. Tap Process to translate."
+                    if (processedVideos.isEmpty()) {
+                        videoStatus.text = getString(R.string.video_recorded_tap_process)
+                    }
                 }
             }
         }

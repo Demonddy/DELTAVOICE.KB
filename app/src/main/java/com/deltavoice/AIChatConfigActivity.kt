@@ -28,8 +28,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.UnknownHostException
 
 /**
  * AI Chat page - Chat with AI directly on this page.
@@ -214,18 +217,48 @@ class AIChatConfigActivity : AppCompatActivity() {
             .getString("openai_api_key", "") ?: ""
     }
 
+    // #region agent log
+    private fun aidLog(hypothesisId: String, location: String, message: String, data: Map<String, Any?>) {
+        try {
+            val jo = JSONObject()
+            jo.put("sessionId", "8355ac")
+            jo.put("hypothesisId", hypothesisId)
+            jo.put("location", location)
+            jo.put("message", message)
+            jo.put("timestamp", System.currentTimeMillis())
+            val dataObj = JSONObject()
+            data.forEach { (k, v) -> dataObj.put(k, v ?: JSONObject.NULL) }
+            jo.put("data", dataObj)
+            val line = jo.toString() + "\n"
+            File(filesDir, "debug-8355ac.log").appendText(line)
+            android.util.Log.d("AIDEBUG", line)
+        } catch (_: Exception) {}
+    }
+    // #endregion
+
     private fun callAiApi(userMessage: String): String? {
         // Try direct OpenAI first when user has API key
         val openAiKey = getOpenAiApiKey()
         if (openAiKey.isNotBlank()) {
             val directResponse = callOpenAiDirectly()
+            aidLog("H3", "callAiApi", "direct_openai", mapOf("hadKey" to true, "nonNull" to (directResponse != null)))
             if (directResponse != null) return directResponse
+        } else {
+            aidLog("H3", "callAiApi", "direct_openai_skipped", mapOf("hadKey" to false))
         }
 
-        // Convex first (primary), then Supabase fallback
+        // Convex first (DeepSeek on server); Supabase second — avoids total failure when Supabase host does not resolve (DNS).
         return try {
-            callOpenAiViaConvex() ?: callOpenAiViaSupabase()
+            val c = callOpenAiViaConvex()
+            if (c != null) {
+                aidLog("H1", "callAiApi", "result", mapOf("source" to "convex", "ok" to true))
+                return c
+            }
+            val s = callOpenAiViaSupabase()
+            aidLog("H2", "callAiApi", "result", mapOf("source" to "supabase", "nonNull" to (s != null)))
+            s
         } catch (e: Exception) {
+            aidLog("H4", "callAiApi", "exception", mapOf("type" to e.javaClass.simpleName, "msg" to (e.message?.take(120) ?: "")))
             if (e.message?.contains("Unable to resolve host", ignoreCase = true) == true) {
                 mainHandler.post {
                     val hint = if (openAiKey.isNotBlank()) "" else "\n\nTip: Tap the ⚙ icon to add your OpenAI API key for when the server is unreachable."
@@ -262,21 +295,45 @@ class AIChatConfigActivity : AppCompatActivity() {
 
             connection.outputStream.use { it.write(requestBody.toByteArray()) }
 
-            if (connection.responseCode == 200) {
-                val responseText = connection.inputStream.bufferedReader().readText()
-                parseAiResponse(responseText)?.let { return it }
+            val code = connection.responseCode
+            val responseText = if (code in 200..299) {
+                connection.inputStream.bufferedReader().readText()
+            } else {
+                connection.errorStream?.bufferedReader()?.readText().orEmpty()
             }
+            val parsed = parseAiResponse(responseText)
+            aidLog(
+                "H2",
+                "callOpenAiViaSupabase",
+                "http",
+                mapOf(
+                    "code" to code,
+                    "bodyPrefix" to responseText.take(280),
+                    "parsedNonNull" to (parsed != null)
+                )
+            )
             connection.disconnect()
-            null
+            if (code in 200..299) parsed else null
         } catch (e: Exception) {
-            android.util.Log.e("AIChatConfig", "Supabase AI call failed: ${e.message}")
+            aidLog("H2", "callOpenAiViaSupabase", "exception", mapOf("msg" to (e.message?.take(120) ?: "")))
+            if (e is UnknownHostException) {
+                android.util.Log.d("AIChatConfig", "Supabase skipped (DNS): ${e.message}")
+            } else {
+                android.util.Log.w("AIChatConfig", "Supabase AI unreachable: ${e.message}")
+            }
             null
         }
     }
 
     private fun callOpenAiViaConvex(): String? {
-        if (!ConvexConfig.USE_CONVEX_FOR_VOICE_WORKFLOW) return null
-        if (ConvexConfig.CONVEX_SITE_URL.contains("YOUR_DEPLOYMENT")) return null
+        if (!ConvexConfig.USE_CONVEX_FOR_VOICE_WORKFLOW) {
+            aidLog("H1", "callOpenAiViaConvex", "skipped", mapOf("reason" to "USE_CONVEX false"))
+            return null
+        }
+        if (ConvexConfig.CONVEX_SITE_URL.contains("YOUR_DEPLOYMENT")) {
+            aidLog("H1", "callOpenAiViaConvex", "skipped", mapOf("reason" to "placeholder URL"))
+            return null
+        }
         return try {
             val url = URL(ConvexConfig.AI_CHAT_URL)
             val connection = url.openConnection() as HttpURLConnection
@@ -296,13 +353,28 @@ class AIChatConfigActivity : AppCompatActivity() {
             val requestBody = """{"messages":$messagesJson}"""
             connection.outputStream.use { it.write(requestBody.toByteArray()) }
 
-            if (connection.responseCode == 200) {
-                val responseText = connection.inputStream.bufferedReader().readText()
-                parseAiResponse(responseText)?.let { return it }
+            val code = connection.responseCode
+            val responseText = if (code in 200..299) {
+                connection.inputStream.bufferedReader().readText()
+            } else {
+                connection.errorStream?.bufferedReader()?.readText().orEmpty()
             }
+            val parsed = parseAiResponse(responseText)
+            aidLog(
+                "H1",
+                "callOpenAiViaConvex",
+                "http",
+                mapOf(
+                    "code" to code,
+                    "host" to url.host,
+                    "bodyPrefix" to responseText.take(280),
+                    "parsedNonNull" to (parsed != null)
+                )
+            )
             connection.disconnect()
-            null
+            parsed
         } catch (e: Exception) {
+            aidLog("H1", "callOpenAiViaConvex", "exception", mapOf("msg" to (e.message?.take(120) ?: "")))
             android.util.Log.e("AIChatConfig", "Convex AI call failed: ${e.message}")
             null
         }
@@ -347,6 +419,11 @@ class AIChatConfigActivity : AppCompatActivity() {
     private fun parseAiResponse(responseText: String): String? {
         return try {
             val json = org.json.JSONObject(responseText)
+            if (json.has("success") && !json.optBoolean("success", true)) {
+                val errBody = json.optString("content", "")
+                if (errBody.isNotBlank()) return errBody
+                return null
+            }
             listOf("content", "response", "message", "text").forEach { key ->
                 val value = json.optString(key, "")
                 if (value.isNotBlank()) return value
@@ -426,7 +503,7 @@ class AIChatConfigActivity : AppCompatActivity() {
                 "Hello! 👋 How can I help you today?"
             lower.contains("thank") -> "You're welcome! 😊 Anything else?"
             lower.contains("help") -> "I can help with writing, translations, questions, and ideas. What do you need?"
-            else -> "I'm having trouble connecting. Please check your internet and try again. In the meantime, try: \"Write an email about...\" or \"Translate X to Spanish\""
+            else -> "I'm having trouble connecting. Please check your internet and try again. In the meantime, try: \"Write an email about...\" or \"Translate X to any language \""
         }
     }
 }

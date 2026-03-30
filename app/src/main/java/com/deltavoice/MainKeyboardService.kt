@@ -24,7 +24,6 @@ import android.view.animation.LinearInterpolator
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
-import android.graphics.drawable.Drawable
 import android.graphics.Color
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
@@ -65,8 +64,11 @@ import com.deltavoice.api.TranslationService
 import com.deltavoice.api.VoiceCloneService
 import com.deltavoice.api.VoiceConversionService
 import com.deltavoice.api.CompleteVoiceWorkflowService
+import com.deltavoice.privacy.OutboundHttpPolicy
+import com.deltavoice.privacy.OutboundMediaSanitizer
 import com.deltavoice.predict.PredictionProvider
 import com.deltavoice.predict.PredictionResult
+import com.deltavoice.debug.AgentDebugLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -87,9 +89,12 @@ import android.os.SystemClock
 import android.provider.MediaStore
 import java.io.File
 import java.io.IOException
+import java.net.UnknownHostException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
+import org.json.JSONObject
 
 /**
  * Main IME Service for the Modern Keyboard
@@ -119,9 +124,67 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private lateinit var audioPlaybackSeekBar: android.widget.SeekBar
     private var rootView: View? = null
 
+    /** When video UI is shown from the bubble overlay, non-root views for recording/preview live here. */
+    private var videoUiHost: View? = null
+
+    private fun videoUiContent(): View? = videoUiHost ?: rootView
+
+    private fun voiceStep2ActionButton(): Button? =
+        if (::voiceProcessingStep2Container.isInitialized) {
+            voiceProcessingStep2Container.findViewById(R.id.keyboard_button_action)
+        } else null
+
     /** Bubble overlay: dictionary UI in a separate WindowManager layer. */
     private var overlayDictionaryRoot: View? = null
     private var overlayDictionaryClose: (() -> Unit)? = null
+
+    /**
+     * True while a bubble overlay panel owns voice/video/AI/dictionary views.
+     * IME key row and top icon bar on [rootView] must not be hidden — the panel is a separate window.
+     */
+    private var overlayBubbleKeyboardIsolated = false
+
+    /**
+     * Hide/show QWERTY key area on the IME. When a bubble overlay is active we **skip hiding** the IME
+     * (the overlay is a separate window) but we still **allow show** so a previously hidden IME can recover.
+     */
+    private fun applyImeKeyboardContainerVisible(visible: Boolean) {
+        if (overlayBubbleKeyboardIsolated && !visible) return
+        keyboardContainer.visibility = if (visible) View.VISIBLE else View.GONE
+    }
+
+    /** Restore top icon row + key row on the IME while a bubble panel is open (independent window). */
+    private fun snapImeTypingUiToVisibleForBubbleOverlay() {
+        if (!overlayBubbleKeyboardIsolated) return
+        val root = rootView ?: return
+        try {
+            root.findViewById<View>(R.id.top_bar_container)?.visibility = View.VISIBLE
+            root.findViewById<View>(R.id.ai_features_row)?.visibility = View.VISIBLE
+            root.findViewById<View>(R.id.predictions_container)?.visibility = View.GONE
+            if (::keyboardContainer.isInitialized) {
+                keyboardContainer.visibility = View.VISIBLE
+            }
+        } catch (_: Exception) {
+        }
+        // #region agent log
+        try {
+            val jo = JSONObject()
+            jo.put("sessionId", "a65c8d")
+            jo.put("hypothesisId", "H3")
+            jo.put("location", "snapImeTypingUiToVisibleForBubbleOverlay")
+            jo.put("message", "ime_chrome_restored")
+            jo.put(
+                "data",
+                JSONObject().apply {
+                    put("kbVis", if (::keyboardContainer.isInitialized) keyboardContainer.visibility else -1)
+                }
+            )
+            jo.put("timestamp", System.currentTimeMillis())
+            File(filesDir, "debug-a65c8d.log").appendText(jo.toString() + "\n")
+        } catch (_: Exception) {
+        }
+        // #endregion
+    }
 
     private fun dictContentRoot(): View? = overlayDictionaryRoot ?: rootView
 
@@ -255,41 +318,6 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             "&" to listOf("§"),
             "%" to listOf("‰")
         )
-
-        /**
-         * Gboard-style Arabic long-press alternates (key label / commit value → variants).
-         * Covers alif/hamza forms, lam-alef, waw/yeh/heh, common letter pairs.
-         */
-        private val ARABIC_LONG_PRESS_MAP: Map<String, List<String>> = mapOf(
-            "ا" to listOf("أ", "إ", "آ"),
-            "أ" to listOf("إ", "آ", "ا"),
-            "إ" to listOf("أ", "آ", "ا"),
-            "آ" to listOf("أ", "إ", "ا"),
-            "ل" to listOf("لا"),
-            "و" to listOf("ؤ"),
-            "ي" to listOf("ئ", "ى"),
-            "ى" to listOf("ي"),
-            "ه" to listOf("ة"),
-            "ة" to listOf("ه"),
-            "ء" to listOf("أ", "إ", "ؤ", "ئ"),
-            "ؤ" to listOf("و"),
-            "ئ" to listOf("ي"),
-            "د" to listOf("ذ"),
-            "ذ" to listOf("د"),
-            "ط" to listOf("ظ"),
-            "ظ" to listOf("ط"),
-            "س" to listOf("ش"),
-            "ش" to listOf("س"),
-            "ص" to listOf("ض"),
-            "ض" to listOf("ص"),
-            "ث" to listOf("ت"),
-            "ت" to listOf("ث"),
-            "ج" to listOf("ح"),
-            "ح" to listOf("خ", "ج"),
-            "خ" to listOf("ح"),
-            "ع" to listOf("غ"),
-            "غ" to listOf("ع")
-        )
     }
 
     /** True when this instance exists only to host overlay features (system IME not bound). */
@@ -301,7 +329,6 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private var accentPopupChars: List<String> = emptyList()
     private var accentPopupViews: List<TextView> = emptyList()
     private var accentPopupAnchor: View? = null
-    private var accentPopupAnchorOriginalBackground: Drawable? = null
     private var longPressHandler = Handler(Looper.getMainLooper())
     private var longPressRunnable: Runnable? = null
     private var isLongPressActive = false
@@ -518,9 +545,29 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
     override fun onCreateInputView(): View {
         if (rootView != null) {
+            // #region agent log
+            run {
+                val pal = com.deltavoice.theme.KeyboardThemeStore.loadPalette(this)
+                com.deltavoice.debug.DebugSession44.log(
+                    this, "H4", "MainKeyboardService.onCreateInputView",
+                    "returning_cached_rootView",
+                    mapOf(
+                        "cached" to "true",
+                        "currentPrefsBgArgb" to pal.background.toString()
+                    )
+                )
+            }
+            // #endregion
             applyOrientationOptimizations(rootView!!)
             return rootView!!
         }
+        // #region agent log
+        com.deltavoice.debug.DebugSession44.log(
+            this, "H4", "MainKeyboardService.onCreateInputView",
+            "inflate_and_bind_fresh",
+            mapOf("cached" to "false")
+        )
+        // #endregion
         val view = LayoutInflater.from(this).inflate(R.layout.keyboard_layout, null)
         rootView = view
         bindKeyboardLayout(view)
@@ -547,6 +594,22 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun bindKeyboardLayout(view: View) {
         // Re-apply orientation-specific UI sizing each time the view is created.
         applyOrientationOptimizations(view)
+
+        // #region agent log
+        run {
+            val pal = com.deltavoice.theme.KeyboardThemeStore.loadPalette(this)
+            com.deltavoice.debug.DebugSession44.log(
+                this, "H3", "MainKeyboardService.bindKeyboardLayout",
+                "prefs_readable_palette_at_bind",
+                mapOf(
+                    "bgArgb" to pal.background.toString(),
+                    "accentArgb" to pal.accent.toString(),
+                    "iconTintArgb" to pal.iconTint.toString(),
+                    "theme_apply_in_service" to "unknown"
+                )
+            )
+        }
+        // #endregion
 
         // Load saved keyboard language preference
         loadKeyboardLanguagePreference()
@@ -646,6 +709,20 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         loadKeyboardLanguagePreference()
         spaceBarButton?.text = currentKeyboardLanguageName
         rebuildKeyboardLayout()
+        // #region agent log
+        run {
+            val pal = com.deltavoice.theme.KeyboardThemeStore.loadPalette(this)
+            com.deltavoice.debug.DebugSession44.log(
+                this, "H5", "MainKeyboardService.onStartInputView",
+                "after_rebuild_loadPalette",
+                mapOf(
+                    "bgArgb" to pal.background.toString(),
+                    "accentArgb" to pal.accent.toString(),
+                    "restarting" to restarting.toString()
+                )
+            )
+        }
+        // #endregion
         // Enable background blur and transparency (API 31+)
         applyBlurAndTransparency()
     }
@@ -747,25 +824,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     /**
      * Schedule multiple requestShowSelf calls so keyboard reliably appears after upload activity
      * finishes. Activity finishes at 750ms; we call before and after to catch the transition.
-     *
-     * Also posts a delayed runnable (~900ms) so pending voice/video upload UI is applied when
-     * [onStartInputView] does not run again after the picker (same editor session).
      */
     private fun scheduleKeyboardShowAfterUpload() {
-        val handler = Handler(Looper.getMainLooper())
-        handler.postDelayed({
-            if (pendingShowVoiceFromUpload && !recordingFilePath.isNullOrBlank()) {
-                pendingShowVoiceFromUpload = false
-                showVoiceProcessingUI()
-                Toast.makeText(this, getString(R.string.ready_for_processing), Toast.LENGTH_SHORT).show()
-            }
-            if (pendingShowVideoFromUpload && !videoFilePath.isNullOrBlank()) {
-                pendingShowVideoFromUpload = false
-                showVideoPreview()
-                Toast.makeText(this, getString(R.string.ready_for_processing), Toast.LENGTH_SHORT).show()
-            }
-        }, 900)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+        val handler = Handler(Looper.getMainLooper())
         val delays = longArrayOf(150, 400, 700, 1000, 1300)
         for (delay in delays) {
             handler.postDelayed({
@@ -805,12 +867,14 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
 
     private fun hideTopBarsForOverlay() {
+        if (overlayBubbleKeyboardIsolated) return
         rootView?.findViewById<View>(R.id.top_bar_container)?.visibility = View.GONE
         rootView?.findViewById<View>(R.id.ai_features_row)?.visibility = View.GONE
         rootView?.findViewById<View>(R.id.predictions_container)?.visibility = View.GONE
     }
 
     private fun showTopBarsAfterOverlay() {
+        if (overlayBubbleKeyboardIsolated) return
         rootView?.findViewById<View>(R.id.top_bar_container)?.visibility = View.VISIBLE
         rootView?.findViewById<View>(R.id.ai_features_row)?.visibility = View.VISIBLE
         rootView?.findViewById<View>(R.id.predictions_container)?.visibility = View.GONE
@@ -982,13 +1046,15 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         keyboardCardVoice.setBackgroundResource(if (workflowType == "voice-only") selected else unselected)
         keyboardCardText.setBackgroundResource(if (workflowType == "text-only") selected else unselected)
         
-        // Update spinner states based on mode
-        rootView?.let { view ->
-            val languageContainer = view.findViewById<LinearLayout>(R.id.language_spinner_container)
-            val voiceContainer = view.findViewById<LinearLayout>(R.id.voice_spinner_container)
-            val languageIcon = view.findViewById<ImageView>(R.id.language_icon)
-            val voiceIcon = view.findViewById<ImageView>(R.id.voice_icon)
-            
+        // Scope pills/icons to Step 2 (keyboard + overlay each have their own included layout)
+        if (!::voiceProcessingStep2Container.isInitialized) return
+        val scope = voiceProcessingStep2Container
+        run {
+            val languageContainer = scope.findViewById<LinearLayout>(R.id.language_spinner_container)
+            val voiceContainer = scope.findViewById<LinearLayout>(R.id.voice_spinner_container)
+            val languageIcon = scope.findViewById<ImageView>(R.id.language_icon)
+            val voiceIcon = scope.findViewById<ImageView>(R.id.voice_icon)
+
             when (workflowType) {
                 "complete" -> {
                     // Change Language & Voice: Both enabled
@@ -1095,6 +1161,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 connection.connectTimeout = 5000
                 connection.readTimeout = 5000
                 connection.requestMethod = "HEAD"
+                OutboundHttpPolicy.applyTo(connection)
                 val responseCode = connection.responseCode
                 connection.disconnect()
                 responseCode == 200
@@ -1133,23 +1200,28 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun showNetworkErrorWithSettings(message: String) {
         android.util.Log.e("DeltaVoice", "Network error: $message")
         
-        Toast.makeText(this, "📶 $message\nTap Done again when internet is restored.", Toast.LENGTH_LONG).show()
+        Toast.makeText(
+            this,
+            "📶 $message\nRetry when internet is restored (Done or Process Video).",
+            Toast.LENGTH_LONG
+        ).show()
         
-        audioDurationText.text = "📶 No Internet"
-        
-        // Keep button as "Done" so user can retry when internet is restored
-        rootView?.let { view ->
-            val actionBtn = view.findViewById<Button>(R.id.keyboard_button_action)
-            actionBtn?.apply {
+        // Voice Step 2 (keyboard or bubble overlay): bound to [voiceProcessingStep2Container], not [rootView].
+        if (isVoiceUiActive()) {
+            audioDurationText.text = "📶 No Internet"
+            voiceStep2ActionButton()?.apply {
                 isEnabled = true
                 text = "  Done"
                 background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_purple)
                 setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_ai_mode, 0, 0, 0)
                 compoundDrawables.forEach { drawable -> drawable?.setTint(Color.WHITE) }
-                // Listener stays as set in setupProcessingUI - will call processRecordedVoice on tap
             }
         }
-        
+        // Video preview (keyboard or overlay): use active [videoUiContent], not root-only ids.
+        if (isVideoPreviewVisible) {
+            resetVideoProcessButton()
+        }
+
         registerNetworkRestoredCallback()
     }
 
@@ -1253,7 +1325,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     Toast.LENGTH_LONG
                 ).show()
                 audioDurationText.text = "⚠ Need 8s+"
-                rootView?.findViewById<Button>(R.id.keyboard_button_action)?.apply {
+                voiceStep2ActionButton()?.apply {
                     isEnabled = true
                     text = "  Done"
                 }
@@ -1281,15 +1353,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         android.util.Log.d("DeltaVoice", "Options: workflow=$workflowType, lang=$targetLang ($languageName), voice=$voiceStyle ($voiceStyleName)")
 
         // Update UI for processing state - show loading
-        rootView?.let { view ->
-            view.findViewById<Button>(R.id.keyboard_button_action)?.apply {
-                isEnabled = false
-                text = "  Processing..."
-                background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_purple)
-            }
-            // Update duration text to show loading
-            audioDurationText.text = "⏳ Loading..."
+        voiceStep2ActionButton()?.apply {
+            isEnabled = false
+            text = "  Processing..."
+            background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_purple)
         }
+        audioDurationText.text = "⏳ Loading..."
         
         // Show loading message
         val loadingMsg = when (workflowType) {
@@ -1316,7 +1385,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         // Ensure voice UI is exclusive and no other panel can overlap it.
         hideAllOverlays()
         hideTopBarsForOverlay()
-        keyboardContainer.visibility = View.GONE
+        applyImeKeyboardContainerVisible(false)
         voiceRecordingContainer.visibility = View.VISIBLE
         stopRecordingTimer(reset = true)
         updateRecordingMicColor(false)
@@ -1336,7 +1405,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         isAiChatVisible = false
         aiWritingToolsContainer.visibility = View.GONE
         isAiWritingToolsVisible = false
-        keyboardContainer.visibility = View.VISIBLE
+        applyImeKeyboardContainerVisible(true)
         showTopBarsAfterOverlay()
         updateRecordingMicColor(false)
         stopRecordingTimer(reset = true)
@@ -1366,9 +1435,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         
         // Ensure processing UI is exclusive and no other panel can overlap it.
         hideAllOverlays()
-        voiceRecordingContainer.visibility = View.GONE
         hideTopBarsForOverlay()
-        keyboardContainer.visibility = View.GONE
+        applyImeKeyboardContainerVisible(false)
         voiceProcessingStep2Container.visibility = View.VISIBLE
         stopRecordingTimer(reset = false)
         updateRecordingMicColor(false)
@@ -1383,12 +1451,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         updateAudioDuration(recordingFilePath)
         
         // Reset button states
-        rootView?.let { view ->
-            view.findViewById<Button>(R.id.keyboard_button_action)?.apply {
-                isEnabled = true
-                text = "  Done"
-                background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_purple)
-            }
+        voiceStep2ActionButton()?.apply {
+            isEnabled = true
+            text = "  Done"
+            background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_purple)
         }
         
         android.util.Log.d("DeltaVoice", "Processing UI shown successfully")
@@ -1410,7 +1476,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         isAiChatVisible = false
         aiWritingToolsContainer.visibility = View.GONE
         isAiWritingToolsVisible = false
-        keyboardContainer.visibility = View.VISIBLE
+        applyImeKeyboardContainerVisible(true)
         showTopBarsAfterOverlay()
     }
     
@@ -1638,19 +1704,19 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     updateAudioDuration(processedAudioFilePath)
                     
                     // Make audio player container visible
-                    rootView?.findViewById<View>(R.id.audio_player_container)?.visibility = View.VISIBLE
-                    
+                    if (::voiceProcessingStep2Container.isInitialized) {
+                        voiceProcessingStep2Container.findViewById<View>(R.id.audio_player_container)?.visibility =
+                            View.VISIBLE
+                    }
+
                     // Update button states - change to Send mode
-                    rootView?.let { view ->
-                        view.findViewById<Button>(R.id.keyboard_button_action)?.apply {
-                            isEnabled = true
-                            text = "  Send"
-                            background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_green)
-                            // Update icon to send icon
-                            setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_send, 0, 0, 0)
-                            compoundDrawables.forEach { drawable ->
-                                drawable?.setTint(Color.WHITE)
-                            }
+                    voiceStep2ActionButton()?.apply {
+                        isEnabled = true
+                        text = "  Send"
+                        background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_green)
+                        setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_send, 0, 0, 0)
+                        compoundDrawables.forEach { drawable ->
+                            drawable?.setTint(Color.WHITE)
                         }
                     }
                     
@@ -1756,6 +1822,15 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
     }
 
+    private fun mimeForSharedAudio(file: File): String {
+        return when (file.extension.lowercase(Locale.US)) {
+            "m4a", "aac", "mp4" -> "audio/mp4"
+            "wav" -> "audio/wav"
+            "ogg" -> "audio/ogg"
+            else -> "audio/mpeg"
+        }
+    }
+
     /**
      * Share an audio file directly to the current chat, or fall back to share chooser.
      */
@@ -1764,33 +1839,43 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             Toast.makeText(this, getString(R.string.share_failed_message), Toast.LENGTH_LONG).show()
             return
         }
-        if (trySendContentDirectly(audioFile, "audio/mpeg")) {
-            Toast.makeText(this, "✓ Sent to chat", Toast.LENGTH_SHORT).show()
-            onComplete()
-            Handler(mainLooper).postDelayed({ try { audioFile.delete() } catch (_: Exception) { } }, 45000)
-            return
-        }
-        try {
-            val uri = androidx.core.content.FileProvider.getUriForFile(
-                this, "${packageName}.fileprovider", audioFile
-            )
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "audio/mpeg"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                clipData = android.content.ClipData.newUri(contentResolver, "audio", uri)
+        serviceScope.launch {
+            val toShare = withContext(Dispatchers.IO) {
+                OutboundMediaSanitizer.sanitizeAudioForOutbound(audioFile)
             }
-            val chooserIntent = Intent.createChooser(shareIntent, chooserTitle).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            if (!toShare.exists()) {
+                Toast.makeText(this@MainKeyboardService, getString(R.string.share_failed_message), Toast.LENGTH_LONG).show()
+                return@launch
             }
-            startActivity(chooserIntent)
-            onComplete()
-            Handler(mainLooper).postDelayed({ try { audioFile.delete() } catch (_: Exception) { } }, 45000)
-        } catch (e: Exception) {
-            android.util.Log.e("DeltaVoice", "Share audio failed", e)
-            Toast.makeText(this, getString(R.string.share_failed_message), Toast.LENGTH_LONG).show()
+            val mime = mimeForSharedAudio(toShare)
+            if (trySendContentDirectly(toShare, mime)) {
+                Toast.makeText(this@MainKeyboardService, "✓ Sent to chat", Toast.LENGTH_SHORT).show()
+                onComplete()
+                Handler(mainLooper).postDelayed({ try { toShare.delete() } catch (_: Exception) { } }, 45000)
+                return@launch
+            }
+            try {
+                val uri = androidx.core.content.FileProvider.getUriForFile(
+                    this@MainKeyboardService, "${packageName}.fileprovider", toShare
+                )
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = mime
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    clipData = android.content.ClipData.newUri(contentResolver, "audio", uri)
+                }
+                val chooserIntent = Intent.createChooser(shareIntent, chooserTitle).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                startActivity(chooserIntent)
+                onComplete()
+                Handler(mainLooper).postDelayed({ try { toShare.delete() } catch (_: Exception) { } }, 45000)
+            } catch (e: Exception) {
+                android.util.Log.e("DeltaVoice", "Share audio failed", e)
+                Toast.makeText(this@MainKeyboardService, getString(R.string.share_failed_message), Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -1802,7 +1887,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun saveVideoToMediaStore(videoFile: File): android.net.Uri? {
         return try {
             val values = ContentValues().apply {
-                put(MediaStore.Video.Media.DISPLAY_NAME, "translated_video_${System.currentTimeMillis()}.mp4")
+                put(MediaStore.Video.Media.DISPLAY_NAME, "v_${UUID.randomUUID()}.mp4")
                 put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     put(MediaStore.Video.Media.RELATIVE_PATH, "${Environment.DIRECTORY_MOVIES}/DeltaVoice")
@@ -1831,43 +1916,52 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             Toast.makeText(this, getString(R.string.share_failed_message), Toast.LENGTH_LONG).show()
             return
         }
-        if (trySendContentDirectly(videoFile, "video/mp4")) {
-            Toast.makeText(this, "✓ Sent to chat", Toast.LENGTH_SHORT).show()
-            onComplete()
-            Handler(mainLooper).postDelayed({ try { videoFile.delete() } catch (_: Exception) { } }, 300000)
-            return
-        }
-        try {
-            // Prefer MediaStore: messaging apps accept content://media/... URIs more reliably
-            var uri: android.net.Uri? = saveVideoToMediaStore(videoFile)
-            var fileToCleanup: File? = null
-            if (uri == null) {
-                val shareCopy = File(cacheDir, "share_video_${System.currentTimeMillis()}.mp4")
-                videoFile.copyTo(shareCopy, overwrite = true)
-                uri = androidx.core.content.FileProvider.getUriForFile(
-                    this, "${packageName}.fileprovider", shareCopy
-                )
-                fileToCleanup = shareCopy
+        serviceScope.launch {
+            val toShare = withContext(Dispatchers.IO) {
+                OutboundMediaSanitizer.sanitizeVideoForOutbound(videoFile) ?: videoFile
             }
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "video/mp4"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                clipData = android.content.ClipData.newUri(contentResolver, "video", uri)
+            if (!toShare.exists()) {
+                Toast.makeText(this@MainKeyboardService, getString(R.string.share_failed_message), Toast.LENGTH_LONG).show()
+                return@launch
             }
-            val chooserIntent = Intent.createChooser(shareIntent, chooserTitle).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            if (trySendContentDirectly(toShare, "video/mp4")) {
+                Toast.makeText(this@MainKeyboardService, "✓ Sent to chat", Toast.LENGTH_SHORT).show()
+                onComplete()
+                Handler(mainLooper).postDelayed({ try { toShare.delete() } catch (_: Exception) { } }, 300000)
+                return@launch
             }
-            startActivity(chooserIntent)
-            onComplete()
-            fileToCleanup?.let { f ->
-                Handler(mainLooper).postDelayed({ try { f.delete() } catch (_: Exception) { } }, 300000)
+            try {
+                // Prefer MediaStore: messaging apps accept content://media/... URIs more reliably
+                var uri: android.net.Uri? = saveVideoToMediaStore(toShare)
+                var fileToCleanup: File? = null
+                if (uri == null) {
+                    val shareCopy = File(cacheDir, "share_v_${UUID.randomUUID()}.mp4")
+                    toShare.copyTo(shareCopy, overwrite = true)
+                    uri = androidx.core.content.FileProvider.getUriForFile(
+                        this@MainKeyboardService, "${packageName}.fileprovider", shareCopy
+                    )
+                    fileToCleanup = shareCopy
+                }
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "video/mp4"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    clipData = android.content.ClipData.newUri(contentResolver, "video", uri)
+                }
+                val chooserIntent = Intent.createChooser(shareIntent, chooserTitle).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                startActivity(chooserIntent)
+                onComplete()
+                fileToCleanup?.let { f ->
+                    Handler(mainLooper).postDelayed({ try { f.delete() } catch (_: Exception) { } }, 300000)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DeltaVoice", "Share video failed", e)
+                Toast.makeText(this@MainKeyboardService, getString(R.string.share_failed_message), Toast.LENGTH_LONG).show()
             }
-        } catch (e: Exception) {
-            android.util.Log.e("DeltaVoice", "Share video failed", e)
-            Toast.makeText(this, getString(R.string.share_failed_message), Toast.LENGTH_LONG).show()
         }
     }
     
@@ -1877,7 +1971,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun clearProcessedAudioStateOnly() {
         processedAudioFilePath = null
         isProcessedAudioReady = false
-        rootView?.findViewById<Button>(R.id.keyboard_button_action)?.apply {
+        voiceStep2ActionButton()?.apply {
             isEnabled = true
             text = "  Done"
             background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_purple)
@@ -2223,7 +2317,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Show the emoji picker - sized to ~half screen like messaging apps
      */
     private fun showEmojiPicker() {
-        keyboardContainer.visibility = View.GONE
+        applyImeKeyboardContainerVisible(false)
         emojiPickerContainer?.let { container ->
             // Size to half screen (like WhatsApp/Telegram emoji picker)
             val halfScreenPx = resources.displayMetrics.heightPixels / 2
@@ -2246,7 +2340,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun hideEmojiPicker() {
         emojiPickerContainer?.visibility = View.GONE
-        keyboardContainer.visibility = View.VISIBLE
+        applyImeKeyboardContainerVisible(true)
         isEmojiPickerVisible = false
     }
     
@@ -2547,7 +2641,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun showCalculator() {
         hideAllOverlays()
         hideTopBarsForOverlay()
-        keyboardContainer.visibility = View.GONE
+        applyImeKeyboardContainerVisible(false)
         calculatorContainer.visibility = View.VISIBLE
         isCalculatorVisible = true
         updateCalculatorDisplay()
@@ -2558,7 +2652,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun hideCalculator() {
         calculatorContainer.visibility = View.GONE
-        keyboardContainer.visibility = View.VISIBLE
+        applyImeKeyboardContainerVisible(true)
         showTopBarsAfterOverlay()
         isCalculatorVisible = false
     }
@@ -2757,14 +2851,14 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun showAiWritingTools() {
         hideAllOverlays()
         hideTopBarsForOverlay()
-        keyboardContainer.visibility = View.GONE
+        applyImeKeyboardContainerVisible(false)
         aiWritingToolsContainer.visibility = View.VISIBLE
         isAiWritingToolsVisible = true
     }
     
     private fun hideAiWritingTools() {
         aiWritingToolsContainer.visibility = View.GONE
-        keyboardContainer.visibility = View.VISIBLE
+        applyImeKeyboardContainerVisible(true)
         showTopBarsAfterOverlay()
         isAiWritingToolsVisible = false
     }
@@ -2835,7 +2929,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     conn.setRequestProperty("Content-Type", "application/json")
                     conn.setRequestProperty("Authorization", "Bearer $anonKey")
                     conn.setRequestProperty("apikey", anonKey)
-                    conn.setRequestProperty("x-client-info", "deltavoice-keyboard/1.0")
+                    OutboundHttpPolicy.applyTo(conn)
                     conn.connectTimeout = 30000
                     conn.readTimeout = 60000
                     conn.doOutput = true
@@ -3681,6 +3775,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 connection.setRequestProperty("Content-Type", "application/json")
                 connection.setRequestProperty("Authorization", "Bearer $apiKey")
                 connection.setRequestProperty("apikey", apiKey)
+                OutboundHttpPolicy.applyTo(connection)
                 connection.connectTimeout = 15000
                 connection.readTimeout = 15000
                 connection.doOutput = true
@@ -4250,7 +4345,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             return
         }
         hideTopBarsForOverlay()
-        keyboardContainer.visibility = View.GONE
+        applyImeKeyboardContainerVisible(false)
         emojiPickerContainer?.visibility = View.GONE
         isEmojiPickerVisible = false
         calculatorContainer.visibility = View.GONE
@@ -4295,6 +4390,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             overlayDictionaryRoot = null
             overlayDictionaryClose = null
             dictSearchCachedRoot = null
+            overlayBubbleKeyboardIsolated = false
             rootView?.let {
                 dictionaryContainer = it.findViewById(R.id.dictionary_include)
                 dictionaryContainer.visibility = View.GONE
@@ -4304,7 +4400,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             return
         }
         dictionaryContainer.visibility = View.GONE
-        keyboardContainer.visibility = View.VISIBLE
+        applyImeKeyboardContainerVisible(true)
         showTopBarsAfterOverlay()
         isDictionaryVisible = false
     }
@@ -4389,6 +4485,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
         isClipboardVisible = true
         lastRenderedSuggestions = emptyList()
+        val topBar = (aiRow.parent as? View)
+        // Keep top_bar_container visible: predictions_container is a child of it; GONE would hide the strip.
+        topBar?.visibility = View.VISIBLE
         aiRow.visibility = View.GONE
         predictionsContainer.visibility = View.VISIBLE
         predictionsRow.removeAllViews()
@@ -4623,6 +4722,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val row1 = view.findViewById<LinearLayout>(R.id.ai_chat_row1)
         val row2 = view.findViewById<LinearLayout>(R.id.ai_chat_row2)
         val row3 = view.findViewById<LinearLayout>(R.id.ai_chat_row3)
+        // setupAiChat runs on first inflate, on overlay attach, and when rebinding root after overlay —
+        // always clear programmatic keys so rows are not duplicated.
+        row0?.removeAllViews()
+        row1?.removeAllViews()
+        row2?.removeAllViews()
+        row3?.removeAllViews()
         val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
         val numbers = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
@@ -4968,7 +5073,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     }
                 }
                 
-                // Convex first (primary), then Supabase fallback. Strict total timeout so chat never hangs.
+                // Convex first (DeepSeek), then Supabase — DNS may not resolve Supabase host on some networks.
                 val edgeResponse = if (isNetworkAvailable()) {
                     withTimeoutOrNull(aiChatEdgeTotalTimeoutMs) {
                         callOpenAiViaConvex(message) ?: callOpenAiViaSupabase(message)
@@ -5002,6 +5107,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             connection.setRequestProperty("Content-Type", "application/json")
             // Note: For production, store API key securely
             connection.setRequestProperty("Authorization", "Bearer ${getOpenAiApiKey()}")
+            OutboundHttpPolicy.applyTo(connection)
             connection.connectTimeout = aiChatConnectTimeoutMs
             connection.readTimeout = aiChatReadTimeoutMs
             connection.doOutput = true
@@ -5054,7 +5160,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     
     /**
      * Get OpenAI API key from user preferences (optional).
-     * When set, bypasses cloud edge endpoints and calls OpenAI directly.
+     * When set, bypasses Supabase and calls OpenAI directly — useful when Supabase is unreachable.
      */
     private fun getOpenAiApiKey(): String {
         return getSharedPreferences("deltavoice_prefs", MODE_PRIVATE)
@@ -5062,7 +5168,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     /**
-     * Call OpenAI via Convex HTTP endpoint (primary for AI chat; no auth, uses Convex env OPENAI_API_KEY).
+     * Call OpenAI via Convex HTTP endpoint (no auth needed, uses Convex env OPENAI_API_KEY)
      */
     private fun callOpenAiViaConvex(message: String): String? {
         if (!com.deltavoice.config.ConvexConfig.USE_CONVEX_FOR_VOICE_WORKFLOW) return null
@@ -5074,6 +5180,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json")
+            OutboundHttpPolicy.applyTo(connection)
             connection.connectTimeout = aiChatConnectTimeoutMs
             connection.readTimeout = aiChatReadTimeoutMs
             connection.doOutput = true
@@ -5106,7 +5213,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
 
     /**
-     * Call OpenAI via Supabase edge function (fallback when Convex is unavailable).
+     * Call OpenAI via Supabase edge function (fallback when Convex unavailable)
      */
     private fun callOpenAiViaSupabase(message: String): String? {
         try {
@@ -5120,6 +5227,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             connection.setRequestProperty("Content-Type", "application/json")
             connection.setRequestProperty("Authorization", "Bearer $apiKey")
             connection.setRequestProperty("apikey", apiKey)
+            OutboundHttpPolicy.applyTo(connection)
             connection.connectTimeout = aiChatConnectTimeoutMs
             connection.readTimeout = aiChatReadTimeoutMs
             connection.doOutput = true
@@ -5146,12 +5254,16 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 return parseAiChatResponse(responseText)
             }
         } catch (e: Exception) {
-            android.util.Log.e("DeltaVoice", "Supabase AI call failed: ${e.message}")
-            val msg = e.message ?: ""
-            if (msg.contains("Unable to resolve host", ignoreCase = true) || msg.contains("No address", ignoreCase = true)) {
-                Handler(android.os.Looper.getMainLooper()).post {
-                    val hint = if (getOpenAiApiKey().isNotBlank()) "" else "\n\nTip: Add your OpenAI API key in AI Assistant settings to use when server is unreachable."
-                    Toast.makeText(this@MainKeyboardService, "Can't reach server. Check Wi‑Fi or mobile data.$hint", Toast.LENGTH_LONG).show()
+            if (e is UnknownHostException) {
+                android.util.Log.d("DeltaVoice", "Supabase AI skipped (DNS): ${e.message}")
+            } else {
+                android.util.Log.e("DeltaVoice", "Supabase AI call failed: ${e.message}")
+                val msg = e.message ?: ""
+                if (msg.contains("Unable to resolve host", ignoreCase = true) || msg.contains("No address", ignoreCase = true)) {
+                    Handler(android.os.Looper.getMainLooper()).post {
+                        val hint = if (getOpenAiApiKey().isNotBlank()) "" else "\n\nTip: Add your OpenAI API key in AI Assistant settings to use when server is unreachable."
+                        Toast.makeText(this@MainKeyboardService, "Can't reach server. Check Wi‑Fi or mobile data.$hint", Toast.LENGTH_LONG).show()
+                    }
                 }
             }
         }
@@ -5180,6 +5292,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun parseAiChatResponse(responseText: String): String? {
         return try {
             val json = org.json.JSONObject(responseText)
+            if (json.has("success") && !json.optBoolean("success", true)) {
+                val errBody = json.optString("content", "")
+                if (errBody.isNotBlank()) return errBody
+                return null
+            }
             // Convex/Supabase: { content, response, message }
             listOf("content", "response", "message", "text").forEach { key ->
                 if (json.has(key)) {
@@ -5316,16 +5433,18 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun showAiChat() {
         hideTopBarsForOverlay()
         // AI chat uses its own mini keyboard layout.
-        keyboardContainer.visibility = View.GONE
-        emojiPickerContainer?.visibility = View.GONE
-        isEmojiPickerVisible = false
-        calculatorContainer.visibility = View.GONE
-        isCalculatorVisible = false
-        dictionaryContainer.visibility = View.GONE
-        isDictionaryVisible = false
-        aiFeaturesContainer.visibility = View.GONE
-        voiceRecordingContainer.visibility = View.GONE
-        voiceProcessingStep2Container.visibility = View.GONE
+        applyImeKeyboardContainerVisible(false)
+        if (!overlayBubbleKeyboardIsolated) {
+            emojiPickerContainer?.visibility = View.GONE
+            isEmojiPickerVisible = false
+            calculatorContainer.visibility = View.GONE
+            isCalculatorVisible = false
+            dictionaryContainer.visibility = View.GONE
+            isDictionaryVisible = false
+            aiFeaturesContainer.visibility = View.GONE
+            voiceRecordingContainer.visibility = View.GONE
+            voiceProcessingStep2Container.visibility = View.GONE
+        }
         aiChatContainer.visibility = View.VISIBLE
         isAiChatVisible = true
         
@@ -5359,7 +5478,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun hideAiChat() {
         aiChatContainer.visibility = View.GONE
-        keyboardContainer.visibility = View.VISIBLE
+        applyImeKeyboardContainerVisible(true)
         showTopBarsAfterOverlay()
         isAiChatVisible = false
     }
@@ -5387,6 +5506,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Setup video recording UI components
      */
     private fun setupVideoRecording(view: View) {
+        videoUiHost = view.takeUnless { it === rootView }
         videoRecordingContainer = view.findViewById(R.id.video_recording_container)
         videoPreviewContainer = view.findViewById(R.id.video_preview_container)
         cameraPreview = view.findViewById(R.id.camera_preview)
@@ -5493,28 +5613,26 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     /**
      * Show video recording UI
      */
-    /** @return false if the recording UI could not be shown (e.g. no camera permission). */
-    private fun showVideoRecording(): Boolean {
+    private fun showVideoRecording() {
         // Check camera permission
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             Toast.makeText(this, "Camera permission required", Toast.LENGTH_SHORT).show()
-            return false
+            return
         }
-
+        
         // Hide other components
         hideAllOverlays()
-
+        
         // Show video recording container
         videoRecordingContainer?.visibility = View.VISIBLE
-        keyboardContainer.visibility = View.GONE
+        applyImeKeyboardContainerVisible(false)
         isVideoRecordingVisible = true
-
+        
         // Start camera preview
         startBackgroundThread()
         if (cameraPreview?.isAvailable == true) {
             openCamera()
         }
-        return true
     }
     
     /**
@@ -5528,7 +5646,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         releaseCameraAndStopThread()
         
         videoRecordingContainer?.visibility = View.GONE
-        keyboardContainer.visibility = View.VISIBLE
+        applyImeKeyboardContainerVisible(true)
         isVideoRecordingVisible = false
         
         // Reset timer
@@ -5562,7 +5680,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         hideVideoRecording()
         
         videoPreviewContainer?.visibility = View.VISIBLE
-        keyboardContainer.visibility = View.GONE
+        applyImeKeyboardContainerVisible(false)
         isVideoPreviewVisible = true
         
         // Setup video player — listener must be registered before setVideoPath so it
@@ -5572,7 +5690,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 val duration = mp.duration / 1000
                 val minutes = duration / 60
                 val seconds = duration % 60
-                rootView?.findViewById<TextView>(R.id.video_duration_text)?.text =
+                videoUiContent()?.findViewById<TextView>(R.id.video_duration_text)?.text =
                     String.format("%d:%02d", minutes, seconds)
                 // start() initializes the surface renderer; seekTo(1) + pause() leaves the
                 // first frame visible as a thumbnail without auto-playing the video.
@@ -5591,7 +5709,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         unregisterNetworkRestoredCallback()
         videoPlayer?.stopPlayback()
         videoPreviewContainer?.visibility = View.GONE
-        keyboardContainer.visibility = View.VISIBLE
+        applyImeKeyboardContainerVisible(true)
         isVideoPreviewVisible = false
         cleanupProcessedVideoFiles()
         resetVideoProcessButton()
@@ -5601,7 +5719,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Play recorded video
      */
     private fun playRecordedVideo() {
-        val playButton = rootView?.findViewById<ImageButton>(R.id.btn_play_video)
+        val playButton = videoUiContent()?.findViewById<ImageButton>(R.id.btn_play_video)
         
         if (videoPlayer?.isPlaying == true) {
             videoPlayer?.pause()
@@ -5873,8 +5991,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Update video recording UI
      */
     private fun updateVideoRecordingUI(recording: Boolean) {
-        val statusText = rootView?.findViewById<TextView>(R.id.video_status_text)
-        val recordButton = rootView?.findViewById<ImageButton>(R.id.btn_video_record)
+        val statusText = videoUiContent()?.findViewById<TextView>(R.id.video_status_text)
+        val recordButton = videoUiContent()?.findViewById<ImageButton>(R.id.btn_video_record)
         
         if (recording) {
             statusText?.text = "Recording... Tap to stop"
@@ -5956,7 +6074,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             try {
                 // Update UI for processing state
                 withContext(Dispatchers.Main) {
-                    rootView?.findViewById<Button>(R.id.btn_process_video)?.apply {
+                    videoUiContent()?.findViewById<Button>(R.id.btn_process_video)?.apply {
                         isEnabled = false
                         text = "⏳ Processing..."
                     }
@@ -5997,7 +6115,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     
                     if (!response.convertedAudioBase64.isNullOrBlank()) {
                         withContext(Dispatchers.Main) {
-                            rootView?.findViewById<Button>(R.id.btn_process_video)?.apply {
+                            videoUiContent()?.findViewById<Button>(R.id.btn_process_video)?.apply {
                                 text = "⏳ Muxing video..."
                             }
                         }
@@ -6040,7 +6158,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                                 response.translatedText?.takeIf { it.isNotBlank() }?.let { insertText(it) }
                                 playBase64Audio(response.convertedAudioBase64, "mp3")
                                 Toast.makeText(this@MainKeyboardService, "✓ Video ready! Tap ▶ to preview, Send to share.", Toast.LENGTH_LONG).show()
-                                rootView?.findViewById<Button>(R.id.btn_process_video)?.apply {
+                                videoUiContent()?.findViewById<Button>(R.id.btn_process_video)?.apply {
                                     isEnabled = true
                                     text = "  Send Video"
                                     setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_send, 0, 0, 0)
@@ -6054,7 +6172,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                                 response.translatedText?.takeIf { it.isNotBlank() }?.let { insertText(it) }
                                 playBase64Audio(response.convertedAudioBase64, "mp3")
                                 Toast.makeText(this@MainKeyboardService, "✓ Audio ready (video mux failed). Send to share audio.", Toast.LENGTH_LONG).show()
-                                rootView?.findViewById<Button>(R.id.btn_process_video)?.apply {
+                                videoUiContent()?.findViewById<Button>(R.id.btn_process_video)?.apply {
                                     isEnabled = true
                                     text = "  Send Audio"
                                     setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_send, 0, 0, 0)
@@ -6446,7 +6564,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Reset video process button state
      */
     private fun resetVideoProcessButton() {
-        rootView?.findViewById<Button>(R.id.btn_process_video)?.apply {
+        videoUiContent()?.findViewById<Button>(R.id.btn_process_video)?.apply {
             isEnabled = true
             text = "  Process Video"
             setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_ai_mode, 0, 0, 0)
@@ -6525,14 +6643,16 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Hide all overlay components
      */
     private fun hideAllOverlays() {
+        if (overlayBubbleKeyboardIsolated) {
+            hideAllOverlaysForBubbleOverlayOnly()
+            return
+        }
         isClipboardVisible = false
         rootView?.let { v ->
             val topBar = v.findViewById<View>(R.id.top_bar_container)
             val predictionsContainer = v.findViewById<View>(R.id.predictions_container)
-            val aiRow = v.findViewById<View>(R.id.ai_features_row)
             topBar?.visibility = View.VISIBLE
             predictionsContainer?.visibility = View.GONE
-            aiRow?.visibility = View.VISIBLE
         }
 
         emojiPickerContainer?.visibility = View.GONE
@@ -6560,6 +6680,26 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
         videoPreviewContainer?.visibility = View.GONE
         isVideoPreviewVisible = false
+    }
+
+    /**
+     * Bubble overlay uses a separate window; only clear the feature panels we rebind to the overlay
+     * — do not strip emoji/calculator/more-options rows on the IME [rootView].
+     */
+    private fun hideAllOverlaysForBubbleOverlayOnly() {
+        isClipboardVisible = false
+        aiChatContainer.visibility = View.GONE
+        isAiChatVisible = false
+        aiWritingToolsContainer.visibility = View.GONE
+        isAiWritingToolsVisible = false
+        voiceRecordingContainer.visibility = View.GONE
+        voiceProcessingStep2Container.visibility = View.GONE
+        videoRecordingContainer?.visibility = View.GONE
+        isVideoRecordingVisible = false
+        videoPreviewContainer?.visibility = View.GONE
+        isVideoPreviewVisible = false
+        dictionaryContainer.visibility = View.GONE
+        isDictionaryVisible = false
     }
 
     private fun isVoiceUiActive(): Boolean {
@@ -6837,9 +6977,6 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         accentPopupAnchor = anchor
         isLongPressActive = true
 
-        accentPopupAnchorOriginalBackground = anchor.background?.constantState?.newDrawable()?.mutate()
-        anchor.background = ContextCompat.getDrawable(this, R.drawable.accent_key_longpress_background)
-
         val density = resources.displayMetrics.density
         val cellW = (44 * density).toInt()
         val cellH = (48 * density).toInt()
@@ -6978,10 +7115,6 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
 
     private fun dismissAccentPopup() {
-        accentPopupAnchor?.let { anchor ->
-            accentPopupAnchorOriginalBackground?.let { anchor.background = it }
-            accentPopupAnchorOriginalBackground = null
-        }
         accentPopup?.dismiss()
         accentPopup = null
         accentPopupChars = emptyList()
@@ -6993,15 +7126,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         longPressRunnable = null
     }
 
-    /** Latin/symbol variants from [ACCENT_MAP]; Arabic from [ARABIC_LONG_PRESS_MAP] (Gboard-style). */
+    /** Returns lowercase + uppercase variants for letters; symbol variants for numbers/symbols. */
     private fun getAccentsForKey(value: String): List<String> {
-        if (value.isEmpty()) return emptyList()
-        if (value.length == 1) {
-            val cp = value.codePointAt(0)
-            if (isArabicCodePoint(cp)) {
-                return ARABIC_LONG_PRESS_MAP[value] ?: emptyList()
-            }
-        }
         val key = if (value.length == 1) value.lowercase() else value
         return ACCENT_MAP[key] ?: emptyList()
     }
@@ -7368,13 +7494,26 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun schedulePredictionUpdate() {
         refreshPredictionSettingsIfNeeded()
-        if (!predictiveTextEnabled) return
-        if (isNumbersMode) return
+        if (!predictiveTextEnabled) {
+            // #region agent log
+            AgentDebugLog.log("H1", "MainKeyboardService.schedulePredictionUpdate", "skipped", mapOf("reason" to "predictive_off"))
+            // #endregion
+            return
+        }
+        if (isNumbersMode) {
+            // #region agent log
+            AgentDebugLog.log("H1", "MainKeyboardService.schedulePredictionUpdate", "skipped", mapOf("reason" to "numbers_mode"))
+            // #endregion
+            return
+        }
         val delayMs = if (lastTypingIntervalMs in 1..FAST_TYPING_INTERVAL_MS) {
             PREDICTION_DELAY_FAST_MS
         } else {
             PREDICTION_DELAY_NORMAL_MS
         }
+        // #region agent log
+        AgentDebugLog.log("H1", "MainKeyboardService.schedulePredictionUpdate", "scheduled", mapOf("delayMs" to delayMs))
+        // #endregion
         predictionComputeJob?.cancel()
         predictionRunnable?.let { predictionHandler.removeCallbacks(it) }
         predictionRunnable = Runnable { updatePredictions() }
@@ -7385,25 +7524,54 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Update predictive text suggestions based on current input
      */
     private fun updatePredictions() {
-        val root = rootView ?: return
-        if (isAiChatVisible) return
+        // #region agent log
+        AgentDebugLog.log("H2", "MainKeyboardService.updatePredictions", "entry", emptyMap())
+        // #endregion
+        val root = rootView ?: run {
+            // #region agent log
+            AgentDebugLog.log("H2", "MainKeyboardService.updatePredictions", "early_exit", mapOf("reason" to "rootView_null"))
+            // #endregion
+            return
+        }
+        if (isAiChatVisible) {
+            // #region agent log
+            AgentDebugLog.log("H2", "MainKeyboardService.updatePredictions", "early_exit", mapOf("reason" to "ai_chat_visible"))
+            // #endregion
+            return
+        }
         val keyboardContainer = root.findViewById<View>(R.id.keyboard_container)
-        if (keyboardContainer?.visibility != View.VISIBLE) return
+        if (keyboardContainer?.visibility != View.VISIBLE) {
+            // #region agent log
+            AgentDebugLog.log("H2", "MainKeyboardService.updatePredictions", "early_exit", mapOf("reason" to "keyboard_container_not_visible", "kbVis" to (keyboardContainer?.visibility ?: -1)))
+            // #endregion
+            return
+        }
         val aiRow = root.findViewById<View>(R.id.ai_features_row)
         val predictionsContainer = root.findViewById<View>(R.id.predictions_container)
         val predictionsRow = root.findViewById<LinearLayout>(R.id.predictions_row)
-        if (aiRow == null || predictionsContainer == null || predictionsRow == null) return
-        
+        if (aiRow == null || predictionsContainer == null || predictionsRow == null) {
+            // #region agent log
+            AgentDebugLog.log("H2", "MainKeyboardService.updatePredictions", "early_exit", mapOf("reason" to "missing_views", "aiRowNull" to (aiRow == null), "predNull" to (predictionsContainer == null)))
+            // #endregion
+            return
+        }
+
         refreshPredictionSettingsIfNeeded()
         val autoCorrection = autoCorrectionEnabled
-        
+
         val textBefore = currentInputConnection?.getTextBeforeCursor(100, 0)?.toString() ?: run {
+            // #region agent log
+            AgentDebugLog.log("H2", "MainKeyboardService.updatePredictions", "early_exit", mapOf("reason" to "textBefore_null"))
+            // #endregion
             if (!isClipboardVisible) showIconsHidePredictions(aiRow, predictionsContainer)
             return
         }
         val currentWord = textBefore.takeLastWhile { c -> c.isLetter() || c == '\'' }
 
         if (currentWord.isEmpty()) {
+            // #region agent log
+            AgentDebugLog.log("H5", "MainKeyboardService.updatePredictions", "early_exit", mapOf("reason" to "currentWord_empty", "textBeforeLen" to textBefore.length))
+            // #endregion
             lastPredictionQuery = ""
             lastRenderedSuggestions = emptyList()
             if (!isClipboardVisible) showIconsHidePredictions(aiRow, predictionsContainer)
@@ -7411,7 +7579,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
 
         val query = currentWord.lowercase(Locale.ROOT)
-        if (query == lastPredictionQuery) return
+        if (query == lastPredictionQuery) {
+            // #region agent log
+            AgentDebugLog.log("H5", "MainKeyboardService.updatePredictions", "early_exit", mapOf("reason" to "same_query", "query" to query))
+            // #endregion
+            return
+        }
         lastPredictionQuery = query
 
         val lang = currentKeyboardLanguage
@@ -7438,15 +7611,35 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     private fun showPredictionsHideIcons(aiRow: View, predictionsContainer: View, predictionsRow: LinearLayout, suggestions: List<String>, autoCorrect: String? = null) {
+        val topBar = (aiRow.parent as? View)
+        // #region agent log
+        AgentDebugLog.log("H4", "MainKeyboardService.showPredictionsHideIcons", "before_visibility", mapOf(
+            "topBarVis" to (topBar?.visibility ?: -1),
+            "aiRowVis" to aiRow.visibility,
+            "predVis" to predictionsContainer.visibility,
+            "predParentIsTopBar" to (predictionsContainer.parent == topBar),
+            "suggestionCount" to suggestions.size
+        ))
+        // #endregion
         if (suggestions == lastRenderedSuggestions &&
             aiRow.visibility == View.GONE &&
             predictionsContainer.visibility == View.VISIBLE) {
+            topBar?.visibility = View.VISIBLE
             return
         }
 
         lastRenderedSuggestions = suggestions.toList()
+        // Keep top_bar_container visible: predictions_container is inside it; GONE hid the whole suggestion strip.
+        topBar?.visibility = View.VISIBLE
         aiRow.visibility = View.GONE
         predictionsContainer.visibility = View.VISIBLE
+        // #region agent log
+        AgentDebugLog.log("H4", "MainKeyboardService.showPredictionsHideIcons", "after_visibility", mapOf(
+            "topBarVis" to (topBar?.visibility ?: -1),
+            "aiRowVis" to aiRow.visibility,
+            "predVis" to predictionsContainer.visibility
+        ))
+        // #endregion
         predictionsRow.removeAllViews()
         
         suggestions.forEach { word ->
@@ -7479,10 +7672,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     private fun showIconsHidePredictions(aiRow: View, predictionsContainer: View) {
+        val topBar = (aiRow.parent as? View)
         if (aiRow.visibility == View.VISIBLE && predictionsContainer.visibility == View.GONE) return
         lastRenderedSuggestions = emptyList()
         pendingAutoCorrect = null
         isClipboardVisible = false
+        topBar?.visibility = View.VISIBLE
         aiRow.visibility = View.VISIBLE
         predictionsContainer.visibility = View.GONE
     }
@@ -7868,7 +8063,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun showMoreOptions() {
         hideAllOverlays()
         hideTopBarsForOverlay()
-        keyboardContainer.visibility = View.GONE
+        applyImeKeyboardContainerVisible(false)
         moreOptionsContainer.visibility = View.VISIBLE
     }
 
@@ -7877,7 +8072,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun hideMoreOptions() {
         moreOptionsContainer.visibility = View.GONE
-        keyboardContainer.visibility = View.VISIBLE
+        applyImeKeyboardContainerVisible(true)
         showTopBarsAfterOverlay()
     }
 
@@ -7905,13 +8100,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     // Hide AI features container (emoji grid, language selector)
                     aiFeaturesContainer.visibility = View.GONE
                     // Always show keyboard
-                    keyboardContainer.visibility = View.VISIBLE
+                    applyImeKeyboardContainerVisible(true)
                 }
                 KeyboardMode.AI -> {
                     // Show AI features container (emoji grid, language selector)
                     aiFeaturesContainer.visibility = View.VISIBLE
                     // Always show keyboard
-                    keyboardContainer.visibility = View.VISIBLE
+                    applyImeKeyboardContainerVisible(true)
                 }
             }
         } catch (e: Exception) {
@@ -8778,15 +8973,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     private fun resetButtonState() {
-        rootView?.let { view ->
-            view.findViewById<Button>(R.id.keyboard_button_action)?.apply {
-                isEnabled = true
-                text = "  Done"
-                background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_purple)
-                setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_ai_mode, 0, 0, 0)
-                compoundDrawables.forEach { drawable ->
-                    drawable?.setTint(Color.WHITE)
-                }
+        voiceStep2ActionButton()?.apply {
+            isEnabled = true
+            text = "  Done"
+            background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_purple)
+            setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_ai_mode, 0, 0, 0)
+            compoundDrawables.forEach { drawable ->
+                drawable?.setTint(Color.WHITE)
             }
         }
     }
@@ -9077,11 +9270,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
     fun attachDictionaryFromOverlay(panel: android.view.View, onDismiss: () -> Unit): Boolean {
         if (!ensureKeyboardLayoutInflated()) return false
+        overlayBubbleKeyboardIsolated = true
         overlayDictionaryRoot = panel
         overlayDictionaryClose = onDismiss
         dictionaryContainer = panel.findViewById(R.id.dictionary_include) ?: return false
         setupDictionary(panel)
         showDictionary()
+        snapImeTypingUiToVisibleForBubbleOverlay()
         return true
     }
 
@@ -9091,64 +9286,160 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
     fun attachVideoRecordingFromOverlay(panel: android.view.View, onDismiss: () -> Unit): Boolean {
         if (!ensureKeyboardLayoutInflated()) return false
+        overlayBubbleKeyboardIsolated = true
         setupVideoRecording(panel)
-        return showVideoRecording()
+        showVideoRecording()
+        snapImeTypingUiToVisibleForBubbleOverlay()
+        return true
     }
 
     fun dismissVideoOverlayFromBubble() {
-        hideVideoRecording()
+        overlayBubbleKeyboardIsolated = false
         rootView?.let { setupVideoRecording(it) }
+        hideVideoRecording()
     }
 
     fun attachAiChatFromOverlay(panel: android.view.View, onDismiss: () -> Unit): Boolean {
         if (!ensureKeyboardLayoutInflated()) return false
+        overlayBubbleKeyboardIsolated = true
         aiChatContainer = panel.findViewById(R.id.ai_chat_container) ?: return false
         setupAiChat(panel)
         showAiChat()
+        snapImeTypingUiToVisibleForBubbleOverlay()
         return true
     }
 
     fun dismissAiChatOverlayFromBubble() {
-        hideAiChat()
+        overlayBubbleKeyboardIsolated = false
         rootView?.let { setupAiChat(it) }
+        hideAiChat()
     }
 
     fun attachAiWritingToolsFromOverlay(panel: android.view.View, onDismiss: () -> Unit): Boolean {
         if (!ensureKeyboardLayoutInflated()) return false
+        overlayBubbleKeyboardIsolated = true
         aiWritingToolsContainer = panel.findViewById(R.id.ai_writing_tools_include) ?: return false
         setupAiWritingTools(panel)
         showAiWritingTools()
+        snapImeTypingUiToVisibleForBubbleOverlay()
         return true
     }
 
     fun dismissAiWritingOverlayFromBubble() {
-        hideAiWritingTools()
+        overlayBubbleKeyboardIsolated = false
         rootView?.let { setupAiWritingTools(it) }
+        hideAiWritingTools()
     }
 
     fun attachVoiceRecordingFromOverlay(panel: android.view.View, onDismiss: () -> Unit): Boolean {
         if (!ensureKeyboardLayoutInflated()) return false
+        overlayBubbleKeyboardIsolated = true
         voiceRecordingContainer = panel.findViewById(R.id.voice_recording_container) ?: return false
+        voiceProcessingStep2Container = panel.findViewById(R.id.voice_processing_step2_container) ?: return false
+        keyboardSpinnerLanguage = panel.findViewById(R.id.keyboard_spinner_language)
+        keyboardSpinnerVoice = panel.findViewById(R.id.keyboard_spinner_voice)
+        keyboardCardFull = panel.findViewById(R.id.keyboard_option_full)
+        keyboardCardVoice = panel.findViewById(R.id.keyboard_option_voice)
+        keyboardCardText = panel.findViewById(R.id.keyboard_option_text)
         recordingStatusText = panel.findViewById(R.id.recording_status_text)
         recordingMicButton = panel.findViewById(R.id.btn_recording_mic)
         recordingTimerText = panel.findViewById(R.id.recording_timer_text)
+        playRecordingButton = panel.findViewById(R.id.btn_play_recording)
+        sendRawRecordingButton = panel.findViewById(R.id.btn_send_raw_recording)
+        audioDurationText = panel.findViewById(R.id.audio_duration_text)
+        audioPlaybackSeekBar = panel.findViewById(R.id.audio_playback_seekbar)
         setupRecordingUI(panel)
+        setupProcessingUI(panel)
         showRecordingUI()
+        snapImeTypingUiToVisibleForBubbleOverlay()
         return true
     }
 
     fun dismissVoiceOverlayFromBubble() {
-        hideRecordingUI()
+        overlayBubbleKeyboardIsolated = false
         rootView?.let {
             voiceRecordingContainer = it.findViewById(R.id.voice_recording_container)
+            voiceProcessingStep2Container = it.findViewById(R.id.voice_processing_step2_container)
+            keyboardSpinnerLanguage = it.findViewById(R.id.keyboard_spinner_language)
+            keyboardSpinnerVoice = it.findViewById(R.id.keyboard_spinner_voice)
+            keyboardCardFull = it.findViewById(R.id.keyboard_option_full)
+            keyboardCardVoice = it.findViewById(R.id.keyboard_option_voice)
+            keyboardCardText = it.findViewById(R.id.keyboard_option_text)
             recordingStatusText = it.findViewById(R.id.recording_status_text)
             recordingMicButton = it.findViewById(R.id.btn_recording_mic)
             recordingTimerText = it.findViewById(R.id.recording_timer_text)
+            playRecordingButton = it.findViewById(R.id.btn_play_recording)
+            sendRawRecordingButton = it.findViewById(R.id.btn_send_raw_recording)
+            audioDurationText = it.findViewById(R.id.audio_duration_text)
+            audioPlaybackSeekBar = it.findViewById(R.id.audio_playback_seekbar)
             setupRecordingUI(it)
+            setupProcessingUI(it)
+        }
+        hideRecordingUI()
+    }
+
+    /**
+     * Bubble overlay removed without going through a feature-specific dismiss: rebind IME [rootView] widgets
+     * so typing UI is not left pointing at detached overlay views.
+     */
+    fun dismissAllBubbleOverlayState() {
+        if (!overlayBubbleKeyboardIsolated) return
+        overlayBubbleKeyboardIsolated = false
+        videoUiHost = null
+        overlayDictionaryRoot = null
+        overlayDictionaryClose = null
+        val root = rootView ?: return
+        try {
+            voiceRecordingContainer = root.findViewById(R.id.voice_recording_container)
+            voiceProcessingStep2Container = root.findViewById(R.id.voice_processing_step2_container)
+            keyboardSpinnerLanguage = root.findViewById(R.id.keyboard_spinner_language)
+            keyboardSpinnerVoice = root.findViewById(R.id.keyboard_spinner_voice)
+            keyboardCardFull = root.findViewById(R.id.keyboard_option_full)
+            keyboardCardVoice = root.findViewById(R.id.keyboard_option_voice)
+            keyboardCardText = root.findViewById(R.id.keyboard_option_text)
+            recordingStatusText = root.findViewById(R.id.recording_status_text)
+            recordingMicButton = root.findViewById(R.id.btn_recording_mic)
+            recordingTimerText = root.findViewById(R.id.recording_timer_text)
+            playRecordingButton = root.findViewById(R.id.btn_play_recording)
+            sendRawRecordingButton = root.findViewById(R.id.btn_send_raw_recording)
+            audioDurationText = root.findViewById(R.id.audio_duration_text)
+            audioPlaybackSeekBar = root.findViewById(R.id.audio_playback_seekbar)
+            setupRecordingUI(root)
+            setupProcessingUI(root)
+        } catch (_: Exception) {
+        }
+        try {
+            setupVideoRecording(root)
+        } catch (_: Exception) {
+        }
+        try {
+            aiChatContainer = root.findViewById(R.id.ai_chat_container)
+            setupAiChat(root)
+        } catch (_: Exception) {
+        }
+        try {
+            aiWritingToolsContainer = root.findViewById(R.id.ai_writing_tools_include)
+            setupAiWritingTools(root)
+        } catch (_: Exception) {
+        }
+        try {
+            dictionaryContainer = root.findViewById(R.id.dictionary_include)
+        } catch (_: Exception) {
+        }
+        try {
+            hideRecordingUI()
+            if (isVideoRecordingVisible || isVideoRecording) hideVideoRecording()
+            if (isVideoPreviewVisible) hideVideoPreview()
+            if (isAiChatVisible) hideAiChat()
+            if (isAiWritingToolsVisible) hideAiWritingTools()
+            dictionaryContainer.visibility = View.GONE
+            isDictionaryVisible = false
+        } catch (_: Exception) {
         }
     }
 
     private fun cleanupBeforeImeTakeover() {
+        overlayBubbleKeyboardIsolated = false
         videoUploadReceiver?.let {
             try {
                 unregisterReceiver(it)

@@ -13,6 +13,8 @@ object KeyboardThemeStore {
 
     const val KEY_SELECTED_THEME = "selected_theme"
     const val KEY_CUSTOM_THEME_COLOR = "custom_theme_color"
+    /** Stored ARGB; `-1` means use theme accent for icon/toolbar tint. */
+    const val KEY_ICON_COLOR = "keyboard_icon_color"
 
     const val THEME_DARK_PURPLE = "dark_purple"
     const val THEME_MIDNIGHT_BLUE = "midnight_blue"
@@ -34,17 +36,21 @@ object KeyboardThemeStore {
         val p = prefs(context)
         val themeId = p.getString(KEY_SELECTED_THEME, DEFAULT_THEME_ID) ?: DEFAULT_THEME_ID
         val custom = p.getInt(KEY_CUSTOM_THEME_COLOR, defaultCustomAccent)
-        return paletteForThemeId(themeId, custom)
+        val base = paletteForThemeId(themeId, custom)
+        val iconOv = p.getInt(KEY_ICON_COLOR, -1)
+        return if (iconOv == -1) base else base.copy(iconTint = iconOv)
     }
 
     /**
      * Preview or resolve without reading prefs (staged selection in ThemesActivity).
+     * @param iconTintOverride `-1` = use each theme’s default icon tint (same as accent).
      */
-    fun paletteForThemeId(themeId: String, customAccentArgb: Int): KeyboardThemePalette {
-        return when (themeId) {
+    fun paletteForThemeId(themeId: String, customAccentArgb: Int, iconTintOverride: Int = -1): KeyboardThemePalette {
+        val base = when (themeId) {
             THEME_CUSTOM -> paletteFromAccent(customAccentArgb)
             else -> PRESETS[themeId] ?: PRESETS[DEFAULT_THEME_ID]!!
         }
+        return if (iconTintOverride == -1) base else base.copy(iconTint = iconTintOverride)
     }
 
     fun defaultPalette(): KeyboardThemePalette = PRESETS[DEFAULT_THEME_ID]!!
@@ -64,7 +70,8 @@ object KeyboardThemeStore {
             accent = accent,
             accentSoft = accentSoft,
             keyText = keyText,
-            keyTextMuted = muted
+            keyTextMuted = muted,
+            iconTint = accent
         )
     }
 
@@ -75,7 +82,8 @@ object KeyboardThemeStore {
             accent = Color.parseColor("#A78BFA"),
             accentSoft = Color.parseColor("#C084FC"),
             keyText = Color.parseColor("#F2F2F2"),
-            keyTextMuted = Color.parseColor("#9CA3AF")
+            keyTextMuted = Color.parseColor("#9CA3AF"),
+            iconTint = Color.parseColor("#A78BFA")
         ),
         THEME_MIDNIGHT_BLUE to KeyboardThemePalette(
             background = Color.parseColor("#0F172A"),
@@ -83,7 +91,8 @@ object KeyboardThemeStore {
             accent = Color.parseColor("#60A5FA"),
             accentSoft = Color.parseColor("#93C5FD"),
             keyText = Color.parseColor("#F1F5F9"),
-            keyTextMuted = Color.parseColor("#94A3B8")
+            keyTextMuted = Color.parseColor("#94A3B8"),
+            iconTint = Color.parseColor("#60A5FA")
         ),
         THEME_FOREST_GREEN to KeyboardThemePalette(
             background = Color.parseColor("#14532D"),
@@ -91,7 +100,8 @@ object KeyboardThemeStore {
             accent = Color.parseColor("#34D399"),
             accentSoft = Color.parseColor("#6EE7B7"),
             keyText = Color.parseColor("#ECFDF5"),
-            keyTextMuted = Color.parseColor("#A7F3D0")
+            keyTextMuted = Color.parseColor("#A7F3D0"),
+            iconTint = Color.parseColor("#34D399")
         ),
         THEME_SUNSET_ORANGE to KeyboardThemePalette(
             background = Color.parseColor("#431407"),
@@ -99,7 +109,8 @@ object KeyboardThemeStore {
             accent = Color.parseColor("#FB923C"),
             accentSoft = Color.parseColor("#FDBA74"),
             keyText = Color.parseColor("#FFF7ED"),
-            keyTextMuted = Color.parseColor("#FED7AA")
+            keyTextMuted = Color.parseColor("#FED7AA"),
+            iconTint = Color.parseColor("#FB923C")
         ),
         THEME_ROSE_PINK to KeyboardThemePalette(
             background = Color.parseColor("#831843"),
@@ -107,7 +118,8 @@ object KeyboardThemeStore {
             accent = Color.parseColor("#F472B6"),
             accentSoft = Color.parseColor("#F9A8D4"),
             keyText = Color.parseColor("#FFF1F2"),
-            keyTextMuted = Color.parseColor("#FBCFE8")
+            keyTextMuted = Color.parseColor("#FBCFE8"),
+            iconTint = Color.parseColor("#F472B6")
         ),
         THEME_PURE_DARK to KeyboardThemePalette(
             background = Color.parseColor("#09090B"),
@@ -115,7 +127,8 @@ object KeyboardThemeStore {
             accent = Color.parseColor("#A1A1AA"),
             accentSoft = Color.parseColor("#D4D4D8"),
             keyText = Color.parseColor("#FAFAFA"),
-            keyTextMuted = Color.parseColor("#A1A1AA")
+            keyTextMuted = Color.parseColor("#A1A1AA"),
+            iconTint = Color.parseColor("#A1A1AA")
         ),
         THEME_GALAXY to KeyboardThemePalette(
             background = Color.parseColor("#1E1B4B"),
@@ -123,7 +136,8 @@ object KeyboardThemeStore {
             accent = Color.parseColor("#C4B5FD"),
             accentSoft = Color.parseColor("#DDD6FE"),
             keyText = Color.parseColor("#F5F3FF"),
-            keyTextMuted = Color.parseColor("#C4B5FD")
+            keyTextMuted = Color.parseColor("#C4B5FD"),
+            iconTint = Color.parseColor("#C4B5FD")
         ),
         THEME_NEON to KeyboardThemePalette(
             background = Color.parseColor("#0A1628"),
@@ -131,7 +145,8 @@ object KeyboardThemeStore {
             accent = Color.parseColor("#00FF88"),
             accentSoft = Color.parseColor("#34D399"),
             keyText = Color.parseColor("#ECFDF5"),
-            keyTextMuted = Color.parseColor("#6EE7B7")
+            keyTextMuted = Color.parseColor("#6EE7B7"),
+            iconTint = Color.parseColor("#00FF88")
         ),
     )
 }

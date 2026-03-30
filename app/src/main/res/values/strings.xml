@@ -35,11 +35,11 @@
     <string name="overlay_permission_required">Overlay permission is required for the floating bubble</string>
     <string name="overlay_attach_keyboard_required">Open the keyboard first to use this feature from the bubble</string>
     <string name="overlay_feature_unavailable">Could not load this feature. Make sure DeltaVoice is enabled as a keyboard in Settings.</string>
-    <string name="overlay_top_row_layout_title">Top row layout</string>
+    <string name="overlay_top_row_layout_title">Floating bubble toolbar</string>
+    <string name="overlay_top_row_layout_help">Choose how icons are arranged when you tap the bubble.</string>
     <string name="overlay_top_row_layout_horizontal">Horizontal strip</string>
-    <string name="overlay_top_row_layout_arc">Arc band</string>
-    <string name="overlay_top_row_layout_help">Arc wraps icons around the bubble when it is at the side of the screen; a full-width bar is used when the bubble is centered.</string>
-    <string name="overlay_top_row_width_label">Width: %d%%</string>
+    <string name="overlay_top_row_layout_arc">Arc around bubble</string>
+    <string name="overlay_top_row_width_label">Toolbar width: %1$d%%</string>
 
     <!-- Permissions -->
     <string name="microphone_permission_required">Microphone permission is required for voice input</string>
@@ -172,16 +172,15 @@
     <string name="please_sign_in_first">Please sign in first</string>
 
     <!-- Video config -->
-    <string name="video_title">Video</string>
-    <!-- Aliases used by activity_video_config layouts (must match @string/ ids) -->
-    <string name="video_processing_screen_title">Video</string>
-    <string name="video_processing_screen_subtitle">Record &amp; translate videos</string>
+    <string name="video_processing_screen_title">Process video</string>
+    <string name="video_processing_screen_subtitle">Translate and dub your recording</string>
     <string name="processing_options_title">Processing options</string>
     <string name="label_target_language">Target language</string>
     <string name="label_voice_style">Voice style</string>
-    <string name="video_hint_record_page">Record and process video on this page.</string>
+    <string name="video_hint_record_page">Record or upload a video, then choose language and voice.</string>
     <string name="smart_tip_title">Tip</string>
-    <string name="smart_tip_video_body">Upload or record a video, choose language and voice style, then process to translate.</string>
+    <string name="smart_tip_video_body">Good lighting and clear speech improve translation quality.</string>
+    <string name="video_title">Video</string>
     <string name="record_translate_videos_subtitle">Record &amp; translate videos</string>
     <string name="processing_options">Processing options</string>
     <string name="target_language">Target language</string>
@@ -190,10 +189,13 @@
     <string name="upload">Upload</string>
     <string name="record">Record</string>
     <string name="video_recorded_tap_process">Video recorded. Tap Process to translate.</string>
+    <string name="video_uploaded_tap_process">Video uploaded. Tap Process to translate.</string>
     <string name="process_video">Process video</string>
     <string name="processed_videos">Processed videos</string>
     <string name="please_select_video">Please select a video file</string>
     <string name="video_ready">Video ready for processing</string>
+    <string name="video_preview_section_title">Preview</string>
+    <string name="video_preview_hint">Play your clip before processing</string>
     <string name="failed_open_file">Failed to open file: %s</string>
     <string name="record_upload_first">Record or upload a video first</string>
     <string name="video_file_not_found">Video file not found</string>
@@ -230,14 +232,13 @@
     <string name="stop_recording">Stop Recording</string>
 
     <!-- Voice config -->
-    <string name="voice_input_cloning_subtitle">Voice input &amp; cloning</string>
-    <!-- Aliases used by activity_voice_config layouts -->
-    <string name="voice_processing_screen_title">Voice</string>
-    <string name="voice_processing_screen_subtitle">Voice input &amp; cloning</string>
+    <string name="voice_processing_screen_title">Process voice</string>
+    <string name="voice_processing_screen_subtitle">Translate or clone your voice</string>
     <string name="processing_mode_section">Processing mode</string>
-    <string name="label_voice_persona">Voice style</string>
-    <string name="voice_hint_record_page">Record and process voice on this page.</string>
-    <string name="smart_tip_voice_body">Upload or record audio, choose processing mode and language, then process.</string>
+    <string name="label_voice_persona">Voice</string>
+    <string name="voice_hint_record_page">Record or upload audio, then choose options below.</string>
+    <string name="smart_tip_voice_body">Speak clearly and reduce background noise for best results.</string>
+    <string name="voice_input_cloning_subtitle">Voice input &amp; cloning</string>
     <string name="processing_mode">Processing mode</string>
     <string name="record_process_voice_hint">Record and process voice on this page.</string>
     <string name="process">Process</string>
@@ -376,6 +377,7 @@
     <string name="video_recording_desc">Video Recording</string>
     <string name="home">Home</string>
     <string name="ai_writing_tools">AI Writing Tools</string>
+    <string name="ai_writing_tools_input_hint">Paste or type text to improve…</string>
     <string name="clipboard">Clipboard</string>
     <string name="upload_audio">Upload audio file</string>
     <string name="return_to_icons">Return to icons</string>
@@ -384,44 +386,47 @@
     <string name="preview_process_video">Preview &amp; Process Video</string>
 
     <!-- Themes -->
+    <string name="theme_preview_section">Preview</string>
+    <string name="theme_custom">Custom</string>
+    <string name="theme_icon_color">Icon color</string>
+    <string name="theme_apply">Apply</string>
+    <string name="theme_staged_hint">Selected (not applied yet)</string>
+    <string name="theme_color_picker_title">Pick accent color</string>
+    <string name="theme_icon_color_picker_title">Pick icon color</string>
+    <string name="theme_icon_color_reset">Reset</string>
     <string name="upgrade_premium_unlock_theme">Upgrade to Premium to unlock this theme!</string>
     <string name="theme_changed">Theme changed to %s</string>
-    <string name="theme_preview_section">Preview</string>
-    <string name="theme_apply">Apply theme</string>
-    <string name="theme_custom">Custom color</string>
-    <string name="theme_color_picker_title">Choose accent color</string>
-    <string name="theme_staged_hint">Tap Apply to use this look on the keyboard.</string>
 
     <!-- Search -->
+    <string name="exit_to_home">Exit to home</string>
+    <string name="search_empty_state">No results yet. Type above and search.</string>
+    <string name="search_no_results">No matches for your search</string>
+    <string name="search_copied">Copied to clipboard</string>
+    <string name="search_category_features">Features</string>
+    <string name="search_category_policy">Legal &amp; policy</string>
+    <string name="search_category_services">Services</string>
+    <string name="search_settings_subtitle">App preferences and appearance</string>
+    <string name="search_permissions_title">Permissions</string>
+    <string name="search_permissions_subtitle">Microphone, camera, and overlay</string>
+    <string name="search_dictionary_subtitle">Definitions and translations</string>
+    <string name="search_policy_open_settings">Open in Settings</string>
+    <string name="search_service_translation_desc">Translate between languages</string>
+    <string name="search_service_voice_title">Voice &amp; speech</string>
+    <string name="search_service_voice_desc">Voice input and text-to-speech</string>
+    <string name="search_service_ai_backend_title">AI backend</string>
+    <string name="search_service_ai_backend_desc">Cloud AI for chat and tools</string>
+    <string name="search_category_activity">Your stats</string>
+    <string name="search_activity_videos_title">Videos processed: %1$d</string>
+    <string name="search_activity_voices_title">Voice sessions: %1$d</string>
+    <string name="search_activity_chats_title">AI chats: %1$d</string>
+    <string name="search_category_subscription">Subscription</string>
+    <string name="search_subscription_manage_hint">Manage plan and billing</string>
+    <string name="search_category_clipboard">Clipboard</string>
+    <string name="search_clipboard_tap_copy">Tap to copy to clipboard</string>
     <string name="type_something_search">Type something to search</string>
     <string name="could_not_open_search">Could not open search</string>
-    <string name="search_in_app_hint">Search features, settings, your activity, subscription, policies, and clipboard history. Works offline.</string>
+    <string name="search_in_app_hint">Type a query and tap Search to see results below.</string>
     <string name="search_hint">Search…</string>
-    <string name="exit_to_home">Exit to home</string>
-    <string name="search_empty_state">Type a few letters to search the app — features, stats, policies, services, and more.</string>
-    <string name="search_no_results">No matches. Try different keywords.</string>
-    <string name="search_category_features">Features</string>
-    <string name="search_category_activity">Your activity</string>
-    <string name="search_category_clipboard">Clipboard</string>
-    <string name="search_category_policy">Policy</string>
-    <string name="search_category_subscription">Subscription</string>
-    <string name="search_category_services">Services</string>
-    <string name="search_settings_subtitle">Sounds, keyboard height, language, permissions</string>
-    <string name="search_permissions_title">App permissions</string>
-    <string name="search_permissions_subtitle">Microphone, camera, and storage</string>
-    <string name="search_dictionary_subtitle">Word lookup and translation from the keyboard</string>
-    <string name="search_policy_open_settings">Open in Settings</string>
-    <string name="search_service_translation_desc">Cloud translation via Supabase edge functions</string>
-    <string name="search_service_voice_title">Voice to text</string>
-    <string name="search_service_voice_desc">Speech recognition and processing through the app backend</string>
-    <string name="search_service_ai_backend_title">AI assistant service</string>
-    <string name="search_service_ai_backend_desc">Chat completions when online; optional local API key</string>
-    <string name="search_activity_videos_title">Videos processed: %d</string>
-    <string name="search_activity_voices_title">Voice messages: %d</string>
-    <string name="search_activity_chats_title">AI chats: %d</string>
-    <string name="search_subscription_manage_hint">Manage plan and billing in Account</string>
-    <string name="search_clipboard_tap_copy">Clipboard history — tap to copy</string>
-    <string name="search_copied">Copied to clipboard</string>
 
     <!-- AI writing tools (calculator layout) -->
     <string name="del">⌫ Del</string>

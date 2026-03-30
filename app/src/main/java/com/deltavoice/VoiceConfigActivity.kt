@@ -10,6 +10,9 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.util.Base64
 import android.view.View
 import android.view.LayoutInflater
@@ -28,6 +31,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.deltavoice.api.CompleteVoiceWorkflowService
+import com.deltavoice.ui.RecordingAmplitudeView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -60,6 +64,13 @@ class VoiceConfigActivity : AppCompatActivity() {
     private lateinit var processedVoiceViewSelector: LinearLayout
     private lateinit var btnVoiceViewList: Button
     private lateinit var btnVoiceViewGrid: Button
+    private lateinit var recordingAmplitude: RecordingAmplitudeView
+
+    private val recordingUiHandler = Handler(Looper.getMainLooper())
+    private var recordingStartTimeMs: Long = 0L
+    private var recordingTimerRunnable: Runnable? = null
+    private var amplitudeSamplerRunnable: Runnable? = null
+    private var syntheticPhase = 0f
 
     private var selectedMode = VoiceProcessIntent.MODE_FULL
     private var audioFilePath: String? = null
@@ -99,8 +110,11 @@ class VoiceConfigActivity : AppCompatActivity() {
             if (!path.isNullOrBlank()) {
                 audioFilePath = path
                 recordingSection.visibility = View.VISIBLE
+                recordingStatus.visibility = View.VISIBLE
+                recordingAmplitude.visibility = View.GONE
                 recordingStatus.text = "Audio uploaded"
                 audioDuration.text = getAudioDuration(path)
+                btnProcess.isEnabled = true
                 Toast.makeText(this, getString(R.string.ready_for_processing), Toast.LENGTH_SHORT).show()
             }
         }
@@ -126,6 +140,7 @@ class VoiceConfigActivity : AppCompatActivity() {
         processedVoiceViewSelector = findViewById(R.id.processed_voice_view_selector)
         btnVoiceViewList = findViewById(R.id.btn_voice_view_list)
         btnVoiceViewGrid = findViewById(R.id.btn_voice_view_grid)
+        recordingAmplitude = findViewById(R.id.recording_amplitude)
 
         findViewById<ImageButton>(R.id.btn_back).setOnClickListener { finish() }
 
@@ -232,8 +247,16 @@ class VoiceConfigActivity : AppCompatActivity() {
             }
 
             isRecording = true
+            recordingSection.visibility = View.VISIBLE
+            recordingStatus.visibility = View.GONE
+            recordingAmplitude.visibility = View.VISIBLE
+            recordingAmplitude.reset()
             btnRecord.text = "  Stop recording"
-            recordingStatus.text = "Recording..."
+            btnPlay.isEnabled = false
+            btnPlay.alpha = 0.45f
+            btnProcess.isEnabled = false
+            startRecordingTimer()
+            startAmplitudeSampler()
         } catch (e: Exception) {
             Toast.makeText(this, "Failed to start: ${e.message}", Toast.LENGTH_SHORT).show()
         }
@@ -241,6 +264,8 @@ class VoiceConfigActivity : AppCompatActivity() {
 
     private fun stopRecording() {
         if (!isRecording) return
+        stopRecordingTimer(reset = false)
+        stopAmplitudeSampler()
         try {
             mediaRecorder?.apply {
                 stop()
@@ -250,11 +275,83 @@ class VoiceConfigActivity : AppCompatActivity() {
             isRecording = false
             btnRecord.text = "  Record"
             recordingSection.visibility = View.VISIBLE
-            recordingStatus.text = "Recording ready"
+            recordingStatus.visibility = View.VISIBLE
+            recordingAmplitude.visibility = View.GONE
+            recordingAmplitude.reset()
+            recordingStatus.text = getString(R.string.recording_ready)
+            btnPlay.isEnabled = true
+            btnPlay.alpha = 1f
+            btnProcess.isEnabled = true
             updateAudioDuration(audioFilePath)
             btnProcess.visibility = View.VISIBLE
         } catch (e: Exception) {
             Toast.makeText(this, "Error stopping: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun startRecordingTimer() {
+        recordingTimerRunnable?.let { recordingUiHandler.removeCallbacks(it) }
+        recordingStartTimeMs = SystemClock.elapsedRealtime()
+        updateRecordingElapsedText()
+        val r = object : Runnable {
+            override fun run() {
+                if (!isRecording) return
+                updateRecordingElapsedText()
+                recordingUiHandler.postDelayed(this, 100L)
+            }
+        }
+        recordingTimerRunnable = r
+        recordingUiHandler.post(r)
+    }
+
+    private fun stopRecordingTimer(reset: Boolean) {
+        recordingTimerRunnable?.let { recordingUiHandler.removeCallbacks(it) }
+        recordingTimerRunnable = null
+        if (reset) {
+            audioDuration.text = "0:00"
+        }
+    }
+
+    private fun updateRecordingElapsedText() {
+        val elapsedMs = SystemClock.elapsedRealtime() - recordingStartTimeMs
+        val totalSeconds = elapsedMs / 1000
+        val minutes = (totalSeconds / 60).toInt()
+        val seconds = (totalSeconds % 60).toInt()
+        audioDuration.text = String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
+    }
+
+    private fun startAmplitudeSampler() {
+        stopAmplitudeSampler()
+        syntheticPhase = 0f
+        amplitudeSamplerRunnable = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            object : Runnable {
+                override fun run() {
+                    if (!isRecording) return
+                    val amp = mediaRecorder?.maxAmplitude ?: 0
+                    val n = (amp / 32768f).coerceIn(0f, 1f)
+                    recordingAmplitude.pushNormalized(n)
+                    recordingUiHandler.postDelayed(this, 64L)
+                }
+            }
+        } else {
+            object : Runnable {
+                override fun run() {
+                    if (!isRecording) return
+                    syntheticPhase += 0.14f
+                    recordingAmplitude.tickSynthetic(syntheticPhase)
+                    recordingUiHandler.postDelayed(this, 64L)
+                }
+            }
+        }
+        recordingUiHandler.post(amplitudeSamplerRunnable!!)
+    }
+
+    private fun stopAmplitudeSampler() {
+        amplitudeSamplerRunnable?.let { recordingUiHandler.removeCallbacks(it) }
+        amplitudeSamplerRunnable = null
+        syntheticPhase = 0f
+        if (::recordingAmplitude.isInitialized) {
+            recordingAmplitude.reset()
         }
     }
 
@@ -644,6 +741,8 @@ class VoiceConfigActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        stopRecordingTimer(reset = false)
+        stopAmplitudeSampler()
         super.onDestroy()
         mediaPlayer?.release()
         mediaRecorder?.release()

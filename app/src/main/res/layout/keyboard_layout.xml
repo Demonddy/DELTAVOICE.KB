@@ -900,7 +900,7 @@
                     android:layout_width="0dp"
                     android:layout_height="@dimen/ai_chat_bottom_row_height"
                     android:layout_weight="1"
-                    android:text="☺"
+                    android:text="\uD83D\uDE00"
                     android:textSize="18sp"
                     android:textColor="#FFFFFF"
                     android:background="@drawable/dict_key_special"

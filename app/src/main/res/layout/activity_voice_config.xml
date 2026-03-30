@@ -347,15 +347,27 @@
                     android:contentDescription="Play"
                     android:tint="@color/primary" />
 
-                <TextView
-                    android:id="@+id/recording_status"
+                <FrameLayout
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="match_parent"
                     android:layout_weight="1"
-                    android:text="Recording ready"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="14sp"
-                    android:layout_marginStart="12dp" />
+                    android:layout_marginStart="12dp">
+
+                    <TextView
+                        android:id="@+id/recording_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
+                        android:text="Recording ready"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp" />
+
+                    <com.deltavoice.ui.RecordingAmplitudeView
+                        android:id="@+id/recording_amplitude"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:visibility="gone" />
+                </FrameLayout>
 
                 <TextView
                     android:id="@+id/audio_duration"

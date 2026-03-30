@@ -22,7 +22,7 @@ object ConvexConfig {
     /** Voice workflow path - handles complete and voice-only workflows */
     const val VOICE_WORKFLOW_PATH = "/complete-voice-workflow"
 
-    /** AI chat path - ChatGPT-like assistant (primary; Supabase edge is fallback) */
+    /** AI chat path - ChatGPT-like assistant (alternative to Supabase when unreachable) */
     const val AI_CHAT_PATH = "/ai-chat"
 
     /** Full endpoint URL for voice workflow */

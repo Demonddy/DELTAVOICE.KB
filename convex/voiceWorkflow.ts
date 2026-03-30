@@ -369,7 +369,7 @@ export interface WorkflowRequest {
   audioBase64: string;
   targetLanguage: string;
   voiceStyle: string;
-  workflowType: "complete" | "voice-only";
+  workflowType: "complete" | "voice-only" | "text-only";
   format?: string;
 }
 
@@ -385,9 +385,10 @@ export interface WorkflowResult {
 }
 
 /**
- * Runs complete or voice-only workflow.
+ * Runs complete, voice-only, or text-only workflow.
  * - complete: Preset voice (Adam, Aria, etc.) from voiceStyle, optional translation, TTS
  * - voice-only: Always myvoiceclone from audioBase64, optional translation, TTS with clone
+ * - text-only: Transcribe + optional translation only (no ElevenLabs)
  */
 export async function runVoiceWorkflow(
   req: WorkflowRequest
@@ -416,6 +417,21 @@ export async function runVoiceWorkflow(
   let translatedText: string;
   let convertedAudioBase64: string;
 
+  if (workflowType === "text-only") {
+    translatedText = shouldTranslate
+      ? await translateText(originalText, targetLanguage)
+      : originalText;
+    return {
+      success: true,
+      originalText,
+      translatedText,
+      convertedAudioBase64: "",
+      targetLanguage: targetLanguage || "",
+      voiceStyle: voiceStyle || "",
+      workflowType,
+    };
+  }
+
   try {
     if (workflowType === "complete") {
       translatedText = shouldTranslate
@@ -441,7 +457,7 @@ export async function runVoiceWorkflow(
       );
     } else {
       throw new Error(
-        `Unsupported workflowType: ${workflowType}. Only 'complete' and 'voice-only' are supported.`
+        `Unsupported workflowType: ${workflowType}. Use 'complete', 'voice-only', or 'text-only'.`
       );
     }
   } catch (ttsError) {

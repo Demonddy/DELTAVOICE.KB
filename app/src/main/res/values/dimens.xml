@@ -9,4 +9,7 @@
     <dimen name="ai_chat_bottom_row_height">40dp</dimen>
     <!-- Emoji picker height - ~half screen to avoid covering entire display -->
     <dimen name="emoji_picker_height">220dp</dimen>
+    <!-- AI writing tools: max height for scrollable tool grid -->
+    <dimen name="ai_writing_tools_scroll_max">280dp</dimen>
+    <dimen name="theme_preview_height">260dp</dimen>
 </resources>

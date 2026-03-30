@@ -404,6 +404,13 @@
                     android:layout_marginEnd="6dp"
                     android:background="#2A3140" />
 
+                <!-- Invisible seekbar: code binds audio_playback_seekbar; landscape UI uses waveform visually -->
+                <SeekBar
+                    android:id="@+id/audio_playback_seekbar"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:visibility="gone" />
+
                 <TextView
                     android:id="@+id/audio_duration_text"
                     android:layout_width="wrap_content"

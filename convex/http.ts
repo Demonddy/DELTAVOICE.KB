@@ -163,17 +163,6 @@ http.route({
         );
       }
 
-      if (!elevenLabsApiKey) {
-        return new Response(
-          JSON.stringify({
-            error:
-              "ElevenLabs API key not configured. Please add your ElevenLabs API key in Convex environment variables.",
-            code: "MISSING_ELEVENLABS_KEY",
-          }),
-          { status: 500, headers: jsonHeaders }
-        );
-      }
-
       const body = (await request.json()) as {
         audioBase64?: string;
         targetLanguage?: string;
@@ -193,13 +182,30 @@ http.route({
       }
 
       const wfType = workflowType || "complete";
-      if (wfType !== "complete" && wfType !== "voice-only") {
+      if (
+        wfType !== "complete" &&
+        wfType !== "voice-only" &&
+        wfType !== "text-only"
+      ) {
         return new Response(
           JSON.stringify({
             success: false,
-            error: `Unsupported workflowType: ${wfType}. Only 'complete' and 'voice-only' are supported by this endpoint.`,
+            error: `Unsupported workflowType: ${wfType}. Use 'complete', 'voice-only', or 'text-only'.`,
           }),
           { status: 400, headers: jsonHeaders }
+        );
+      }
+
+      const elevenLabsApiKey =
+        process.env.ELEVENLABS_API_KEY77 || process.env.ELEVENLABS_API_KEY;
+      if (wfType !== "text-only" && !elevenLabsApiKey) {
+        return new Response(
+          JSON.stringify({
+            error:
+              "ElevenLabs API key not configured. Please add your ElevenLabs API key in Convex environment variables.",
+            code: "MISSING_ELEVENLABS_KEY",
+          }),
+          { status: 500, headers: jsonHeaders }
         );
       }
 
@@ -217,7 +223,7 @@ http.route({
         audioBase64,
         targetLanguage: sanitizedLang,
         voiceStyle: sanitizedVoice,
-        workflowType: wfType,
+        workflowType: wfType as "complete" | "voice-only" | "text-only",
         format,
       };
 

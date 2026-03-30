@@ -6,7 +6,6 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.os.Build
-import android.view.ContextThemeWrapper
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -18,8 +17,6 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.annotation.ColorInt
-import com.google.android.material.card.MaterialCardView
 
 /**
  * Manages feature overlay windows for the floating bubble.
@@ -27,9 +24,6 @@ import com.google.android.material.card.MaterialCardView
  * When the IME is not running, a standalone keyboard host is created so behavior matches the keyboard.
  */
 class OverlayFeatureController(private val context: Context) {
-
-    /** MaterialComponents theme so [MaterialCardView] and inflated layouts work from [android.app.Service] overlay context. */
-    private val uiContext: Context = ContextThemeWrapper(context, R.style.Theme_DeltaVoice_Material)
 
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -43,6 +37,7 @@ class OverlayFeatureController(private val context: Context) {
     }
 
     fun dismissAll() {
+        MainKeyboardService.serviceInstance?.dismissAllBubbleOverlayState()
         overlayViews.toList().forEach { removeOverlay(it) }
         overlayViews.clear()
     }
@@ -65,8 +60,7 @@ class OverlayFeatureController(private val context: Context) {
             width,
             height,
             typeOverlay,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.CENTER
@@ -74,33 +68,9 @@ class OverlayFeatureController(private val context: Context) {
     }
 
     private fun panelWidthPx(): Int =
-        (uiContext.resources.displayMetrics.widthPixels * 0.92f).toInt()
+        (context.resources.displayMetrics.widthPixels * 0.92f).toInt()
 
-    private fun dp(pixels: Int): Int = (pixels * uiContext.resources.displayMetrics.density).toInt()
-
-    /**
-     * Rounds the outer edge of floating panels (matches Ethereal card radius in dimens).
-     * Inner [content] keeps the same hierarchy so [MainKeyboardService] findViewById paths stay valid.
-     */
-    private fun wrapInRoundedCard(content: View, @ColorInt cardColor: Int): MaterialCardView {
-        val r = uiContext.resources.getDimension(R.dimen.card_corner_radius)
-        val el = dp(6).toFloat()
-        return MaterialCardView(uiContext).apply {
-            radius = r
-            cardElevation = el
-            strokeWidth = 0
-            setCardBackgroundColor(cardColor)
-            preventCornerOverlap = false
-            useCompatPadding = true
-            addView(
-                content,
-                FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.WRAP_CONTENT
-                )
-            )
-        }
-    }
+    private fun dp(pixels: Int): Int = (pixels * context.resources.displayMetrics.density).toInt()
 
     /** Running IME if any, otherwise standalone host (same bind path as keyboard). */
     private fun keyboardForOverlayFeatures(): MainKeyboardService? {
@@ -116,17 +86,16 @@ class OverlayFeatureController(private val context: Context) {
     }
 
     fun showMoreOptions(onDismiss: () -> Unit) {
-        val inflater = LayoutInflater.from(uiContext)
+        val inflater = LayoutInflater.from(context)
         val view = inflater.inflate(R.layout.overlay_more_options, null)
-        val card = wrapInRoundedCard(view, Color.parseColor("#0F0F10"))
-        val container = FrameLayout(uiContext).apply {
+        val container = FrameLayout(context).apply {
             setBackgroundColor(Color.TRANSPARENT)
             setOnClickListener { }
         }
-        container.addView(card)
+        container.addView(view)
 
         val params = createOverlayParams(
-            (uiContext.resources.displayMetrics.widthPixels * 0.9).toInt(),
+            (context.resources.displayMetrics.widthPixels * 0.9).toInt(),
             WindowManager.LayoutParams.WRAP_CONTENT
         )
         addOverlay(container, params)
@@ -151,18 +120,17 @@ class OverlayFeatureController(private val context: Context) {
     }
 
     fun showCalculator() {
-        val inflater = LayoutInflater.from(uiContext)
+        val inflater = LayoutInflater.from(context)
         val view = inflater.inflate(R.layout.calculator_layout, null)
-        val card = wrapInRoundedCard(view, Color.parseColor("#1A1A1A"))
-        val container = FrameLayout(uiContext).apply {
+        val container = FrameLayout(context).apply {
             setBackgroundColor(Color.TRANSPARENT)
         }
-        container.addView(card)
+        container.addView(view)
         container.setOnClickListener { removeOverlay(container) }
         view.setOnClickListener { } // Prevent taps on calculator from closing
 
         val params = createOverlayParams(
-            (uiContext.resources.displayMetrics.widthPixels * 0.95).toInt(),
+            (context.resources.displayMetrics.widthPixels * 0.95).toInt(),
             WindowManager.LayoutParams.WRAP_CONTENT
         )
         addOverlay(container, params)
@@ -401,10 +369,9 @@ class OverlayFeatureController(private val context: Context) {
 
     fun showDictionary() {
         val svc = keyboardForOverlayFeatures() ?: return
-        val inflater = LayoutInflater.from(uiContext)
+        val inflater = LayoutInflater.from(context)
         val panel = inflater.inflate(R.layout.overlay_dictionary_host, null)
-        val card = wrapInRoundedCard(panel, Color.parseColor("#111827"))
-        val container = FrameLayout(uiContext).apply {
+        val container = FrameLayout(context).apply {
             setBackgroundColor(Color.TRANSPARENT)
         }
         val panelParams = FrameLayout.LayoutParams(
@@ -414,19 +381,23 @@ class OverlayFeatureController(private val context: Context) {
             gravity = Gravity.CENTER
             setMargins(dp(16), dp(24), dp(16), dp(24))
         }
-        container.addView(card, panelParams)
+        container.addView(panel, panelParams)
         panel.setOnClickListener { } // prevent taps on panel from closing
 
         val params = createOverlayParams(
-            uiContext.resources.displayMetrics.widthPixels,
-            uiContext.resources.displayMetrics.heightPixels
+            context.resources.displayMetrics.widthPixels,
+            context.resources.displayMetrics.heightPixels
         )
         if (!svc.attachDictionaryFromOverlay(panel) { removeOverlay(container) }) {
             return
         }
         addOverlay(container, params)
-        container.setOnClickListener { removeOverlay(container) }
-        panel.findViewById<ImageButton>(R.id.dict_close_btn)?.setOnClickListener { removeOverlay(container) }
+        fun closeDictionary() {
+            svc.dismissDictionaryOverlayFromBubble()
+            removeOverlay(container)
+        }
+        container.setOnClickListener { closeDictionary() }
+        panel.findViewById<ImageButton>(R.id.dict_close_btn)?.setOnClickListener { closeDictionary() }
     }
 
     fun showClipboard() {
@@ -434,17 +405,17 @@ class OverlayFeatureController(private val context: Context) {
         val stored = prefs.getString("clipboard_history", null) ?: ""
         val items = stored.split("\u001E").filter { it.isNotBlank() }
 
-        val container = FrameLayout(uiContext).apply {
+        val container = FrameLayout(context).apply {
             setBackgroundColor(Color.TRANSPARENT)
         }
-        val scroll = ScrollView(uiContext).apply {
-            setBackgroundColor(Color.TRANSPARENT)
+        val scroll = ScrollView(context).apply {
+            setBackgroundResource(R.drawable.glass_panel_background)
         }
-        val layout = LinearLayout(uiContext).apply {
+        val layout = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(16), dp(16), dp(16))
         }
-        val title = TextView(uiContext).apply {
+        val title = TextView(context).apply {
             text = "Clipboard"
             textSize = 18f
             setTextColor(0xFFFFFFFF.toInt())
@@ -452,14 +423,14 @@ class OverlayFeatureController(private val context: Context) {
         }
         layout.addView(title)
         if (items.isEmpty()) {
-            val empty = TextView(uiContext).apply {
+            val empty = TextView(context).apply {
                 text = "No copied text yet"
                 setTextColor(0xFF888888.toInt())
             }
             layout.addView(empty)
         } else {
             items.forEach { text ->
-                val chip = Button(uiContext).apply {
+                val chip = Button(context).apply {
                     this.text = if (text.length > 50) text.take(50) + "…" else text
                     setTextColor(0xFFEDEFF4.toInt())
                     setPadding(dp(12), dp(8), dp(12), dp(8))
@@ -477,7 +448,7 @@ class OverlayFeatureController(private val context: Context) {
                 layout.addView(chip, lp)
             }
         }
-        val closeBtn = Button(uiContext).apply {
+        val closeBtn = Button(context).apply {
             text = "Close"
             setOnClickListener { removeOverlay(container) }
         }
@@ -486,16 +457,15 @@ class OverlayFeatureController(private val context: Context) {
             LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply { topMargin = dp(16) })
         scroll.addView(layout)
-        val card = wrapInRoundedCard(scroll, Color.parseColor("#1E1E24"))
         val scrollLp = FrameLayout.LayoutParams(
             panelWidthPx(),
-            (uiContext.resources.displayMetrics.heightPixels * 0.55f).toInt().coerceAtMost(dp(420))
+            (context.resources.displayMetrics.heightPixels * 0.55f).toInt().coerceAtMost(dp(420))
         ).apply { gravity = Gravity.CENTER }
-        container.addView(card, scrollLp)
+        container.addView(scroll, scrollLp)
         scroll.setOnClickListener { }
         val params = createOverlayParams(
-            uiContext.resources.displayMetrics.widthPixels,
-            uiContext.resources.displayMetrics.heightPixels
+            context.resources.displayMetrics.widthPixels,
+            context.resources.displayMetrics.heightPixels
         )
         container.setOnClickListener { removeOverlay(container) }
         addOverlay(container, params)
@@ -503,10 +473,9 @@ class OverlayFeatureController(private val context: Context) {
 
     fun showVideoRecording() {
         val svc = keyboardForOverlayFeatures() ?: return
-        val inflater = LayoutInflater.from(uiContext)
+        val inflater = LayoutInflater.from(context)
         val panel = inflater.inflate(R.layout.overlay_video_host, null)
-        val card = wrapInRoundedCard(panel, Color.parseColor("#111521"))
-        val container = FrameLayout(uiContext).apply {
+        val container = FrameLayout(context).apply {
             setBackgroundColor(Color.TRANSPARENT)
         }
         val panelParams = FrameLayout.LayoutParams(
@@ -516,27 +485,30 @@ class OverlayFeatureController(private val context: Context) {
             gravity = Gravity.CENTER
             setMargins(dp(16), dp(24), dp(16), dp(24))
         }
-        container.addView(card, panelParams)
+        container.addView(panel, panelParams)
         panel.setOnClickListener { }
         val params = createOverlayParams(
-            uiContext.resources.displayMetrics.widthPixels,
-            uiContext.resources.displayMetrics.heightPixels
+            context.resources.displayMetrics.widthPixels,
+            context.resources.displayMetrics.heightPixels
         )
         if (!svc.attachVideoRecordingFromOverlay(panel) { removeOverlay(container) }) {
             return
         }
         addOverlay(container, params)
-        container.setOnClickListener { removeOverlay(container) }
-        panel.findViewById<ImageButton>(R.id.btn_video_back)?.setOnClickListener { removeOverlay(container) }
-        panel.findViewById<ImageButton>(R.id.btn_video_close)?.setOnClickListener { removeOverlay(container) }
+        fun closeVideo() {
+            svc.dismissVideoOverlayFromBubble()
+            removeOverlay(container)
+        }
+        container.setOnClickListener { closeVideo() }
+        panel.findViewById<ImageButton>(R.id.btn_video_back)?.setOnClickListener { closeVideo() }
+        panel.findViewById<ImageButton>(R.id.btn_video_close)?.setOnClickListener { closeVideo() }
     }
 
     fun showAiChat() {
         val svc = keyboardForOverlayFeatures() ?: return
-        val inflater = LayoutInflater.from(uiContext)
+        val inflater = LayoutInflater.from(context)
         val panel = inflater.inflate(R.layout.ai_chat_panel, null)
-        val card = wrapInRoundedCard(panel, Color.parseColor("#111521"))
-        val container = FrameLayout(uiContext).apply {
+        val container = FrameLayout(context).apply {
             setBackgroundColor(Color.TRANSPARENT)
         }
         val panelParams = FrameLayout.LayoutParams(
@@ -546,26 +518,29 @@ class OverlayFeatureController(private val context: Context) {
             gravity = Gravity.CENTER
             setMargins(dp(16), dp(24), dp(16), dp(24))
         }
-        container.addView(card, panelParams)
+        container.addView(panel, panelParams)
         panel.setOnClickListener { } // prevent taps on panel from closing
         val params = createOverlayParams(
-            uiContext.resources.displayMetrics.widthPixels,
-            uiContext.resources.displayMetrics.heightPixels
+            context.resources.displayMetrics.widthPixels,
+            context.resources.displayMetrics.heightPixels
         )
         if (!svc.attachAiChatFromOverlay(panel) { removeOverlay(container) }) {
             return
         }
         addOverlay(container, params)
-        container.setOnClickListener { removeOverlay(container) }
-        panel.findViewById<ImageButton>(R.id.ai_chat_close_btn)?.setOnClickListener { removeOverlay(container) }
+        fun closeAiChat() {
+            svc.dismissAiChatOverlayFromBubble()
+            removeOverlay(container)
+        }
+        container.setOnClickListener { closeAiChat() }
+        panel.findViewById<ImageButton>(R.id.ai_chat_close_btn)?.setOnClickListener { closeAiChat() }
     }
 
     fun showAiWritingTools() {
         val svc = keyboardForOverlayFeatures() ?: return
-        val inflater = LayoutInflater.from(uiContext)
+        val inflater = LayoutInflater.from(context)
         val panel = inflater.inflate(R.layout.overlay_ai_writing_host, null)
-        val card = wrapInRoundedCard(panel, Color.parseColor("#111521"))
-        val container = FrameLayout(uiContext).apply {
+        val container = FrameLayout(context).apply {
             setBackgroundColor(Color.TRANSPARENT)
         }
         val panelParams = FrameLayout.LayoutParams(
@@ -575,26 +550,29 @@ class OverlayFeatureController(private val context: Context) {
             gravity = Gravity.CENTER
             setMargins(dp(16), dp(24), dp(16), dp(24))
         }
-        container.addView(card, panelParams)
+        container.addView(panel, panelParams)
         panel.setOnClickListener { }
         val params = createOverlayParams(
-            uiContext.resources.displayMetrics.widthPixels,
-            uiContext.resources.displayMetrics.heightPixels
+            context.resources.displayMetrics.widthPixels,
+            context.resources.displayMetrics.heightPixels
         )
         if (!svc.attachAiWritingToolsFromOverlay(panel) { removeOverlay(container) }) {
             return
         }
         addOverlay(container, params)
-        container.setOnClickListener { removeOverlay(container) }
-        panel.findViewById<ImageButton>(R.id.ai_tools_close_btn)?.setOnClickListener { removeOverlay(container) }
+        fun closeAiWriting() {
+            svc.dismissAiWritingOverlayFromBubble()
+            removeOverlay(container)
+        }
+        container.setOnClickListener { closeAiWriting() }
+        panel.findViewById<ImageButton>(R.id.ai_tools_close_btn)?.setOnClickListener { closeAiWriting() }
     }
 
     fun showVoiceRecording() {
         val svc = keyboardForOverlayFeatures() ?: return
-        val inflater = LayoutInflater.from(uiContext)
+        val inflater = LayoutInflater.from(context)
         val panel = inflater.inflate(R.layout.overlay_voice_panel, null)
-        val card = wrapInRoundedCard(panel, Color.parseColor("#0A0A0A"))
-        val container = FrameLayout(uiContext).apply {
+        val container = FrameLayout(context).apply {
             setBackgroundColor(Color.TRANSPARENT)
         }
         val panelParams = FrameLayout.LayoutParams(
@@ -604,17 +582,21 @@ class OverlayFeatureController(private val context: Context) {
             gravity = Gravity.CENTER
             setMargins(dp(16), dp(24), dp(16), dp(24))
         }
-        container.addView(card, panelParams)
+        container.addView(panel, panelParams)
         panel.setOnClickListener { }
         val params = createOverlayParams(
-            uiContext.resources.displayMetrics.widthPixels,
-            uiContext.resources.displayMetrics.heightPixels
+            context.resources.displayMetrics.widthPixels,
+            context.resources.displayMetrics.heightPixels
         )
         if (!svc.attachVoiceRecordingFromOverlay(panel) { removeOverlay(container) }) {
             return
         }
         addOverlay(container, params)
-        container.setOnClickListener { removeOverlay(container) }
-        panel.findViewById<ImageButton>(R.id.btn_recording_back)?.setOnClickListener { removeOverlay(container) }
+        fun closeVoice() {
+            svc.dismissVoiceOverlayFromBubble()
+            removeOverlay(container)
+        }
+        container.setOnClickListener { closeVoice() }
+        panel.findViewById<ImageButton>(R.id.btn_recording_back)?.setOnClickListener { closeVoice() }
     }
 }
