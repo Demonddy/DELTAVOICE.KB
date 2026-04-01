@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en" data-convex-url="https://kindred-curlew-363.eu-west-1.convex.site">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0F0F10" />
+  <meta name="description" content="Process video — translate and dub with DeltaVoice" />
+  <title>Process video · DeltaVoice</title>
+  <link rel="stylesheet" href="video-process.css" />
+</head>
+<body class="voice-process-page">
+  <div class="vp-wrap">
+    <a class="vp-back" href="landing.html">← Back</a>
+
+    <h1 class="vp-title">Process video</h1>
+    <p class="vp-sub">Translate and dub your recording</p>
+
+    <div class="vp-actions" style="margin-bottom: 20px">
+      <button type="button" class="vp-btn vp-btn-secondary" id="uploadBtn">Upload Video</button>
+      <button type="button" class="vp-btn vp-btn-primary" id="recordBtn">Record Video</button>
+    </div>
+    <input type="file" id="fileInput" class="vp-hidden" accept="video/*,.mp4,.webm,.mov,.mkv" />
+    <input type="file" id="cameraInput" class="vp-hidden" accept="video/*" capture="environment" />
+
+    <div class="vp-surface">
+      <h2>🎨 Processing options</h2>
+      <p class="vp-label">Target language</p>
+      <div class="vp-select-wrap">
+        <span>🌐</span>
+        <select id="langSelect" aria-label="Target language"></select>
+      </div>
+      <p class="vp-label">Voice style</p>
+      <div class="vp-select-wrap">
+        <span>🔊</span>
+        <select id="voiceSelect" aria-label="Voice style"></select>
+      </div>
+      <p class="vp-hint">Record or upload a video, then choose language and voice.</p>
+
+      <div id="previewWrap" class="vd-preview-wrap">
+        <p class="vd-preview-title">Preview</p>
+        <p class="vd-preview-hint">Live camera while recording; play your clip after you stop</p>
+        <div class="vd-video-box">
+          <video id="videoPreview" controls playsinline></video>
+        </div>
+      </div>
+
+      <div id="recordingSection" class="vp-recording-section">
+        <div class="vp-recording-bar">
+          <span class="vp-status-text" id="videoStatus">Video ready for processing</span>
+        </div>
+        <button type="button" class="vp-btn vp-btn-primary vp-process-btn" id="processBtn" disabled>
+          Process video
+        </button>
+      </div>
+
+      <div id="resultsSection" class="vp-results vp-hidden">
+        <h3>Processed videos</h3>
+        <div id="resultsList"></div>
+      </div>
+    </div>
+
+    <div class="vd-tip-video">
+      <span style="font-size: 22px">⚡</span>
+      <div>
+        <strong>Tip</strong>
+        <p>Good lighting and clear speech improve translation quality.</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="video-process.js"></script>
+</body>
+</html>

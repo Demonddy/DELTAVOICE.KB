@@ -1,0 +1,23 @@
+# Fly.io — rename `app` to a unique name, then from this directory:
+#   fly launch --no-deploy   # first time only, or use existing app
+#   fly deploy
+# Service listens on PORT (default 8790); Fly sets PORT automatically.
+
+app = "deltavoice-ffmpeg"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8790
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

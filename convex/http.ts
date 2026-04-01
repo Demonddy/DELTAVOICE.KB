@@ -9,6 +9,7 @@ import {
   CORS_HEADERS,
   type WorkflowRequest,
 } from "./voiceWorkflow";
+import { runVideoPipeline } from "./videoPipeline";
 
 const http = httpRouter();
 
@@ -196,8 +197,6 @@ http.route({
         );
       }
 
-      const elevenLabsApiKey =
-        process.env.ELEVENLABS_API_KEY77 || process.env.ELEVENLABS_API_KEY;
       if (wfType !== "text-only" && !elevenLabsApiKey) {
         return new Response(
           JSON.stringify({
@@ -275,6 +274,102 @@ http.route({
         JSON.stringify({
           success: false,
           error: userFriendlyMessage,
+          details: err.message,
+          timestamp: new Date().toISOString(),
+        }),
+        { status: 500, headers: jsonHeaders }
+      );
+    }
+  }),
+});
+
+// --- Video workflow (extract → voice AI → mux via external FFmpeg service) ---
+
+http.route({
+  path: "/video-workflow",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return new Response(null, {
+      status: 204,
+      headers: CORS_HEADERS,
+    });
+  }),
+});
+
+http.route({
+  path: "/video-workflow",
+  method: "POST",
+  handler: httpAction(async (_ctx, request) => {
+    const jsonHeaders = {
+      ...CORS_HEADERS,
+      "Content-Type": "application/json",
+    };
+
+    try {
+      const body = (await request.json()) as {
+        videoBase64?: string;
+        targetLanguage?: string;
+        voiceStyle?: string;
+        videoFormat?: string;
+      };
+
+      if (!body.videoBase64 || body.videoBase64.length < 100) {
+        return new Response(
+          JSON.stringify({ success: false, error: "videoBase64 is required" }),
+          { status: 400, headers: jsonHeaders }
+        );
+      }
+
+      const openAIApiKey =
+        process.env.OPENAI_API_KEY77 || process.env.OPENAI_API_KEY;
+      const elevenLabsApiKey =
+        process.env.ELEVENLABS_API_KEY77 || process.env.ELEVENLABS_API_KEY;
+
+      if (!openAIApiKey) {
+        return new Response(
+          JSON.stringify({
+            error: "OpenAI API key not configured",
+            code: "MISSING_OPENAI_KEY",
+          }),
+          { status: 500, headers: jsonHeaders }
+        );
+      }
+      if (!elevenLabsApiKey) {
+        return new Response(
+          JSON.stringify({
+            error: "ElevenLabs API key not configured",
+            code: "MISSING_ELEVENLABS_KEY",
+          }),
+          { status: 500, headers: jsonHeaders }
+        );
+      }
+
+      const sanitizedLang =
+        typeof body.targetLanguage === "string" && body.targetLanguage.trim()
+          ? body.targetLanguage.trim()
+          : "en";
+      const sanitizedVoice =
+        typeof body.voiceStyle === "string" && body.voiceStyle.trim()
+          ? body.voiceStyle.trim().toLowerCase()
+          : "aria";
+
+      const result = await runVideoPipeline({
+        videoBase64: body.videoBase64,
+        targetLanguage: sanitizedLang,
+        voiceStyle: sanitizedVoice,
+        videoFormat: body.videoFormat,
+      });
+
+      return new Response(JSON.stringify(result), {
+        status: 200,
+        headers: jsonHeaders,
+      });
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: err.message,
           details: err.message,
           timestamp: new Date().toISOString(),
         }),

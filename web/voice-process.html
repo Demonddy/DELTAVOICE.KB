@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en" data-convex-url="https://kindred-curlew-363.eu-west-1.convex.site">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0F0F10" />
+  <meta name="description" content="Process voice — translate, clone, or transcribe with DeltaVoice" />
+  <title>Process voice · DeltaVoice</title>
+  <link rel="stylesheet" href="voice-process.css" />
+</head>
+<body class="voice-process-page">
+  <div class="vp-wrap">
+    <a class="vp-back" href="landing.html">← Back</a>
+
+    <h1 class="vp-title">Process voice</h1>
+    <p class="vp-sub">Translate or clone your voice</p>
+
+    <p class="vp-section-label">Processing mode</p>
+    <div class="vp-cards">
+      <div class="vp-card selected" data-mode="full" role="button" tabindex="0">
+        <span style="font-size: 20px">⚡</span>
+        <h3>Change Language &amp; Voice</h3>
+        <p>Full conversion</p>
+      </div>
+      <div class="vp-card" data-mode="voice_only" role="button" tabindex="0">
+        <span style="font-size: 20px">🎤</span>
+        <h3>Translate My Same Voice</h3>
+        <p>Voice cloning</p>
+      </div>
+      <div class="vp-card" data-mode="text_only" role="button" tabindex="0">
+        <span style="font-size: 20px">T</span>
+        <h3>Transcript &amp; Translate</h3>
+        <p>Text output</p>
+      </div>
+    </div>
+
+    <div class="vp-surface">
+      <h2>⚙️ Options</h2>
+      <p class="vp-label">Target language</p>
+      <div class="vp-select-wrap">
+        <span>🌐</span>
+        <select id="langSelect" aria-label="Target language"></select>
+      </div>
+      <p class="vp-label">Voice</p>
+      <div class="vp-select-wrap">
+        <span>🔊</span>
+        <select id="voiceSelect" aria-label="Voice style"></select>
+      </div>
+      <p class="vp-hint">Record or upload audio, then choose options below.</p>
+
+      <div class="vp-actions">
+        <button type="button" class="vp-btn vp-btn-secondary" id="uploadBtn">Upload voice</button>
+        <button type="button" class="vp-btn vp-btn-primary" id="recordBtn">Record</button>
+      </div>
+      <input type="file" id="fileInput" class="vp-hidden" accept="audio/*,video/*,.m4a,.mp3,.wav,.webm" />
+
+      <div id="recordingSection" class="vp-recording-section">
+        <div class="vp-recording-bar">
+          <button type="button" class="vp-play-btn" id="playBtn" disabled aria-label="Play">▶</button>
+          <div class="vp-recording-center">
+            <span class="vp-status-text" id="statusText">Recording ready</span>
+            <canvas id="waveCanvas" class="vp-wave" width="400" height="36" aria-hidden="true"></canvas>
+          </div>
+          <span class="vp-duration" id="durationText">0:00</span>
+        </div>
+        <button type="button" class="vp-btn vp-btn-primary vp-process-btn" id="processBtn" disabled>
+          Process
+        </button>
+      </div>
+
+      <textarea id="textOutput" class="vp-text-out vp-hidden" readonly placeholder="Transcript will appear here"></textarea>
+
+      <div id="resultsSection" class="vp-results vp-hidden">
+        <h3>Processed voices</h3>
+        <div id="resultsList"></div>
+      </div>
+    </div>
+
+    <div class="vp-tip">
+      <span style="font-size: 22px">⚡</span>
+      <div>
+        <strong>Tip</strong>
+        <p>Speak clearly and reduce background noise for best results.</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="voice-process.js"></script>
+</body>
+</html>

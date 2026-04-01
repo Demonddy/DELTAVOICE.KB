@@ -20,7 +20,7 @@
 <body>
     <div id="app">
         <!-- Header -->
-        <header class="header">
+        <header class="header" style="flex-wrap:wrap;gap:8px">
             <div class="logo">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
                     <path d="M12 2L2 7v10l10 5 10-5V7L12 2z" stroke="#8B5CF6" stroke-width="2" fill="none"/>
@@ -28,6 +28,11 @@
                 </svg>
                 <span>DeltaVoice</span>
             </div>
+            <nav class="header-nav" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-left:auto">
+                <a href="voice-process.html" style="color:var(--text-secondary);font-size:0.8125rem;text-decoration:none">Voice</a>
+                <a href="video-process.html" style="color:var(--text-secondary);font-size:0.8125rem;text-decoration:none">Video</a>
+                <a href="landing.html" style="color:var(--text-secondary);font-size:0.8125rem;text-decoration:none">Home</a>
+            </nav>
             <div class="status" id="status">Ready</div>
         </header>
 
