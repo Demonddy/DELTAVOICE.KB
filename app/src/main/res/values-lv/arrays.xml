@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>Ārija</item>
+        <item>Ādams</item>
+        <item>Rodžers</item>
+        <item>Sāra</item>
+        <item>Laura</item>
+        <item>Čārlijs</item>
+        <item>Džordžs</item>
+        <item>Liams</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>angļu valoda</item>
+        <item>spāņu valoda</item>
+        <item>franču valoda</item>
+        <item>vācu</item>
+        <item>itāļu valoda</item>
+        <item>portugāļu</item>
+        <item>krievu valoda</item>
+        <item>japāņi</item>
+        <item>korejiešu</item>
+        <item>ķīniešu</item>
+        <item>arābu</item>
+        <item>hindi</item>
+    </string-array>
+</resources>

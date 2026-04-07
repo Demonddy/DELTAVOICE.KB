@@ -155,18 +155,18 @@ class VoiceProcessModeActivity : AppCompatActivity() {
     private fun processVoice(mode: String) {
         val path = audioFilePath
         if (path.isNullOrBlank()) {
-            Toast.makeText(this, "No recording to process", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_recording_to_process), Toast.LENGTH_SHORT).show()
             return
         }
         
         val audioFile = File(path)
         if (!audioFile.exists()) {
-            Toast.makeText(this, "Recording file not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.recording_file_not_found), Toast.LENGTH_SHORT).show()
             return
         }
         
         if (isProcessing) {
-            Toast.makeText(this, "Already processing...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.already_processing), Toast.LENGTH_SHORT).show()
             return
         }
         
@@ -187,10 +187,10 @@ class VoiceProcessModeActivity : AppCompatActivity() {
         buttonFullProcess.isEnabled = false
         
         val loadingMessage = when (workflowType) {
-            "complete" -> "Translating and converting voice..."
-            "voice-only" -> "Converting voice to $voiceStyle..."
-            "text-only" -> "Transcribing and translating..."
-            else -> "Processing..."
+            "complete" -> getString(R.string.loading_translate_convert_voice)
+            "voice-only" -> getString(R.string.loading_convert_voice_to, voiceStyle)
+            "text-only" -> getString(R.string.loading_transcribe_translate)
+            else -> getString(R.string.processing)
         }
         Toast.makeText(this, loadingMessage, Toast.LENGTH_LONG).show()
         
@@ -207,12 +207,12 @@ class VoiceProcessModeActivity : AppCompatActivity() {
                     handleWorkflowResponse(workflowType, voiceStyle, response)
                 }.onFailure { error ->
                     Toast.makeText(this@VoiceProcessModeActivity,
-                        "Processing failed: ${error.message}", Toast.LENGTH_LONG).show()
+                        getString(R.string.processing_failed_msg, error.message ?: ""), Toast.LENGTH_LONG).show()
                     buttonFullProcess.isEnabled = true
                 }
             } catch (e: Exception) {
                 Toast.makeText(this@VoiceProcessModeActivity,
-                    "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                    getString(R.string.error_message, e.message ?: ""), Toast.LENGTH_LONG).show()
                 buttonFullProcess.isEnabled = true
             } finally {
                 isProcessing = false
@@ -237,9 +237,9 @@ class VoiceProcessModeActivity : AppCompatActivity() {
                 
                 if (!audioBase64.isNullOrBlank()) {
                     saveAndShowProcessedAudio(audioBase64)
-                    Toast.makeText(this, "✓ Ready! Tap play to hear, Send to share", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.ready_tap_play_send), Toast.LENGTH_LONG).show()
                 } else {
-                    Toast.makeText(this, "✓ Text copied to clipboard", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.text_copied_clipboard), Toast.LENGTH_SHORT).show()
                     buttonFullProcess.isEnabled = true
                 }
             }
@@ -248,9 +248,9 @@ class VoiceProcessModeActivity : AppCompatActivity() {
                 // Voice Only: Save processed audio and let user preview
                 if (!audioBase64.isNullOrBlank()) {
                     saveAndShowProcessedAudio(audioBase64)
-                    Toast.makeText(this, "✓ Voice converted! Tap play to hear, Send to share", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.voice_converted_tap_play), Toast.LENGTH_LONG).show()
                 } else {
-                    Toast.makeText(this, "Voice conversion failed", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.voice_conversion_failed_short), Toast.LENGTH_SHORT).show()
                     buttonFullProcess.isEnabled = true
                 }
             }
@@ -260,14 +260,14 @@ class VoiceProcessModeActivity : AppCompatActivity() {
                 val translatedText = response.translatedText
                 if (!translatedText.isNullOrBlank()) {
                     copyToClipboard(translatedText)
-                    Toast.makeText(this, "✓ Text transcribed and copied to clipboard!", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.text_transcribed_copied), Toast.LENGTH_LONG).show()
                 } else {
                     val originalText = response.originalText
                     if (!originalText.isNullOrBlank()) {
                         copyToClipboard(originalText)
-                        Toast.makeText(this, "✓ Text transcribed and copied to clipboard!", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, getString(R.string.text_transcribed_copied), Toast.LENGTH_LONG).show()
                     } else {
-                        Toast.makeText(this, "No text detected", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, getString(R.string.no_text_detected_short), Toast.LENGTH_SHORT).show()
                     }
                 }
                 buttonFullProcess.isEnabled = true
@@ -311,7 +311,7 @@ class VoiceProcessModeActivity : AppCompatActivity() {
                 
             } catch (e: Exception) {
                 Toast.makeText(this@VoiceProcessModeActivity,
-                    "Error saving audio: ${e.message}", Toast.LENGTH_SHORT).show()
+                    getString(R.string.error_saving_audio, e.message ?: ""), Toast.LENGTH_SHORT).show()
                 buttonFullProcess.isEnabled = true
             }
         }
@@ -452,13 +452,13 @@ class VoiceProcessModeActivity : AppCompatActivity() {
         }
         
         if (path.isNullOrBlank()) {
-            Toast.makeText(this, "No audio to play", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_audio_to_play), Toast.LENGTH_SHORT).show()
             return
         }
 
         val audioFile = File(path)
         if (!audioFile.exists()) {
-            Toast.makeText(this, "Audio file not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.audio_file_not_found), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -488,7 +488,7 @@ class VoiceProcessModeActivity : AppCompatActivity() {
 
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(this, "Error playing audio: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.error_playing_audio, e.message ?: ""), Toast.LENGTH_SHORT).show()
         }
     }
 

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>Aaria</item>
+        <item>Adam</item>
+        <item>Roger</item>
+        <item>Sarah</item>
+        <item>Laura</item>
+        <item>Charlie</item>
+        <item>George</item>
+        <item>Liam</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>englanti</item>
+        <item>espanja</item>
+        <item>ranskalainen</item>
+        <item>saksaksi</item>
+        <item>italialainen</item>
+        <item>portugali</item>
+        <item>venäjäksi</item>
+        <item>japanilainen</item>
+        <item>korealainen</item>
+        <item>kiinalainen</item>
+        <item>arabia</item>
+        <item>hindi</item>
+    </string-array>
+</resources>

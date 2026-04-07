@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>అరియా</item>
+        <item>ఆడమ్</item>
+        <item>రోజర్</item>
+        <item>సారా</item>
+        <item>లారా</item>
+        <item>చార్లీ</item>
+        <item>జార్జ్</item>
+        <item>లియామ్</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>ఇంగ్లీష్</item>
+        <item>స్పానిష్</item>
+        <item>ఫ్రెంచ్</item>
+        <item>జర్మన్</item>
+        <item>ఇటాలియన్</item>
+        <item>పోర్చుగీస్</item>
+        <item>రష్యన్</item>
+        <item>జపనీస్</item>
+        <item>కొరియన్</item>
+        <item>చైనీస్</item>
+        <item>అరబిక్</item>
+        <item>హిందీ</item>
+    </string-array>
+</resources>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>ஆரியா</item>
+        <item>ஆதாம்</item>
+        <item>ரோஜர்</item>
+        <item>சாரா</item>
+        <item>லாரா</item>
+        <item>சார்லி</item>
+        <item>ஜார்ஜ்</item>
+        <item>லியாம்</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>ஆங்கிலம்</item>
+        <item>ஸ்பானிஷ்</item>
+        <item>பிரெஞ்சு</item>
+        <item>ஜெர்மன்</item>
+        <item>இத்தாலியன்</item>
+        <item>போர்த்துகீசியம்</item>
+        <item>ரஷ்யன்</item>
+        <item>ஜப்பானியர்</item>
+        <item>கொரிய</item>
+        <item>சீன</item>
+        <item>அரபு</item>
+        <item>ஹிந்தி</item>
+    </string-array>
+</resources>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>Aria</item>
+        <item>Ádhamh</item>
+        <item>Ruairí</item>
+        <item>Sarah</item>
+        <item>Laura</item>
+        <item>Charlie</item>
+        <item>Seoirse</item>
+        <item>Liam</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>Béarla</item>
+        <item>Spáinnis</item>
+        <item>Fraincis</item>
+        <item>Gearmáinis</item>
+        <item>Iodálach</item>
+        <item>Portaingéilis</item>
+        <item>Rúisis</item>
+        <item>Seapánach</item>
+        <item>Cóiréis</item>
+        <item>Síneach</item>
+        <item>Araibis</item>
+        <item>Hiondúis</item>
+    </string-array>
+</resources>

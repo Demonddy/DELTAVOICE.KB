@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>ອາຣີຢາ</item>
+        <item>ອາດາມ</item>
+        <item>ໂຣເຈີ</item>
+        <item>ຊາຣາ</item>
+        <item>ລໍຣາ</item>
+        <item>ຊາລີ</item>
+        <item>George</item>
+        <item>ລີມ</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>ພາສາອັງກິດ</item>
+        <item>ແອສປາໂຍນ</item>
+        <item>ຝຣັ່ງ</item>
+        <item>ເຢຍລະມັນ</item>
+        <item>ອິຕາລຽນ</item>
+        <item>ພາສາປອກຕຸຍການ</item>
+        <item>ພາສາລັດເຊຍ</item>
+        <item>ພາສາຍີ່ປຸ່ນ</item>
+        <item>ເກົາຫຼີ</item>
+        <item>ຈີນ</item>
+        <item>ອາຣັບ</item>
+        <item>ຮິນດູ</item>
+    </string-array>
+</resources>

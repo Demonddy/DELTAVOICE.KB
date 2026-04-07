@@ -85,7 +85,7 @@ class VideoRecordingActivity : AppCompatActivity() {
         // Switch between front and back cameras
         findViewById<View>(R.id.btn_switch_camera).setOnClickListener {
             if (isRecording) {
-                Toast.makeText(this, "Stop recording to switch camera", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.stop_recording_to_switch_camera), Toast.LENGTH_SHORT).show()
             } else {
                 useFrontCamera = !useFrontCamera
                 closeCamera()
@@ -210,12 +210,12 @@ class VideoRecordingActivity : AppCompatActivity() {
                 override fun onError(camera: CameraDevice, error: Int) {
                     camera.close()
                     cameraDevice = null
-                    runOnUiThread { Toast.makeText(this@VideoRecordingActivity, "Camera error", Toast.LENGTH_SHORT).show() }
+                    runOnUiThread { Toast.makeText(this@VideoRecordingActivity, getString(R.string.camera_error_generic), Toast.LENGTH_SHORT).show() }
                 }
             }, backgroundHandler)
         } catch (e: Exception) {
             Log.e(TAG, "Open camera failed", e)
-            Toast.makeText(this, "Failed to open camera", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.failed_open_camera), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -235,7 +235,7 @@ class VideoRecordingActivity : AppCompatActivity() {
                     } catch (_: Exception) {}
                 }
                 override fun onConfigureFailed(session: CameraCaptureSession) {
-                    runOnUiThread { Toast.makeText(this@VideoRecordingActivity, "Camera config failed", Toast.LENGTH_SHORT).show() }
+                    runOnUiThread { Toast.makeText(this@VideoRecordingActivity, getString(R.string.camera_config_failed), Toast.LENGTH_SHORT).show() }
                 }
             }, backgroundHandler)
         } catch (e: Exception) {
@@ -268,7 +268,7 @@ class VideoRecordingActivity : AppCompatActivity() {
     private fun startRecording() {
         if (isRecording) return
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "Audio permission required", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.audio_permission_required), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -323,7 +323,7 @@ class VideoRecordingActivity : AppCompatActivity() {
                     } catch (e: Exception) {
                         Log.e(TAG, "Start recording failed", e)
                         runOnUiThread {
-                            Toast.makeText(this@VideoRecordingActivity, "Failed to start recording: ${e.message}", Toast.LENGTH_LONG).show()
+                            Toast.makeText(this@VideoRecordingActivity, getString(R.string.failed_start_recording, e.message ?: ""), Toast.LENGTH_LONG).show()
                             releaseMediaRecorder()
                             createPreviewSession()
                         }
@@ -331,7 +331,7 @@ class VideoRecordingActivity : AppCompatActivity() {
                 }
                 override fun onConfigureFailed(session: CameraCaptureSession) {
                     runOnUiThread {
-                        Toast.makeText(this@VideoRecordingActivity, "Recording config failed", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@VideoRecordingActivity, getString(R.string.recording_config_failed), Toast.LENGTH_SHORT).show()
                         releaseMediaRecorder()
                         createPreviewSession()
                     }
@@ -339,7 +339,7 @@ class VideoRecordingActivity : AppCompatActivity() {
             }, backgroundHandler)
         } catch (e: Exception) {
             Log.e(TAG, "Start recording failed", e)
-            Toast.makeText(this, "Failed to start recording: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.failed_start_recording, e.message ?: ""), Toast.LENGTH_LONG).show()
             releaseMediaRecorder()
             createPreviewSession()
         }
@@ -372,7 +372,7 @@ class VideoRecordingActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Stop recording failed", e)
-            Toast.makeText(this, "Error stopping: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.error_stopping, e.message ?: ""), Toast.LENGTH_SHORT).show()
             releaseMediaRecorder()
             createPreviewSession()
         }

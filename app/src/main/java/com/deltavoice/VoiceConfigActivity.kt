@@ -112,7 +112,7 @@ class VoiceConfigActivity : AppCompatActivity() {
                 recordingSection.visibility = View.VISIBLE
                 recordingStatus.visibility = View.VISIBLE
                 recordingAmplitude.visibility = View.GONE
-                recordingStatus.text = "Audio uploaded"
+                recordingStatus.text = getString(R.string.audio_uploaded)
                 audioDuration.text = getAudioDuration(path)
                 btnProcess.isEnabled = true
                 Toast.makeText(this, getString(R.string.ready_for_processing), Toast.LENGTH_SHORT).show()
@@ -203,7 +203,7 @@ class VoiceConfigActivity : AppCompatActivity() {
         if (requestCode == PERMISSION_REQUEST_RECORD && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             startRecording()
         } else {
-            Toast.makeText(this, "Microphone permission required to record", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.microphone_permission_to_record), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -251,14 +251,14 @@ class VoiceConfigActivity : AppCompatActivity() {
             recordingStatus.visibility = View.GONE
             recordingAmplitude.visibility = View.VISIBLE
             recordingAmplitude.reset()
-            btnRecord.text = "  Stop recording"
+            btnRecord.text = getString(R.string.btn_stop_recording)
             btnPlay.isEnabled = false
             btnPlay.alpha = 0.45f
             btnProcess.isEnabled = false
             startRecordingTimer()
             startAmplitudeSampler()
         } catch (e: Exception) {
-            Toast.makeText(this, "Failed to start: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.failed_start, e.message ?: ""), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -273,7 +273,7 @@ class VoiceConfigActivity : AppCompatActivity() {
             }
             mediaRecorder = null
             isRecording = false
-            btnRecord.text = "  Record"
+            btnRecord.text = getString(R.string.btn_record)
             recordingSection.visibility = View.VISIBLE
             recordingStatus.visibility = View.VISIBLE
             recordingAmplitude.visibility = View.GONE
@@ -285,7 +285,7 @@ class VoiceConfigActivity : AppCompatActivity() {
             updateAudioDuration(audioFilePath)
             btnProcess.visibility = View.VISIBLE
         } catch (e: Exception) {
-            Toast.makeText(this, "Error stopping: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.error_stopping, e.message ?: ""), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -377,7 +377,7 @@ class VoiceConfigActivity : AppCompatActivity() {
     private fun togglePlayback() {
         val path = audioFilePath
         if (path.isNullOrBlank()) {
-            Toast.makeText(this, "No audio to play", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_audio_to_play), Toast.LENGTH_SHORT).show()
             return
         }
         if (isPlaying) {
@@ -401,7 +401,7 @@ class VoiceConfigActivity : AppCompatActivity() {
                 isPlaying = true
                 btnPlay.setImageResource(R.drawable.ic_pause)
             } catch (e: Exception) {
-                Toast.makeText(this, "Playback error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.playback_error, e.message ?: ""), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -409,12 +409,12 @@ class VoiceConfigActivity : AppCompatActivity() {
     private fun processVoice() {
         val path = audioFilePath
         if (path.isNullOrBlank()) {
-            Toast.makeText(this, "Record or upload first", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.record_upload_first_voice), Toast.LENGTH_SHORT).show()
             return
         }
         val file = File(path)
         if (!file.exists()) {
-            Toast.makeText(this, "Recording not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.recording_not_found), Toast.LENGTH_SHORT).show()
             return
         }
         if (isProcessing) return
@@ -430,8 +430,8 @@ class VoiceConfigActivity : AppCompatActivity() {
 
         isProcessing = true
         btnProcess.isEnabled = false
-        btnProcess.text = "  Processing..."
-        val originalBtnText = "  Process"
+        btnProcess.text = getString(R.string.btn_processing)
+        val originalBtnText = getString(R.string.btn_process)
 
         activityScope.launch {
             try {
@@ -458,27 +458,27 @@ class VoiceConfigActivity : AppCompatActivity() {
                                 )
                                 processedVoices.add(item)
                                 updateProcessedVoicesList()
-                                Toast.makeText(this@VoiceConfigActivity, "Ready! Tap download on any voice", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this@VoiceConfigActivity, getString(R.string.ready_tap_download), Toast.LENGTH_SHORT).show()
                             } ?: run {
-                                Toast.makeText(this@VoiceConfigActivity, "No audio produced. Try text-only mode.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this@VoiceConfigActivity, getString(R.string.no_audio_produced), Toast.LENGTH_SHORT).show()
                             }
                         }
                         "text-only" -> {
                             (response.translatedText ?: response.originalText)?.takeIf { it.isNotBlank() }?.let { text ->
                                 (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Text", text))
-                                Toast.makeText(this@VoiceConfigActivity, "Text copied to clipboard!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this@VoiceConfigActivity, getString(R.string.text_copied_clipboard), Toast.LENGTH_SHORT).show()
                             } ?: run {
-                                Toast.makeText(this@VoiceConfigActivity, "No text detected. Try recording again.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this@VoiceConfigActivity, getString(R.string.no_text_detected), Toast.LENGTH_SHORT).show()
                             }
                         }
                         else -> {}
                     }
                 } else {
-                    val msg = result.exceptionOrNull()?.message ?: "Processing failed"
+                    val msg = result.exceptionOrNull()?.message ?: getString(R.string.processing_failed_generic)
                     Toast.makeText(this@VoiceConfigActivity, msg, Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(this@VoiceConfigActivity, "Please try again", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@VoiceConfigActivity, getString(R.string.please_try_again), Toast.LENGTH_SHORT).show()
             } finally {
                 isProcessing = false
                 btnProcess.isEnabled = true
@@ -591,12 +591,12 @@ class VoiceConfigActivity : AppCompatActivity() {
 
     private fun downloadProcessedAudio(path: String) {
         if (path.isBlank()) {
-            Toast.makeText(this, "No processed audio to download", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_processed_audio_download), Toast.LENGTH_SHORT).show()
             return
         }
         val file = File(path)
         if (!file.exists()) {
-            Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.file_not_found), Toast.LENGTH_SHORT).show()
             return
         }
         try {
@@ -609,11 +609,11 @@ class VoiceConfigActivity : AppCompatActivity() {
                     dest.absolutePath
                 }
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@VoiceConfigActivity, "Saved to: $saved", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@VoiceConfigActivity, getString(R.string.saved_to, saved), Toast.LENGTH_LONG).show()
                 }
             }
         } catch (e: Exception) {
-            Toast.makeText(this, "Download failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.download_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -621,7 +621,7 @@ class VoiceConfigActivity : AppCompatActivity() {
         if (path.isBlank()) return
         val file = File(path)
         if (!file.exists()) {
-            Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.file_not_found), Toast.LENGTH_SHORT).show()
             return
         }
         if (isPlaying) {
@@ -648,18 +648,18 @@ class VoiceConfigActivity : AppCompatActivity() {
             playButton.setImageResource(R.drawable.ic_pause)
             btnPlay.setImageResource(R.drawable.ic_pause)
         } catch (e: Exception) {
-            Toast.makeText(this, "Playback error: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.playback_error, e.message ?: ""), Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun sendProcessedAudio(path: String) {
         if (path.isBlank()) {
-            Toast.makeText(this, "No processed audio to send", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_processed_audio_send), Toast.LENGTH_SHORT).show()
             return
         }
         val file = File(path)
         if (!file.exists()) {
-            Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.file_not_found), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -670,16 +670,16 @@ class VoiceConfigActivity : AppCompatActivity() {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         try {
-            startActivity(Intent.createChooser(intent, "Send voice via"))
+            startActivity(Intent.createChooser(intent, getString(R.string.send_voice_via)))
         } catch (e: Exception) {
-            Toast.makeText(this, "No app available to send audio", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_app_to_send_audio), Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun renameProcessedVoice(item: ProcessedVoiceItem, labelView: TextView, durationView: TextView) {
         val originalFile = File(item.filePath)
         if (!originalFile.exists()) {
-            Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.file_not_found), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -690,14 +690,14 @@ class VoiceConfigActivity : AppCompatActivity() {
         }
 
         AlertDialog.Builder(this)
-            .setTitle("Rename voice")
-            .setMessage("Choose a clear name for this processed voice")
+            .setTitle(getString(R.string.rename_voice_title))
+            .setMessage(getString(R.string.rename_voice_message))
             .setView(input)
-            .setNegativeButton("Cancel", null)
-            .setPositiveButton("Save") { _, _ ->
+            .setNegativeButton(getString(R.string.cancel), null)
+            .setPositiveButton(getString(R.string.save)) { _, _ ->
                 val newLabel = input.text?.toString()?.trim().orEmpty()
                 if (newLabel.isBlank()) {
-                    Toast.makeText(this, "Name cannot be empty", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.name_cannot_be_empty), Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
 
@@ -716,7 +716,7 @@ class VoiceConfigActivity : AppCompatActivity() {
 
                 val renamedFile = File(originalFile.parentFile, targetName)
                 if (renamedFile.exists() && renamedFile.absolutePath != originalFile.absolutePath) {
-                    Toast.makeText(this, "A file with this name already exists", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.file_name_already_exists), Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
 
@@ -732,9 +732,9 @@ class VoiceConfigActivity : AppCompatActivity() {
                     item.duration = getAudioDuration(item.filePath)
                     labelView.text = item.label
                     durationView.text = item.duration
-                    Toast.makeText(this, "Renamed", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.renamed), Toast.LENGTH_SHORT).show()
                 } else {
-                    Toast.makeText(this, "Rename failed", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.rename_failed), Toast.LENGTH_SHORT).show()
                 }
             }
             .show()

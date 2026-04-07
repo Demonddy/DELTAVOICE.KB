@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>ਆਰੀਆ</item>
+        <item>ਆਦਮ</item>
+        <item>ਰੋਜਰ</item>
+        <item>ਸਾਰਾਹ</item>
+        <item>ਲੌਰਾ</item>
+        <item>ਚਾਰਲੀ</item>
+        <item>ਜਾਰਜ</item>
+        <item>ਲਿਆਮ</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>ਅੰਗਰੇਜ਼ੀ</item>
+        <item>ਸਪੇਨੀ</item>
+        <item>ਫ੍ਰੈਂਚ</item>
+        <item>ਜਰਮਨ</item>
+        <item>ਇਤਾਲਵੀ</item>
+        <item>ਪੁਰਤਗਾਲੀ</item>
+        <item>ਰੂਸੀ</item>
+        <item>ਜਾਪਾਨੀ</item>
+        <item>ਕੋਰੀਅਨ</item>
+        <item>ਚੀਨੀ</item>
+        <item>ਅਰਬੀ</item>
+        <item>ਹਿੰਦੀ</item>
+    </string-array>
+</resources>

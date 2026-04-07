@@ -56,6 +56,7 @@ import android.os.HandlerThread
 import android.os.Looper
 import android.Manifest
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.DrawableCompat
 import com.deltavoice.api.VoiceToTextService
@@ -84,6 +85,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ContentValues
 import android.content.Context
+import android.content.res.Resources
 import android.os.Environment
 import android.os.SystemClock
 import android.provider.MediaStore
@@ -244,7 +246,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             standaloneOverlayInstance?.let { return it }
             return try {
                 val h = MainKeyboardService()
-                h.attachBaseContext(context.applicationContext)
+                h.attachBaseContext(AppLocaleHelper.wrap(context.applicationContext))
                 h.isStandaloneOverlayHost = true
                 h.onCreate()
                 h
@@ -322,6 +324,36 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
     /** True when this instance exists only to host overlay features (system IME not bound). */
     private var isStandaloneOverlayHost: Boolean = false
+
+    private var localeResourcesCacheTag: String? = null
+    private var localeWrappedResources: Resources? = null
+
+    /**
+     * Keeps IME UI strings in sync with [AppCompatDelegate] app language (same as Settings).
+     */
+    override fun getResources(): Resources {
+        val locales = AppCompatDelegate.getApplicationLocales()
+        val tag = if (locales.isEmpty) "" else locales[0]?.toLanguageTag() ?: ""
+        if (tag == localeResourcesCacheTag && localeWrappedResources != null) {
+            return localeWrappedResources!!
+        }
+        localeResourcesCacheTag = tag
+        localeWrappedResources = AppLocaleHelper.wrap(applicationContext).resources
+        return localeWrappedResources!!
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        localeResourcesCacheTag = null
+        localeWrappedResources = null
+        if (rootView != null) {
+            rootView = null
+            try {
+                setInputView(onCreateInputView())
+            } catch (_: Exception) {
+            }
+        }
+    }
 
     // Long-press accent popup state
     private var accentPopup: android.widget.PopupWindow? = null
@@ -944,7 +976,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             } else {
                 // Start recording
                 startVoiceRecording(RecordingAction.COMPLETE_WORKFLOW)
-                recordingStatusText.text = "Tap to pause"
+                recordingStatusText.text = getString(R.string.recording_tap_to_pause)
             }
         }
 
@@ -998,7 +1030,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 }
                 btnText.contains("Processing", ignoreCase = true) -> {
                     // Already processing, ignore clicks
-                    Toast.makeText(this, "Please wait, processing...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.please_wait_processing), Toast.LENGTH_SHORT).show()
                 }
                 else -> {
                     // "Done" state - start processing
@@ -1208,7 +1240,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         
         // Voice Step 2 (keyboard or bubble overlay): bound to [voiceProcessingStep2Container], not [rootView].
         if (isVoiceUiActive()) {
-            audioDurationText.text = "📶 No Internet"
+            audioDurationText.text = getString(R.string.status_no_internet)
             voiceStep2ActionButton()?.apply {
                 isEnabled = true
                 text = "  Done"
@@ -1242,11 +1274,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     Handler(Looper.getMainLooper()).post {
                         when {
                             isVoiceUiActive() -> {
-                                Toast.makeText(this@MainKeyboardService, "📶 Internet restored. Tap Done to process.", Toast.LENGTH_SHORT).show()
-                                audioDurationText.text = "Ready – tap Done to process"
+                                Toast.makeText(this@MainKeyboardService, getString(R.string.internet_restored_tap_done), Toast.LENGTH_SHORT).show()
+                                audioDurationText.text = getString(R.string.ready_tap_done_process)
                             }
                             isVideoPreviewVisible -> {
-                                Toast.makeText(this@MainKeyboardService, "📶 Internet restored. Tap Process Video to try again.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this@MainKeyboardService, getString(R.string.internet_restored_tap_process_video), Toast.LENGTH_SHORT).show()
                             }
                             else -> return@post
                         }
@@ -1300,7 +1332,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         // Validate recording exists
         if (audioPath.isNullOrBlank()) {
             android.util.Log.e("DeltaVoice", "ERROR: recordingFilePath is null or blank!")
-            Toast.makeText(this, "No recording found. Please record first.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.no_recording_found), Toast.LENGTH_LONG).show()
             return
         }
 
@@ -1309,7 +1341,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         
         if (!audioFile.exists() || audioFile.length() == 0L) {
             android.util.Log.e("DeltaVoice", "ERROR: Audio file doesn't exist or is empty!")
-            Toast.makeText(this, "Recording is empty. Please try again.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.recording_empty), Toast.LENGTH_LONG).show()
             recordingFilePath = null
             return
         }
@@ -1324,7 +1356,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     "For better voice cloning, record at least 8 seconds of clear speech.",
                     Toast.LENGTH_LONG
                 ).show()
-                audioDurationText.text = "⚠ Need 8s+"
+                audioDurationText.text = getString(R.string.status_need_8_seconds)
                 voiceStep2ActionButton()?.apply {
                     isEnabled = true
                     text = "  Done"
@@ -1358,7 +1390,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             text = "  Processing..."
             background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_purple)
         }
-        audioDurationText.text = "⏳ Loading..."
+        audioDurationText.text = getString(R.string.status_loading)
         
         // Show loading message
         val loadingMsg = when (workflowType) {
@@ -1389,7 +1421,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         voiceRecordingContainer.visibility = View.VISIBLE
         stopRecordingTimer(reset = true)
         updateRecordingMicColor(false)
-        recordingStatusText.text = "Tap to record"
+        recordingStatusText.text = getString(R.string.tap_to_record)
     }
     
     private fun hideRecordingUI() {
@@ -1503,13 +1535,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
         
         if (audioPath.isNullOrBlank()) {
-            Toast.makeText(this, "No audio to play", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_audio_to_play_short), Toast.LENGTH_SHORT).show()
             return
         }
         
         val audioFile = File(audioPath)
         if (!audioFile.exists()) {
-            Toast.makeText(this, "Audio file not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.audio_file_not_found), Toast.LENGTH_SHORT).show()
             return
         }
         
@@ -1544,7 +1576,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(this, "Error playing audio: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.error_playing_audio, e.message ?: ""), Toast.LENGTH_SHORT).show()
         }
     }
     
@@ -1657,7 +1689,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun saveAndShowProcessedAudio(base64Audio: String, extension: String) {
         // Validate input
         if (base64Audio.isBlank()) {
-            Toast.makeText(this@MainKeyboardService, "No audio data received", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this@MainKeyboardService, getString(R.string.no_audio_data_received), Toast.LENGTH_SHORT).show()
             resetButtonState()
             return
         }
@@ -1668,13 +1700,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 val audioBytes = try {
                     Base64.decode(base64Audio, Base64.DEFAULT)
                 } catch (e: Exception) {
-                    Toast.makeText(this@MainKeyboardService, "Invalid audio format", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainKeyboardService, getString(R.string.invalid_audio_format), Toast.LENGTH_SHORT).show()
                     resetButtonState()
                     return@launch
                 }
                 
                 if (audioBytes.isEmpty() || audioBytes.size < 100) {
-                    Toast.makeText(this@MainKeyboardService, "Audio data is empty or too small", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainKeyboardService, getString(R.string.audio_empty_too_small), Toast.LENGTH_SHORT).show()
                     resetButtonState()
                     return@launch
                 }
@@ -1689,7 +1721,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 
                 // Verify file was saved correctly
                 if (!audioFile.exists() || audioFile.length() == 0L) {
-                    Toast.makeText(this@MainKeyboardService, "Failed to save audio file", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainKeyboardService, getString(R.string.failed_save_audio), Toast.LENGTH_SHORT).show()
                     resetButtonState()
                     return@launch
                 }
@@ -1730,7 +1762,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainKeyboardService, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainKeyboardService, getString(R.string.error_message, e.message ?: ""), Toast.LENGTH_LONG).show()
                     resetButtonState()
                 }
             }
@@ -1743,12 +1775,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun shareProcessedAudio() {
         val audioPath = processedAudioFilePath
         if (audioPath.isNullOrBlank() || !isProcessedAudioReady) {
-            Toast.makeText(this, "No processed audio to send", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_processed_audio_send), Toast.LENGTH_SHORT).show()
             return
         }
         val audioFile = File(audioPath)
         if (!audioFile.exists()) {
-            Toast.makeText(this, "Audio file not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.audio_file_not_found), Toast.LENGTH_SHORT).show()
             return
         }
         shareAudioFile(audioFile, "Send voice message via") {
@@ -1761,13 +1793,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun shareOriginalRecordedAudio() {
         val rawPath = recordingFilePath
         if (rawPath.isNullOrBlank()) {
-            Toast.makeText(this, "No recording found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_recording_found_short), Toast.LENGTH_SHORT).show()
             return
         }
 
         val rawAudioFile = File(rawPath)
         if (!rawAudioFile.exists() || rawAudioFile.length() == 0L) {
-            Toast.makeText(this, "Recording file not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.recording_file_not_found), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -1849,7 +1881,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
             val mime = mimeForSharedAudio(toShare)
             if (trySendContentDirectly(toShare, mime)) {
-                Toast.makeText(this@MainKeyboardService, "✓ Sent to chat", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@MainKeyboardService, getString(R.string.sent_to_chat), Toast.LENGTH_SHORT).show()
                 onComplete()
                 Handler(mainLooper).postDelayed({ try { toShare.delete() } catch (_: Exception) { } }, 45000)
                 return@launch
@@ -1925,7 +1957,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 return@launch
             }
             if (trySendContentDirectly(toShare, "video/mp4")) {
-                Toast.makeText(this@MainKeyboardService, "✓ Sent to chat", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@MainKeyboardService, getString(R.string.sent_to_chat), Toast.LENGTH_SHORT).show()
                 onComplete()
                 Handler(mainLooper).postDelayed({ try { toShare.delete() } catch (_: Exception) { } }, 300000)
                 return@launch
@@ -2007,7 +2039,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         voiceButton.setImageResource(R.drawable.ic_mic)
         stopRecordingTimer(reset = true)
         updateRecordingMicColor(false)
-        recordingStatusText.text = "Tap to record"
+        recordingStatusText.text = getString(R.string.tap_to_record)
         
         // Delete the recording file
         recordingFilePath?.let { path ->
@@ -2051,7 +2083,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 stopVoiceRecording()
             } else {
                 if (isListening) {
-                    Toast.makeText(this, "Stop voice input first", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.stop_voice_input_first), Toast.LENGTH_SHORT).show()
                 } else {
                     startVoiceRecording(RecordingAction.TRANSCRIBE)
                 }
@@ -2092,45 +2124,94 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val kbPlusButton = view.findViewById<ImageButton>(R.id.btn_kb_plus)
         val dictionaryButton = view.findViewById<ImageButton>(R.id.btn_more_dictionary)
         val appGridButton = view.findViewById<ImageButton>(R.id.btn_app_grid)
-        
+        val moreVoiceButton = view.findViewById<ImageButton>(R.id.btn_more_voice)
+        val moreVideoButton = view.findViewById<ImageButton>(R.id.btn_more_video)
+        val moreAiChatButton = view.findViewById<ImageButton>(R.id.btn_more_ai_chat)
+        val moreClipboardButton = view.findViewById<ImageButton>(R.id.btn_more_clipboard)
+        val moreKbPlusButton = view.findViewById<ImageButton>(R.id.btn_more_kb_plus)
+        val moreThreeDotButton = view.findViewById<ImageButton>(R.id.btn_more_three_dot)
+
         // Prevent focus on all AI buttons
-        listOf(calculatorButton, cameraButton, listButton, textTButton, kbPlusButton, dictionaryButton, appGridButton)
+        listOf(
+            calculatorButton, cameraButton, listButton, textTButton, kbPlusButton, dictionaryButton, appGridButton,
+            moreVoiceButton, moreVideoButton, moreAiChatButton, moreClipboardButton, moreKbPlusButton, moreThreeDotButton
+        )
             .forEach { button ->
                 button?.isFocusable = false
                 button?.isFocusableInTouchMode = false
             }
-        
+
+        moreVoiceButton?.setOnClickListener {
+            playKeyFeedback(it)
+            if (isListening) stopVoiceInput()
+            hideMoreOptions()
+            showRecordingUI()
+        }
+
+        moreVideoButton?.setOnClickListener {
+            playKeyFeedback(it)
+            hideMoreOptions()
+            toggleVideoRecording()
+        }
+
+        moreAiChatButton?.setOnClickListener {
+            playKeyFeedback(it)
+            hideMoreOptions()
+            toggleAiChat()
+        }
+
+        moreClipboardButton?.setOnClickListener {
+            playKeyFeedback(it)
+            hideMoreOptions()
+            toggleClipboardPopup()
+        }
+
+        moreKbPlusButton?.setOnClickListener {
+            playKeyFeedback(it)
+            hideMoreOptions()
+            toggleAiWritingTools()
+        }
+
+        moreThreeDotButton?.setOnClickListener {
+            playKeyFeedback(it)
+            hideMoreOptions()
+            openKeyboardSettings()
+        }
+
         // Dictionary button (in more options)
         dictionaryButton?.setOnClickListener {
             toggleDictionary()
         }
-        
+
         // Text T button - AI Chat
         textTButton?.setOnClickListener {
             toggleAiChat()
         }
-        
+
         // KB+ button - AI Writing Tools
         kbPlusButton?.setOnClickListener {
             toggleAiWritingTools()
         }
-        
+
         // Calculator button - Show/hide calculator
         calculatorButton?.setOnClickListener {
             toggleCalculator()
         }
-        
+
         // Camera button - Video recording
         cameraButton?.setOnClickListener {
             toggleVideoRecording()
         }
-        
+
         // List button - Open app homepage
         listButton?.setOnClickListener {
             openAppHomepage()
         }
         appGridButton?.setOnClickListener {
             playKeyFeedback(it)
+            if (moreOptionsContainer.visibility == View.VISIBLE) {
+                hideMoreOptions()
+            }
             toggleClipboardPopup()
         }
 
@@ -2632,7 +2713,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun insertCalculatorResult() {
         currentInputConnection?.commitText(calcResult, 1)
-        Toast.makeText(this, "Inserted: $calcResult", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.inserted, calcResult), Toast.LENGTH_SHORT).show()
     }
     
     /**
@@ -2662,7 +2743,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun toggleCalculator() {
         if (isVoiceUiActive()) {
-            Toast.makeText(this, "Finish voice input first", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.finish_voice_input_first), Toast.LENGTH_SHORT).show()
             return
         }
         if (isCalculatorVisible) {
@@ -2816,17 +2897,17 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                         aiChatInputText.clear()
                         aiChatInputText.append(response)
                         updateAiChatInputDisplay()
-                        Toast.makeText(this@MainKeyboardService, "Done", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@MainKeyboardService, getString(R.string.done), Toast.LENGTH_SHORT).show()
                     } else {
                         addChatMessage("Could not complete. Please try again.", isUser = false)
-                        Toast.makeText(this@MainKeyboardService, "Failed. Try again.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@MainKeyboardService, getString(R.string.failed_try_again), Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (_: Exception) {
                 withContext(Dispatchers.Main) {
                     removeLoadingMessage()
                     addChatMessage("Could not complete. Please try again.", isUser = false)
-                    Toast.makeText(this@MainKeyboardService, "Failed. Try again.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainKeyboardService, getString(R.string.failed_try_again), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -2868,7 +2949,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun toggleAiWritingTools() {
         if (isVoiceUiActive()) {
-            Toast.makeText(this, "Finish voice input first", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.finish_voice_input_first), Toast.LENGTH_SHORT).show()
             return
         }
         if (isAiWritingToolsVisible) {
@@ -2984,13 +3065,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             return
         }
         val (fullText, beforeLen, afterLen) = input
-        Toast.makeText(this, "Processing...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.processing), Toast.LENGTH_SHORT).show()
         callWritingTool(task, fullText.trim(), option) { result ->
             if (!result.isNullOrBlank()) {
                 replaceCurrentInputText(beforeLen, afterLen, result)
-                Toast.makeText(this, "Done", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.done), Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(this, "Could not complete. Try again.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.could_not_complete), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -2999,7 +3080,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun showTranslateLanguagePicker(anchorView: View? = null) {
         val input = getCurrentInputText()
         if (input == null || input.first.isBlank()) {
-            Toast.makeText(this, "No text to translate", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_text_to_translate), Toast.LENGTH_SHORT).show()
             return
         }
         val languages = listOf(
@@ -3021,7 +3102,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun showTonePicker(anchorView: View? = null) {
         val input = getCurrentInputText()
         if (input == null || input.first.isBlank()) {
-            Toast.makeText(this, "No text to change tone", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_text_to_change_tone), Toast.LENGTH_SHORT).show()
             return
         }
         val tones = listOf(
@@ -3247,10 +3328,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     dictCurrentLanguage = langCode
                     dictMiniKeyboardLanguage = langCode
                     rebuildDictMiniKeyboard()
-                    Toast.makeText(this, "From: $langName", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.from_lang, langName), Toast.LENGTH_SHORT).show()
                 } else {
                     dictTargetLanguage = langCode
-                    Toast.makeText(this, "To: $langName", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.to_lang, langName), Toast.LENGTH_SHORT).show()
                 }
                 updateDictLanguageDisplay()
                 popupWindow.dismiss()
@@ -3288,7 +3369,15 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         rebuildDictMiniKeyboard()
         updateDictLanguageDisplay()
         
-        Toast.makeText(this, "🔄 ${getLanguageName(dictCurrentLanguage)} → ${getLanguageName(dictTargetLanguage)}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(
+            this,
+            getString(
+                R.string.lang_switch,
+                getLanguageName(dictCurrentLanguage),
+                getLanguageName(dictTargetLanguage)
+            ),
+            Toast.LENGTH_SHORT
+        ).show()
     }
     
     /**
@@ -3510,7 +3599,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             button.setOnClickListener {
                 dictMiniKeyboardLanguage = langCode
                 rebuildDictMiniKeyboard()
-                Toast.makeText(this, "Keyboard: $langName", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.keyboard_lang, langName), Toast.LENGTH_SHORT).show()
                 popupWindow.dismiss()
             }
         }
@@ -3711,7 +3800,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun searchDictionary() {
         val word = dictSearchText.toString().trim()
         if (word.isEmpty()) {
-            Toast.makeText(this, "Please type a word to search", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.please_type_word_search), Toast.LENGTH_SHORT).show()
             return
         }
         if (!isNetworkAvailable()) {
@@ -3956,7 +4045,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                         val clip = android.content.ClipData.newPlainText("translation", translation)
                         clipboard.setPrimaryClip(clip)
-                        Toast.makeText(this@MainKeyboardService, "📋 Copied: $translation", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@MainKeyboardService, getString(R.string.copied, translation), Toast.LENGTH_SHORT).show()
                     }
                 }
                 resultContainer?.addView(translationView)
@@ -4039,7 +4128,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                         val clip = android.content.ClipData.newPlainText("translation", translation)
                         clipboard.setPrimaryClip(clip)
-                        Toast.makeText(this@MainKeyboardService, "📋 Copied!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@MainKeyboardService, getString(R.string.copied_short), Toast.LENGTH_SHORT).show()
                     }
                 }
                 buttonsRow.addView(copyBtn)
@@ -4058,7 +4147,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     setOnClickListener {
                         insertText(translation)
                         hideDictionary()
-                        Toast.makeText(this@MainKeyboardService, "✓ Inserted!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@MainKeyboardService, getString(R.string.inserted_short), Toast.LENGTH_SHORT).show()
                     }
                 }
                 buttonsRow.addView(insertBtn)
@@ -4175,7 +4264,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                             val clip = android.content.ClipData.newPlainText("translation", translation)
                             clipboard.setPrimaryClip(clip)
-                            Toast.makeText(this@MainKeyboardService, "Copied: $translation", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@MainKeyboardService, getString(R.string.copied_translation, translation), Toast.LENGTH_SHORT).show()
                         }
                         
                         background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.dict_key_background)
@@ -4244,7 +4333,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 setOnClickListener {
                     insertText(word)
                     hideDictionary()
-                    Toast.makeText(this@MainKeyboardService, "Inserted: $word", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainKeyboardService, getString(R.string.inserted, word), Toast.LENGTH_SHORT).show()
                 }
             }
             resultContainer?.addView(insertButton)
@@ -4410,7 +4499,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun toggleDictionary() {
         if (isVoiceUiActive()) {
-            Toast.makeText(this, "Finish voice input first", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.finish_voice_input_first), Toast.LENGTH_SHORT).show()
             return
         }
         if (isDictionaryVisible) {
@@ -4424,7 +4513,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
     private fun toggleClipboardPopup() {
         if (isVoiceUiActive()) {
-            Toast.makeText(this, "Finish voice input first", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.finish_voice_input_first), Toast.LENGTH_SHORT).show()
             return
         }
         rootView ?: return
@@ -4549,7 +4638,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         // Clear chat button (long press on close to clear)
         view.findViewById<ImageButton>(R.id.ai_chat_close_btn)?.setOnLongClickListener {
             clearAiConversation()
-            Toast.makeText(this, "Chat cleared", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.chat_cleared), Toast.LENGTH_SHORT).show()
             true
         }
         
@@ -4659,7 +4748,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             button.setOnClickListener {
                 aiChatKeyboardLanguage = langCode
                 rebuildAiChatMiniKeyboard()
-                Toast.makeText(this, "Keyboard: $langName", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.keyboard_lang, langName), Toast.LENGTH_SHORT).show()
                 popupWindow.dismiss()
             }
         }
@@ -4938,7 +5027,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun sendAiChatMessage() {
         val message = aiChatInputText.toString().trim()
         if (message.isEmpty()) {
-            Toast.makeText(this, "Please type a message", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.please_type_message), Toast.LENGTH_SHORT).show()
             return
         }
         if (!isNetworkAvailable()) {
@@ -5262,7 +5351,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 if (msg.contains("Unable to resolve host", ignoreCase = true) || msg.contains("No address", ignoreCase = true)) {
                     Handler(android.os.Looper.getMainLooper()).post {
                         val hint = if (getOpenAiApiKey().isNotBlank()) "" else "\n\nTip: Add your OpenAI API key in AI Assistant settings to use when server is unreachable."
-                        Toast.makeText(this@MainKeyboardService, "Can't reach server. Check Wi‑Fi or mobile data.$hint", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@MainKeyboardService, getString(R.string.cant_reach_server_with_hint, hint), Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -5444,6 +5533,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             aiFeaturesContainer.visibility = View.GONE
             voiceRecordingContainer.visibility = View.GONE
             voiceProcessingStep2Container.visibility = View.GONE
+            moreOptionsContainer.visibility = View.GONE
         }
         aiChatContainer.visibility = View.VISIBLE
         isAiChatVisible = true
@@ -5488,7 +5578,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun toggleAiChat() {
         if (isVoiceUiActive()) {
-            Toast.makeText(this, "Finish voice input first", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.finish_voice_input_first), Toast.LENGTH_SHORT).show()
             return
         }
         if (isAiChatVisible) {
@@ -5616,7 +5706,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun showVideoRecording() {
         // Check camera permission
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "Camera permission required", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.camera_permission_required_short), Toast.LENGTH_SHORT).show()
             return
         }
         
@@ -5794,7 +5884,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(this, "Failed to open camera", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.failed_open_camera), Toast.LENGTH_SHORT).show()
         }
     }
     
@@ -5835,7 +5925,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 }
                 
                 override fun onConfigureFailed(session: CameraCaptureSession) {
-                    Toast.makeText(this@MainKeyboardService, "Camera configuration failed", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainKeyboardService, getString(R.string.camera_config_failed), Toast.LENGTH_SHORT).show()
                 }
             }, backgroundHandler)
         } catch (e: Exception) {
@@ -5887,7 +5977,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun startVideoRecording() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "Audio permission required", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.audio_permission_required), Toast.LENGTH_SHORT).show()
             return
         }
         
@@ -5952,13 +6042,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 }
                 
                 override fun onConfigureFailed(session: CameraCaptureSession) {
-                    Toast.makeText(this@MainKeyboardService, "Recording configuration failed", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainKeyboardService, getString(R.string.recording_config_failed), Toast.LENGTH_SHORT).show()
                 }
             }, backgroundHandler)
             
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(this, "Failed to start recording: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.failed_start_recording, e.message ?: ""), Toast.LENGTH_SHORT).show()
         }
     }
     
@@ -5995,12 +6085,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val recordButton = videoUiContent()?.findViewById<ImageButton>(R.id.btn_video_record)
         
         if (recording) {
-            statusText?.text = "Recording... Tap to stop"
+            statusText?.text = getString(R.string.recording_tap_to_stop)
             statusText?.setTextColor(Color.parseColor("#FF5252"))
             recordButton?.setBackgroundResource(R.drawable.voice_mode_button_green)
             videoRecordingTimer?.visibility = View.VISIBLE
         } else {
-            statusText?.text = "Tap to start recording"
+            statusText?.text = getString(R.string.tap_to_start_recording)
             statusText?.setTextColor(Color.parseColor("#AAAAAA"))
             recordButton?.setBackgroundResource(R.drawable.recording_mic_button)
             videoRecordingTimer?.visibility = View.GONE
@@ -6055,20 +6145,20 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         // Get the recorded video file path
         val videoPath = videoFilePath
         if (videoPath.isNullOrBlank()) {
-            Toast.makeText(this, "❌ No video recorded. Please record first.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.no_video_recorded), Toast.LENGTH_LONG).show()
             return
         }
         
         val videoFile = File(videoPath)
         if (!videoFile.exists() || videoFile.length() == 0L) {
-            Toast.makeText(this, "❌ Video file not found. Please record again.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.video_file_not_found_record_again), Toast.LENGTH_LONG).show()
             return
         }
         
         android.util.Log.d("DeltaVoice", "Processing video: $videoPath, size: ${videoFile.length()} bytes")
         android.util.Log.d("DeltaVoice", "Target: $languageName ($targetLanguage), Voice: $voiceStyleName ($voiceStyle)")
         
-        Toast.makeText(this, "⏳ Processing video to $languageName with $voiceStyleName voice...", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, getString(R.string.processing_video_to, languageName, voiceStyleName), Toast.LENGTH_LONG).show()
         
         serviceScope.launch {
             try {
@@ -6086,7 +6176,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 
                 if (audioFile == null || !audioFile.exists()) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainKeyboardService, "❌ Failed to extract audio from video", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@MainKeyboardService, getString(R.string.failed_extract_audio), Toast.LENGTH_LONG).show()
                         resetVideoProcessButton()
                     }
                     return@launch
@@ -6157,7 +6247,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                             withContext(Dispatchers.Main) {
                                 response.translatedText?.takeIf { it.isNotBlank() }?.let { insertText(it) }
                                 playBase64Audio(response.convertedAudioBase64, "mp3")
-                                Toast.makeText(this@MainKeyboardService, "✓ Video ready! Tap ▶ to preview, Send to share.", Toast.LENGTH_LONG).show()
+                                Toast.makeText(this@MainKeyboardService, getString(R.string.video_ready_tap_preview), Toast.LENGTH_LONG).show()
                                 videoUiContent()?.findViewById<Button>(R.id.btn_process_video)?.apply {
                                     isEnabled = true
                                     text = "  Send Video"
@@ -6171,7 +6261,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                             withContext(Dispatchers.Main) {
                                 response.translatedText?.takeIf { it.isNotBlank() }?.let { insertText(it) }
                                 playBase64Audio(response.convertedAudioBase64, "mp3")
-                                Toast.makeText(this@MainKeyboardService, "✓ Audio ready (video mux failed). Send to share audio.", Toast.LENGTH_LONG).show()
+                                Toast.makeText(this@MainKeyboardService, getString(R.string.audio_ready_video_mux_failed), Toast.LENGTH_LONG).show()
                                 videoUiContent()?.findViewById<Button>(R.id.btn_process_video)?.apply {
                                     isEnabled = true
                                     text = "  Send Audio"
@@ -6183,7 +6273,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     } else {
                         withContext(Dispatchers.Main) {
                             response.translatedText?.takeIf { it.isNotBlank() }?.let { insertText(it) }
-                            Toast.makeText(this@MainKeyboardService, "✓ Video transcribed & translated!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@MainKeyboardService, getString(R.string.video_transcribed_translated), Toast.LENGTH_SHORT).show()
                             resetVideoProcessButton()
                             hideVideoPreview()
                         }
@@ -6556,7 +6646,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         if (isNetworkError) {
             showNetworkErrorWithSettings("Video processing failed. Check internet connection.")
         } else {
-            Toast.makeText(this, "❌ Video processing failed: ${errorMessage.take(50)}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.video_processing_failed_short, errorMessage.take(50)), Toast.LENGTH_LONG).show()
         }
     }
     
@@ -6577,7 +6667,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun shareProcessedVideoAudio() {
         if (!isVideoProcessedAudioReady) {
-            Toast.makeText(this, "No processed content to send", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_processed_content_send), Toast.LENGTH_SHORT).show()
             return
         }
         
@@ -6603,7 +6693,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             return
         }
         
-        Toast.makeText(this, "No processed content to send", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.no_processed_content_send), Toast.LENGTH_SHORT).show()
     }
     
     private fun cleanupProcessedVideoFiles() {
@@ -6621,13 +6711,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun sendOriginalVideoFromPreview() {
         val path = videoFilePath
         if (path.isNullOrBlank()) {
-            Toast.makeText(this, "No video to send", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_video_to_send), Toast.LENGTH_SHORT).show()
             return
         }
 
         val file = File(path)
         if (!file.exists() || file.length() == 0L) {
-            Toast.makeText(this, "Video file not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.video_file_not_found), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -6719,7 +6809,18 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
             startActivity(intent)
         } catch (e: Exception) {
-            Toast.makeText(this, "Failed to open homepage", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.failed_open_homepage), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun openKeyboardSettings() {
+        try {
+            val intent = Intent(this, SettingsActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, getString(R.string.failed_open_app_settings), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -7331,7 +7432,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                             startActivity(intent)
                         } catch (_: Exception) {}
                     } else {
-                        Toast.makeText(this, "Type something to search", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, getString(R.string.type_something_search), Toast.LENGTH_SHORT).show()
                     }
                 }
                 " " -> {
@@ -7720,7 +7821,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val searchText = extractedText?.text?.toString()?.trim()
         
         if (searchText.isNullOrBlank()) {
-            Toast.makeText(this, "Type something to search", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.type_something_search), Toast.LENGTH_SHORT).show()
             return
         }
         
@@ -7735,9 +7836,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
             startActivity(intent)
             
-            Toast.makeText(this, "Searching: $searchText", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.searching_label, searchText), Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            Toast.makeText(this, "Could not open search", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.could_not_open_search), Toast.LENGTH_SHORT).show()
             android.util.Log.e("DeltaVoice", "Search error: ${e.message}")
         }
     }
@@ -7918,7 +8019,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun startVoiceInput() {
         // Don't start if recording
         if (isRecording) {
-            Toast.makeText(this, "Stop recording first", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.stop_recording_first), Toast.LENGTH_SHORT).show()
             return
         }
         
@@ -7997,11 +8098,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val fullText = "${textBeforeCursor ?: ""}${textAfterCursor ?: ""}"
         
         if (TextUtils.isEmpty(fullText)) {
-            Toast.makeText(this, "No text to speak", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_text_to_speak), Toast.LENGTH_SHORT).show()
             return
         }
         
-        Toast.makeText(this, "Generating speech...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.generating_speech), Toast.LENGTH_SHORT).show()
         
         serviceScope.launch {
             try {
@@ -8023,7 +8124,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                             audioFile.delete()
                         }
                         mediaPlayer.start()
-                        Toast.makeText(this@MainKeyboardService, "Playing speech", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@MainKeyboardService, getString(R.string.playing_speech), Toast.LENGTH_SHORT).show()
                     } catch (e: Exception) {
                         Toast.makeText(this@MainKeyboardService, 
                             "Error playing audio: ${e.message}", Toast.LENGTH_LONG).show()
@@ -8050,7 +8151,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun fallbackToAndroidTTS(text: String) {
         if (!ttsInitialized) {
-            Toast.makeText(this, "TTS not initialized", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.tts_not_initialized), Toast.LENGTH_SHORT).show()
             return
         }
         textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, null)
@@ -8124,9 +8225,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         voiceInputMode = !voiceInputMode
         
         if (voiceInputMode) {
-            Toast.makeText(this, "Voice Input Mode", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_voice_input_mode), Toast.LENGTH_SHORT).show()
         } else {
-            Toast.makeText(this, "Text-to-Speech Mode", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_text_to_speech_mode), Toast.LENGTH_SHORT).show()
         }
     }
     
@@ -8294,7 +8395,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         // Rebuild keyboard with new layout
         rebuildKeyboardLayout()
         
-        Toast.makeText(this, "Keyboard: $languageName", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.keyboard_lang, languageName), Toast.LENGTH_SHORT).show()
     }
     
     /**
@@ -8367,7 +8468,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 rowZxcv.addView(backspaceButton)
                 
                 // Update the numbers button to show ABC
-                numbersButton?.text = "ABC"
+                numbersButton?.text = getString(R.string.numbers_mode_abc)
             } else {
                 // Get layout for current language (fallback to English)
                 val layout = keyboardLayouts[currentKeyboardLanguage] ?: keyboardLayouts["en"]!!
@@ -8399,7 +8500,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 rowZxcv.addView(backspaceButton)
                 
                 // Update the numbers button to show !#1
-                numbersButton?.text = "!#1"
+                numbersButton?.text = getString(R.string.numbers_mode_symbols)
                 // Ensure shift button and key labels reflect current shift state
                 updateShiftButton()
                 updateLetterKeysForShift()
@@ -8528,11 +8629,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val fullText = "${textBeforeCursor ?: ""}${textAfterCursor ?: ""}"
         
         if (TextUtils.isEmpty(fullText)) {
-            Toast.makeText(this, "No text to translate", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_text_to_translate), Toast.LENGTH_SHORT).show()
             return
         }
         
-        Toast.makeText(this, "Translating...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.translating), Toast.LENGTH_SHORT).show()
         
         serviceScope.launch {
             try {
@@ -8550,7 +8651,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                         // Insert translated text
                         ic.commitText(translatedText, 1)
                     }
-                    Toast.makeText(this@MainKeyboardService, "Translation complete", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainKeyboardService, getString(R.string.translation_complete), Toast.LENGTH_SHORT).show()
                 }.onFailure { error ->
                     Toast.makeText(this@MainKeyboardService, 
                         "Translation failed: ${error.message}", Toast.LENGTH_LONG).show()
@@ -8572,11 +8673,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val fullText = "${textBeforeCursor ?: ""}${textAfterCursor ?: ""}".trim()
 
         if (TextUtils.isEmpty(fullText)) {
-            Toast.makeText(this, "No text to convert", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_text_to_convert), Toast.LENGTH_SHORT).show()
             return
         }
 
-        Toast.makeText(this, "Converting text to voice...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.converting_text_voice), Toast.LENGTH_SHORT).show()
         val voiceStyle = "aria"
 
         serviceScope.launch {
@@ -8591,9 +8692,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     val audioBase64 = response.audioBase64
                     if (!audioBase64.isNullOrBlank()) {
                         playBase64Audio(audioBase64, "mp3")
-                        Toast.makeText(this@MainKeyboardService, "Playing converted voice", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@MainKeyboardService, getString(R.string.playing_converted_voice), Toast.LENGTH_SHORT).show()
                     } else {
-                        Toast.makeText(this@MainKeyboardService, "No audio returned", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@MainKeyboardService, getString(R.string.no_audio_returned), Toast.LENGTH_SHORT).show()
                     }
                 }.onFailure { error ->
                     Toast.makeText(this@MainKeyboardService,
@@ -8613,7 +8714,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         val cloneName = "Voice Clone $timestamp"
 
-        Toast.makeText(this, "Creating voice clone...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.creating_voice_clone), Toast.LENGTH_SHORT).show()
         serviceScope.launch {
             try {
                 val result = voiceCloneService.createVoiceClone(
@@ -8658,12 +8759,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         android.util.Log.d("DeltaVoice", "Audio file exists: ${audioFile.exists()}, size: ${audioFile.length()} bytes")
         
         // Show immediate feedback that processing started
-        audioDurationText.text = "⏳ Connecting..."
+        audioDurationText.text = getString(R.string.status_connecting)
 
         serviceScope.launch {
             try {
                 android.util.Log.d("DeltaVoice", "Coroutine launched, calling Supabase backend...")
-                audioDurationText.text = "⏳ Processing..."
+                audioDurationText.text = getString(R.string.processing)
                 
                 val result = completeVoiceWorkflowService.runWorkflow(
                     audioFile = audioFile,
@@ -8744,12 +8845,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 if (hasAudio) {
                     android.util.Log.d("DeltaVoice", "Saving and playing audio...")
                     saveAndShowProcessedAudio(audioBase64!!, "mp3")
-                    Toast.makeText(this, "✓ Ready! Tap ▶ to hear, Send to share", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.ready_tap_hear_send), Toast.LENGTH_LONG).show()
                 } else {
                     android.util.Log.w("DeltaVoice", "No audio returned - showing text only result")
-                    Toast.makeText(this, "✓ Text translated (no audio returned)", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.text_translated_no_audio), Toast.LENGTH_LONG).show()
                     // Don't hide UI - let user see the result and retry if needed
-                    audioDurationText.text = "No audio"
+                    audioDurationText.text = getString(R.string.status_no_audio)
                     resetButtonState()
                 }
             }
@@ -8759,12 +8860,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 if (hasAudio) {
                     android.util.Log.d("DeltaVoice", "Saving cloned voice audio...")
                     saveAndShowProcessedAudio(audioBase64!!, "mp3")
-                    Toast.makeText(this, "✓ Your voice cloned! Tap ▶ to hear", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.voice_cloned_tap_hear), Toast.LENGTH_LONG).show()
                 } else {
                     android.util.Log.w("DeltaVoice", "No audio returned for voice cloning")
-                    Toast.makeText(this, "❌ Voice cloning failed - try again", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.voice_cloning_failed), Toast.LENGTH_LONG).show()
                     // Don't hide UI - let user retry
-                    audioDurationText.text = "❌ Failed"
+                    audioDurationText.text = getString(R.string.status_failed)
                     resetButtonState()
                 }
             }
@@ -8777,15 +8878,15 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 if (text != null) {
                     insertText(text)
                     android.util.Log.d("DeltaVoice", "Inserted transcribed & translated text")
-                    Toast.makeText(this, "✓ Translated text inserted!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.translated_text_inserted), Toast.LENGTH_SHORT).show()
                     // For text-only, hide the UI since there's no audio to play
                     hideVoiceProcessingUI()
                     recordingFilePath = null
                 } else {
                     android.util.Log.w("DeltaVoice", "No text detected")
-                    Toast.makeText(this, "❌ No speech detected - try again", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.no_speech_detected_try), Toast.LENGTH_LONG).show()
                     // Don't hide UI - let user retry
-                    audioDurationText.text = "❌ No speech"
+                    audioDurationText.text = getString(R.string.status_no_speech)
                     resetButtonState()
                 }
             }
@@ -8795,7 +8896,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 if (hasAudio) {
                     saveAndShowProcessedAudio(audioBase64!!, "mp3")
                 }
-                Toast.makeText(this, "✓ Done!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.done_exclamation), Toast.LENGTH_SHORT).show()
                 resetButtonState()
             }
         }
@@ -8864,7 +8965,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         if (!ttsInitialized) {
             android.util.Log.w("DeltaVoice", "TTS fallback: TTS not initialized")
             insertText(text)
-            Toast.makeText(this, "✓ Text ready (device voice unavailable)", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.text_ready_device_voice_unavailable), Toast.LENGTH_LONG).show()
             if (workflowType == "text-only") hideVoiceProcessingUI() else resetButtonState()
             return
         }
@@ -8872,7 +8973,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         when (workflowType) {
             "text-only" -> {
                 insertText(text)
-                Toast.makeText(this, "✓ Translated text inserted!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.translated_text_inserted), Toast.LENGTH_SHORT).show()
                 hideVoiceProcessingUI()
                 recordingFilePath = null
                 return
@@ -8881,7 +8982,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
         // For complete/voice-only: insert text and synthesize with device TTS
         insertText(text)
-        audioDurationText.text = "⏳ Device voice..."
+        audioDurationText.text = getString(R.string.status_device_voice)
 
         // Map language codes to proper Locale for TTS (some need region for best results)
         val locale = when (val code = targetLang.trim().lowercase()) {
@@ -8962,7 +9063,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val result = tts.synthesizeToFile(text, params, outFile, utteranceId)
         if (result != TextToSpeech.SUCCESS) {
             tts.setLanguage(prevLang)
-            Toast.makeText(this, "✓ Text ready (device voice failed)", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.text_ready_device_voice_failed), Toast.LENGTH_LONG).show()
             resetButtonState()
         }
     }
@@ -9020,7 +9121,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun startVoiceRecording(action: RecordingAction = RecordingAction.TRANSCRIBE) {
         // Don't start if already recording
         if (isRecording) {
-            Toast.makeText(this, "Already recording", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.already_recording), Toast.LENGTH_SHORT).show()
             return
         }
         
@@ -9059,7 +9160,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             if (!recordingsDir.exists()) {
                 val created = recordingsDir.mkdirs()
                 if (!created) {
-                    Toast.makeText(this, "Failed to create recordings directory", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.failed_create_recordings_dir), Toast.LENGTH_SHORT).show()
                     return
                 }
             }
@@ -9070,7 +9171,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             // Verify we can create the file
             val parentDir = recordingFile.parentFile
             if (parentDir == null || !parentDir.exists()) {
-                Toast.makeText(this, "Cannot access recordings directory", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.cannot_access_recordings_dir), Toast.LENGTH_SHORT).show()
                 return
             }
 
@@ -9130,11 +9231,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     releaseMediaRecorder()
                 }
             } ?: run {
-                Toast.makeText(this, "Failed to initialize MediaRecorder", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.failed_init_mediarecorder), Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(this, "Error starting recording: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.error_starting_recording, e.message ?: ""), Toast.LENGTH_LONG).show()
             releaseMediaRecorder()
         }
     }
@@ -9188,7 +9289,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             
             // Only show Toast for actions that don't have UI transition
             if (action != RecordingAction.COMPLETE_WORKFLOW) {
-                Toast.makeText(this, "Recording stopped", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.recording_stopped), Toast.LENGTH_SHORT).show()
             }
 
             // Process recording based on action
@@ -9197,7 +9298,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 if (audioFile.exists() && audioFile.length() > 0) {
                     when (action) {
                         RecordingAction.TRANSCRIBE -> {
-                            Toast.makeText(this, "Converting speech to text...", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, getString(R.string.converting_speech_to_text), Toast.LENGTH_SHORT).show()
                             serviceScope.launch {
                                 try {
                                     val result = voiceToTextService.transcribeAudio(
@@ -9237,14 +9338,14 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                         }
                     }
                 } else {
-                    Toast.makeText(this, "Recording file not found or empty", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.recording_file_empty_or_missing), Toast.LENGTH_SHORT).show()
                     recordingFilePath = null
                 }
             }
             // removed recordingFilePath = null here because COMPLETE_WORKFLOW needs it later
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(this, "Error stopping recording: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.error_stopping_recording, e.message ?: ""), Toast.LENGTH_LONG).show()
             releaseMediaRecorder()
         }
     }

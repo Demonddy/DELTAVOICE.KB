@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>อาเรีย</item>
+        <item>อดัม</item>
+        <item>โรเจอร์</item>
+        <item>ซาราห์</item>
+        <item>ลอร่า</item>
+        <item>ชาร์ลี</item>
+        <item>จอร์จ</item>
+        <item>เลียม</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>ภาษาอังกฤษ</item>
+        <item>สเปน</item>
+        <item>ภาษาฝรั่งเศส</item>
+        <item>เยอรมัน</item>
+        <item>ภาษาอิตาลี</item>
+        <item>โปรตุเกส</item>
+        <item>ภาษารัสเซีย</item>
+        <item>ญี่ปุ่น</item>
+        <item>เกาหลี</item>
+        <item>ชาวจีน</item>
+        <item>ภาษาอาหรับ</item>
+        <item>ฮินดี</item>
+    </string-array>
+</resources>

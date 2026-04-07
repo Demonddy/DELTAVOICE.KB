@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>Aria</item>
+        <item>Adam</item>
+        <item>Roger</item>
+        <item>Sarah</item>
+        <item>Laura</item>
+        <item>Charlie</item>
+        <item>George</item>
+        <item>Liam</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>Tiếng Anh</item>
+        <item>tiếng Tây Ban Nha</item>
+        <item>người Pháp</item>
+        <item>tiếng Đức</item>
+        <item>người Ý</item>
+        <item>tiếng Bồ Đào Nha</item>
+        <item>tiếng Nga</item>
+        <item>tiếng Nhật</item>
+        <item>Tiếng Hàn</item>
+        <item>Tiếng Trung</item>
+        <item>tiếng Ả Rập</item>
+        <item>Tiếng Hindi</item>
+    </string-array>
+</resources>

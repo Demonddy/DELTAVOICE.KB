@@ -286,7 +286,7 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == OVERLAY_PERMISSION_REQUEST) {
             if (canDrawOverlaysCompat()) {
                 startOverlayService()
-                Toast.makeText(this, "Floating bubble enabled", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.toast_floating_bubble_on), Toast.LENGTH_SHORT).show()
             }
             refreshFloatingBubbleSwitch()
         }

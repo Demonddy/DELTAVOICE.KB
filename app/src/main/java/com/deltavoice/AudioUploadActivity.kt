@@ -51,7 +51,7 @@ class AudioUploadActivity : AppCompatActivity() {
             val isAudio = mimeType.startsWith("audio/")
 
             if (!isAudio) {
-                Toast.makeText(this, "Please select an audio file", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.please_select_audio), Toast.LENGTH_SHORT).show()
                 finishInstantly()
                 return
             }
@@ -93,7 +93,7 @@ class AudioUploadActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(this, "Failed to open file: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.failed_open_file, e.message ?: ""), Toast.LENGTH_SHORT).show()
             finishInstantly()
         }
     }

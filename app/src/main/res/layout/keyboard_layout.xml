@@ -263,7 +263,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="#0A0A0A"
+        android:background="@drawable/overlay_panel_rounded_28"
         android:padding="16dp"
         android:visibility="gone">
 
@@ -370,7 +370,7 @@
         android:id="@+id/video_recording_container"
         android:layout_width="match_parent"
         android:layout_height="280dp"
-        android:background="#0A0A0A"
+        android:background="@drawable/overlay_panel_rounded_28"
         android:visibility="gone">
 
         <!-- Camera Preview -->
@@ -481,7 +481,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:fillViewport="true"
-        android:background="#111521"
+        android:background="@drawable/ai_chat_panel_rounded_28"
         android:visibility="gone">
 
         <LinearLayout
@@ -664,7 +664,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="#111521"
+        android:background="@drawable/ai_chat_panel_rounded_28"
         android:visibility="gone">
 
         <!-- Chat Header -->
@@ -944,60 +944,13 @@
         android:layout_height="wrap_content"
         android:visibility="gone" />
 
-    <!-- More Options Container (Calculator, Dictionary - replaces keyboard when three-dots tapped) -->
-    <LinearLayout
+    <!-- More Options (8 tools + back — same layout as bubble overlay) -->
+    <include
         android:id="@+id/more_options_container"
+        layout="@layout/overlay_more_options"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="#0F0F10"
-        android:padding="16dp"
-        android:visibility="gone"
-        android:gravity="center">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center"
-            android:padding="12dp">
-
-            <!-- Calculator (hidden from main row) -->
-            <ImageButton
-                android:id="@+id/btn_more_calculator"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:src="@drawable/ic_calculator"
-                android:background="@drawable/ai_circle_button"
-                android:contentDescription="Calculator"
-                android:padding="12dp"
-                android:layout_margin="8dp" />
-
-            <!-- Dictionary (hidden from main row) -->
-            <ImageButton
-                android:id="@+id/btn_more_dictionary"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:src="@drawable/ic_dictionary"
-                android:background="@drawable/ai_circle_button"
-                android:contentDescription="Dictionary"
-                android:padding="12dp"
-                android:layout_margin="8dp" />
-        </LinearLayout>
-
-        <!-- Back to keyboard -->
-        <Button
-            android:id="@+id/btn_more_back"
-            android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:minWidth="120dp"
-            android:text="@string/back_to_keyboard"
-            android:textSize="14sp"
-            android:textColor="#FFFFFF"
-            android:background="@drawable/key_dark_background"
-            android:layout_marginTop="8dp"
-            android:contentDescription="Back to keyboard" />
-    </LinearLayout>
+        android:visibility="gone" />
 
     <!-- Liquid Glass Keyboard Panel - Gboard-style: minimal padding for larger keys -->
     <FrameLayout

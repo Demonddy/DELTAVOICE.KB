@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/more_options_container"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="#0F0F10"
+    android:background="@drawable/overlay_panel_rounded_28"
     android:padding="16dp"
     android:gravity="center">
 
@@ -12,27 +13,111 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center"
-        android:padding="12dp">
+        android:paddingTop="8dp"
+        android:paddingBottom="4dp">
 
         <ImageButton
-            android:id="@+id/btn_more_calculator"
+            android:id="@+id/btn_more_voice"
             android:layout_width="56dp"
             android:layout_height="56dp"
-            android:src="@drawable/ic_calculator"
+            android:layout_weight="1"
+            android:src="@drawable/ic_mic"
             android:background="@drawable/ai_circle_button"
-            android:contentDescription="Calculator"
+            android:contentDescription="@string/voice_input"
             android:padding="12dp"
-            android:layout_margin="8dp" />
+            android:layout_margin="6dp"
+            android:tint="#FFFFFF" />
+
+        <ImageButton
+            android:id="@+id/btn_more_video"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_weight="1"
+            android:src="@drawable/ic_camera"
+            android:background="@drawable/ai_circle_button"
+            android:contentDescription="@string/video_recording"
+            android:padding="12dp"
+            android:layout_margin="6dp"
+            android:tint="#FFFFFF" />
+
+        <ImageButton
+            android:id="@+id/btn_more_ai_chat"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_weight="1"
+            android:src="@drawable/ic_ai_chat"
+            android:background="@drawable/ai_circle_button"
+            android:contentDescription="@string/ai_chat_title"
+            android:padding="12dp"
+            android:layout_margin="6dp"
+            android:tint="#FFFFFF" />
 
         <ImageButton
             android:id="@+id/btn_more_dictionary"
             android:layout_width="56dp"
             android:layout_height="56dp"
+            android:layout_weight="1"
             android:src="@drawable/ic_dictionary"
             android:background="@drawable/ai_circle_button"
-            android:contentDescription="Dictionary"
+            android:contentDescription="@string/dictionary"
             android:padding="12dp"
-            android:layout_margin="8dp" />
+            android:layout_margin="6dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingTop="4dp"
+        android:paddingBottom="8dp">
+
+        <ImageButton
+            android:id="@+id/btn_more_clipboard"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_weight="1"
+            android:src="@drawable/ic_clipboard"
+            android:background="@drawable/ai_circle_button"
+            android:contentDescription="@string/clipboard"
+            android:padding="12dp"
+            android:layout_margin="6dp"
+            android:tint="#FFFFFF" />
+
+        <ImageButton
+            android:id="@+id/btn_more_kb_plus"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_weight="1"
+            android:src="@drawable/ic_kb_plus"
+            android:background="@drawable/ai_circle_button"
+            android:contentDescription="@string/ai_writing_tools"
+            android:padding="12dp"
+            android:layout_margin="6dp"
+            android:tint="#FFFFFF" />
+
+        <ImageButton
+            android:id="@+id/btn_more_three_dot"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_weight="1"
+            android:src="@drawable/ic_more_vert"
+            android:background="@drawable/ai_circle_button"
+            android:contentDescription="@string/more_options"
+            android:padding="12dp"
+            android:layout_margin="6dp"
+            android:tint="#FFFFFF" />
+
+        <ImageButton
+            android:id="@+id/btn_more_calculator"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_weight="1"
+            android:src="@drawable/ic_calculator"
+            android:background="@drawable/ai_circle_button"
+            android:contentDescription="Calculator"
+            android:padding="12dp"
+            android:layout_margin="6dp" />
     </LinearLayout>
 
     <Button
@@ -40,10 +125,10 @@
         android:layout_width="wrap_content"
         android:layout_height="48dp"
         android:minWidth="120dp"
-        android:text="@string/overlay_back"
+        android:text="@string/back_to_keyboard"
         android:textSize="14sp"
         android:textColor="#FFFFFF"
         android:background="@drawable/key_dark_background"
         android:layout_marginTop="8dp"
-        android:contentDescription="Back" />
+        android:contentDescription="@string/back_to_keyboard" />
 </LinearLayout>

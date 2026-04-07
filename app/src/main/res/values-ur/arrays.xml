@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>آریہ</item>
+        <item>آدم</item>
+        <item>راجر</item>
+        <item>سارہ</item>
+        <item>لورا</item>
+        <item>چارلی</item>
+        <item>جارج</item>
+        <item>لیام</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>انگریزی</item>
+        <item>ہسپانوی</item>
+        <item>فرانسیسی</item>
+        <item>جرمن</item>
+        <item>اطالوی</item>
+        <item>پرتگالی</item>
+        <item>روسی</item>
+        <item>جاپانی</item>
+        <item>کورین</item>
+        <item>چینی</item>
+        <item>عربی</item>
+        <item>ہندی</item>
+    </string-array>
+</resources>

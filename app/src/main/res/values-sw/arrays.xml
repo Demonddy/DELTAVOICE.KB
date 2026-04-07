@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>Aria</item>
+        <item>Adamu</item>
+        <item>Roger</item>
+        <item>Sarah</item>
+        <item>Laura</item>
+        <item>Charlie</item>
+        <item>George</item>
+        <item>Liam</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>Kiingereza</item>
+        <item>Kihispania</item>
+        <item>Kifaransa</item>
+        <item>Kijerumani</item>
+        <item>Kiitaliano</item>
+        <item>Kireno</item>
+        <item>Kirusi</item>
+        <item>Kijapani</item>
+        <item>Kikorea</item>
+        <item>Kichina</item>
+        <item>Kiarabu</item>
+        <item>Kihindi</item>
+    </string-array>
+</resources>

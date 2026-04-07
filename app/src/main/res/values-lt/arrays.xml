@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>Arija</item>
+        <item>Adomas</item>
+        <item>Rogeris</item>
+        <item>Sara</item>
+        <item>Laura</item>
+        <item>Čarlis</item>
+        <item>Jurgis</item>
+        <item>Liam</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>anglų kalba</item>
+        <item>ispanų</item>
+        <item>prancūzų</item>
+        <item>vokiečių</item>
+        <item>italų</item>
+        <item>portugalų</item>
+        <item>rusų</item>
+        <item>japonų</item>
+        <item>korėjiečių</item>
+        <item>kinų</item>
+        <item>arabų</item>
+        <item>hindi</item>
+    </string-array>
+</resources>

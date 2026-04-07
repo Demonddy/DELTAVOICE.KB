@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="#111827"
+    android:background="@drawable/dictionary_panel_rounded_28"
     android:padding="8dp">
 
     <!-- Header with language selector and close button -->
@@ -25,7 +25,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Dictionary"
+            android:text="@string/dictionary"
             android:textSize="18sp"
             android:textColor="#FFFFFF"
             android:textStyle="bold"
@@ -44,7 +44,7 @@
                 android:layout_width="0dp"
                 android:layout_height="36dp"
                 android:layout_weight="1"
-                android:text="English"
+                android:text="@string/english"
                 android:textSize="12sp"
                 android:textColor="#FFFFFF"
                 android:background="@drawable/dict_spinner_background"
@@ -59,7 +59,7 @@
                 android:layout_height="32dp"
                 android:src="@drawable/ic_swap"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Swap languages"
+                android:contentDescription="@string/content_desc_swap_languages"
                 android:layout_marginEnd="4dp" />
 
             <Button
@@ -67,7 +67,7 @@
                 android:layout_width="0dp"
                 android:layout_height="36dp"
                 android:layout_weight="1"
-                android:text="العربية"
+                android:text="@string/lang_label_arabic"
                 android:textSize="12sp"
                 android:textColor="#FFFFFF"
                 android:background="@drawable/dict_spinner_background"
@@ -84,7 +84,7 @@
             android:src="@android:drawable/ic_menu_close_clear_cancel"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:tint="#9CA3AF"
-            android:contentDescription="Close"
+            android:contentDescription="@string/content_desc_close"
             android:layout_marginStart="8dp" />
 
     </LinearLayout>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>आरिया</item>
+        <item>ॲडम</item>
+        <item>रॉजर</item>
+        <item>सारा</item>
+        <item>लॉरा</item>
+        <item>चार्ली</item>
+        <item>जॉर्ज</item>
+        <item>लियाम</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>इंग्रजी</item>
+        <item>स्पॅनिश</item>
+        <item>फ्रेंच</item>
+        <item>जर्मन</item>
+        <item>इटालियन</item>
+        <item>पोर्तुगीज</item>
+        <item>रशियन</item>
+        <item>जपानी</item>
+        <item>कोरियन</item>
+        <item>चिनी</item>
+        <item>अरबी</item>
+        <item>हिंदी</item>
+    </string-array>
+</resources>

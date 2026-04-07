@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>アリア</item>
+        <item>アダム</item>
+        <item>ロジャー</item>
+        <item>サラ</item>
+        <item>ローラ</item>
+        <item>チャーリー</item>
+        <item>ジョージ</item>
+        <item>リアム</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>英語</item>
+        <item>スペイン語</item>
+        <item>フランス語</item>
+        <item>ドイツ語</item>
+        <item>イタリア語</item>
+        <item>ポルトガル語</item>
+        <item>ロシア</item>
+        <item>日本語</item>
+        <item>韓国人</item>
+        <item>中国語</item>
+        <item>アラビア語</item>
+        <item>ヒンディー語</item>
+    </string-array>
+</resources>

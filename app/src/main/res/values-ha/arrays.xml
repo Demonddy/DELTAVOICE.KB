@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>Ariya</item>
+        <item>Adamu</item>
+        <item>Roger</item>
+        <item>Sarah</item>
+        <item>Laura</item>
+        <item>Charlie</item>
+        <item>George</item>
+        <item>Liam</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>Turanci</item>
+        <item>Mutanen Espanya</item>
+        <item>Faransanci</item>
+        <item>Jamusanci</item>
+        <item>Italiyanci</item>
+        <item>Fotigal</item>
+        <item>Rashanci</item>
+        <item>Jafananci</item>
+        <item>Yaren Koriya</item>
+        <item>Sinanci</item>
+        <item>Larabci</item>
+        <item>Hindi</item>
+    </string-array>
+</resources>

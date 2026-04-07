@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>아리아</item>
+        <item>아담</item>
+        <item>알았다</item>
+        <item>사라</item>
+        <item>로라</item>
+        <item>백인</item>
+        <item>성 조지</item>
+        <item>리암</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>영어</item>
+        <item>스페인 사람</item>
+        <item>프랑스 국민</item>
+        <item>독일 사람</item>
+        <item>이탈리아 사람</item>
+        <item>포르투갈 인</item>
+        <item>러시아인</item>
+        <item>일본어</item>
+        <item>한국인</item>
+        <item>중국인</item>
+        <item>아라비아 말</item>
+        <item>힌디 어</item>
+    </string-array>
+</resources>

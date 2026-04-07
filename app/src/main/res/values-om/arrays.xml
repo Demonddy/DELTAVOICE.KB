@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>Aria</item>
+        <item>Addaam</item>
+        <item>Roger</item>
+        <item>Saaraa</item>
+        <item>Laura</item>
+        <item>Chaarlii</item>
+        <item>Joorji</item>
+        <item>Liyam</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>Afaan Ingilizii</item>
+        <item>Ispaanishii</item>
+        <item>Afaan Faransaayii</item>
+        <item>Jarmanii</item>
+        <item>Afaan Xaaliyaanii</item>
+        <item>Afaan Poortugaal</item>
+        <item>Afaan Raashiyaa</item>
+        <item>Afaan Jaappaan</item>
+        <item>Afaan Kooriyaa</item>
+        <item>Chaayinaa</item>
+        <item>Afaan Arabaa</item>
+        <item>Afaan Oromoo</item>
+    </string-array>
+</resources>

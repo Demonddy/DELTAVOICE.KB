@@ -234,12 +234,12 @@ class VideoConfigActivity : AppCompatActivity() {
     private fun processVideo() {
         val path = videoFilePath
         if (path.isNullOrBlank()) {
-            Toast.makeText(this, "Record or upload a video first", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.record_upload_first), Toast.LENGTH_SHORT).show()
             return
         }
         val videoFile = File(path)
         if (!videoFile.exists()) {
-            Toast.makeText(this, "Video file not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.video_file_not_found), Toast.LENGTH_SHORT).show()
             return
         }
         if (isProcessing) return
@@ -256,15 +256,15 @@ class VideoConfigActivity : AppCompatActivity() {
 
         isProcessing = true
         btnProcess.isEnabled = false
-        videoStatus.text = "Processing..."
-        Toast.makeText(this, "Processing video...", Toast.LENGTH_LONG).show()
+        videoStatus.text = getString(R.string.processing_video)
+        Toast.makeText(this, getString(R.string.processing_video_toast), Toast.LENGTH_LONG).show()
 
         activityScope.launch {
             try {
                 val audioFile = VideoProcessingHelper.extractAudioFromVideo(videoFile, cacheDir)
                 if (audioFile == null || !audioFile.exists()) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(this@VideoConfigActivity, "No audio in video", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@VideoConfigActivity, getString(R.string.no_audio_in_video), Toast.LENGTH_LONG).show()
                         btnProcess.isEnabled = true
                         videoStatus.text = getString(R.string.video_recorded_tap_process)
                     }
@@ -290,7 +290,7 @@ class VideoConfigActivity : AppCompatActivity() {
                         processedAudioPath = mp3File.absolutePath
 
                         withContext(Dispatchers.Main) {
-                            videoStatus.text = "Muxing video..."
+                            videoStatus.text = getString(R.string.video_status_muxing)
                         }
 
                         val aacFile = VideoProcessingHelper.convertMp3ToAac(mp3File, cacheDir)
@@ -310,8 +310,8 @@ class VideoConfigActivity : AppCompatActivity() {
                             processedVideos.add(item)
                             withContext(Dispatchers.Main) {
                                 updateProcessedVideosList()
-                                videoStatus.text = "Ready! Tap download on any video."
-                                Toast.makeText(this@VideoConfigActivity, "Done! Tap download on any video.", Toast.LENGTH_LONG).show()
+                                videoStatus.text = getString(R.string.video_status_ready_tap_download)
+                                Toast.makeText(this@VideoConfigActivity, getString(R.string.done_tap_download), Toast.LENGTH_LONG).show()
                             }
                         } else {
                             val voiceName = voiceStyles.getOrNull(spinnerVoice.selectedItemPosition)?.first ?: "Audio"
@@ -323,23 +323,23 @@ class VideoConfigActivity : AppCompatActivity() {
                             processedVideos.add(item)
                             withContext(Dispatchers.Main) {
                                 updateProcessedVideosList()
-                                videoStatus.text = "Video mux failed. Tap download on any audio."
-                                Toast.makeText(this@VideoConfigActivity, "Video mux failed. Download or share audio.", Toast.LENGTH_LONG).show()
+                                videoStatus.text = getString(R.string.video_status_mux_failed_tap_audio)
+                                Toast.makeText(this@VideoConfigActivity, getString(R.string.video_mux_failed), Toast.LENGTH_LONG).show()
                             }
                         }
                     } else {
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(this@VideoConfigActivity, "Processing produced no audio", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@VideoConfigActivity, getString(R.string.processing_no_audio), Toast.LENGTH_SHORT).show()
                         }
                     }
                 } else {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(this@VideoConfigActivity, "Failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@VideoConfigActivity, getString(R.string.failed_error, result.exceptionOrNull()?.message ?: ""), Toast.LENGTH_LONG).show()
                     }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@VideoConfigActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@VideoConfigActivity, getString(R.string.error_message, e.message ?: ""), Toast.LENGTH_LONG).show()
                 }
             } finally {
                 isProcessing = false
@@ -441,7 +441,7 @@ class VideoConfigActivity : AppCompatActivity() {
     private fun previewProcessedMedia(item: ProcessedVideoItem) {
         val file = File(item.filePath)
         if (!file.exists()) {
-            Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.file_not_found), Toast.LENGTH_SHORT).show()
             return
         }
         val mimeType = if (item.isVideo) "video/mp4" else "audio/mpeg"
@@ -451,16 +451,16 @@ class VideoConfigActivity : AppCompatActivity() {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         try {
-            startActivity(Intent.createChooser(intent, "Preview media"))
+            startActivity(Intent.createChooser(intent, getString(R.string.preview_media)))
         } catch (e: Exception) {
-            Toast.makeText(this, "No app available to preview this file", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_app_to_preview), Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun sendProcessedMedia(item: ProcessedVideoItem) {
         val file = File(item.filePath)
         if (!file.exists()) {
-            Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.file_not_found), Toast.LENGTH_SHORT).show()
             return
         }
         val mimeType = if (item.isVideo) "video/mp4" else "audio/mpeg"
@@ -471,16 +471,16 @@ class VideoConfigActivity : AppCompatActivity() {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         try {
-            startActivity(Intent.createChooser(sendIntent, "Send via"))
+            startActivity(Intent.createChooser(sendIntent, getString(R.string.send_via)))
         } catch (e: Exception) {
-            Toast.makeText(this, "No app available to send this file", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.no_app_to_send_file), Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun renameProcessedItem(item: ProcessedVideoItem, labelView: TextView) {
         val originalFile = File(item.filePath)
         if (!originalFile.exists()) {
-            Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.file_not_found), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -491,14 +491,14 @@ class VideoConfigActivity : AppCompatActivity() {
         }
 
         AlertDialog.Builder(this)
-            .setTitle("Rename")
-            .setMessage("Give this processed file a clear name")
+            .setTitle(getString(R.string.rename_dialog_title))
+            .setMessage(getString(R.string.rename_dialog_message))
             .setView(input)
-            .setNegativeButton("Cancel", null)
-            .setPositiveButton("Save") { _, _ ->
+            .setNegativeButton(getString(R.string.cancel), null)
+            .setPositiveButton(getString(R.string.save)) { _, _ ->
                 val newLabel = input.text?.toString()?.trim().orEmpty()
                 if (newLabel.isBlank()) {
-                    Toast.makeText(this, "Name cannot be empty", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.name_cannot_be_empty), Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
 
@@ -517,7 +517,7 @@ class VideoConfigActivity : AppCompatActivity() {
                 val renamedFile = File(originalFile.parentFile, targetName)
 
                 if (renamedFile.exists() && renamedFile.absolutePath != originalFile.absolutePath) {
-                    Toast.makeText(this, "A file with this name already exists", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.file_name_already_exists), Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
 
@@ -531,9 +531,9 @@ class VideoConfigActivity : AppCompatActivity() {
                     item.filePath = renamedFile.absolutePath
                     item.label = safeBaseName
                     labelView.text = item.label
-                    Toast.makeText(this, "Renamed", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.renamed), Toast.LENGTH_SHORT).show()
                 } else {
-                    Toast.makeText(this, "Rename failed", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.rename_failed), Toast.LENGTH_SHORT).show()
                 }
             }
             .show()
@@ -542,7 +542,7 @@ class VideoConfigActivity : AppCompatActivity() {
     private fun downloadProcessedVideo(path: String) {
         val file = File(path)
         if (!file.exists()) {
-            Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.file_not_found), Toast.LENGTH_SHORT).show()
             return
         }
         activityScope.launch {
@@ -555,7 +555,7 @@ class VideoConfigActivity : AppCompatActivity() {
                 dest.absolutePath
             }
             withContext(Dispatchers.Main) {
-                Toast.makeText(this@VideoConfigActivity, "Saved to: $saved", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@VideoConfigActivity, getString(R.string.saved_to, saved), Toast.LENGTH_LONG).show()
             }
         }
     }

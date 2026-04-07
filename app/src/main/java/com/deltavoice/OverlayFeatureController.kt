@@ -3,6 +3,7 @@ package com.deltavoice
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.os.Build
@@ -100,13 +101,42 @@ class OverlayFeatureController(private val context: Context) {
         )
         addOverlay(container, params)
 
-        view.findViewById<ImageButton>(R.id.btn_more_calculator)?.setOnClickListener {
+        view.findViewById<ImageButton>(R.id.btn_more_voice)?.setOnClickListener {
             removeOverlay(container)
-            showCalculator()
+            showVoiceRecording()
+        }
+        view.findViewById<ImageButton>(R.id.btn_more_video)?.setOnClickListener {
+            removeOverlay(container)
+            showVideoRecording()
+        }
+        view.findViewById<ImageButton>(R.id.btn_more_ai_chat)?.setOnClickListener {
+            removeOverlay(container)
+            showAiChat()
         }
         view.findViewById<ImageButton>(R.id.btn_more_dictionary)?.setOnClickListener {
             removeOverlay(container)
             showDictionary()
+        }
+        view.findViewById<ImageButton>(R.id.btn_more_clipboard)?.setOnClickListener {
+            removeOverlay(container)
+            showClipboard()
+        }
+        view.findViewById<ImageButton>(R.id.btn_more_kb_plus)?.setOnClickListener {
+            removeOverlay(container)
+            showAiWritingTools()
+        }
+        view.findViewById<ImageButton>(R.id.btn_more_three_dot)?.setOnClickListener {
+            removeOverlay(container)
+            onDismiss()
+            try {
+                context.startActivity(Intent(context, SettingsActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                })
+            } catch (_: Exception) {}
+        }
+        view.findViewById<ImageButton>(R.id.btn_more_calculator)?.setOnClickListener {
+            removeOverlay(container)
+            showCalculator()
         }
         view.findViewById<Button>(R.id.btn_more_back)?.setOnClickListener {
             removeOverlay(container)
@@ -289,7 +319,7 @@ class OverlayFeatureController(private val context: Context) {
         view.findViewById<Button>(R.id.calc_insert)?.setOnClickListener {
             val text = state.result
             clipboardManager.setPrimaryClip(ClipData.newPlainText("calculator", text))
-            Toast.makeText(context, "Copied: $text", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.calculator_copied, text), Toast.LENGTH_SHORT).show()
         }
         view.findViewById<Button>(R.id.calc_delete)?.setOnClickListener {
             if (state.expression.isNotEmpty()) {
@@ -416,7 +446,7 @@ class OverlayFeatureController(private val context: Context) {
             setPadding(dp(16), dp(16), dp(16), dp(16))
         }
         val title = TextView(context).apply {
-            text = "Clipboard"
+            text = context.getString(R.string.clipboard_title)
             textSize = 18f
             setTextColor(0xFFFFFFFF.toInt())
             setPadding(0, 0, 0, dp(12))
@@ -424,7 +454,7 @@ class OverlayFeatureController(private val context: Context) {
         layout.addView(title)
         if (items.isEmpty()) {
             val empty = TextView(context).apply {
-                text = "No copied text yet"
+                text = context.getString(R.string.clipboard_empty)
                 setTextColor(0xFF888888.toInt())
             }
             layout.addView(empty)
@@ -437,7 +467,7 @@ class OverlayFeatureController(private val context: Context) {
                     setBackgroundResource(R.drawable.glass_key_background)
                     setOnClickListener {
                         clipboardManager.setPrimaryClip(ClipData.newPlainText("clipboard", text))
-                        Toast.makeText(context, "Copied! Paste with long-press", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.copied_paste_long_press), Toast.LENGTH_SHORT).show()
                         removeOverlay(container)
                     }
                 }
@@ -449,7 +479,7 @@ class OverlayFeatureController(private val context: Context) {
             }
         }
         val closeBtn = Button(context).apply {
-            text = "Close"
+            text = context.getString(R.string.overlay_close)
             setOnClickListener { removeOverlay(container) }
         }
         layout.addView(closeBtn, LinearLayout.LayoutParams(

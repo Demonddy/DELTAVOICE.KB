@@ -53,7 +53,7 @@ class VideoUploadActivity : AppCompatActivity() {
             val isImage = mimeType.startsWith("image/")
 
             if (!isVideo && !isImage) {
-                Toast.makeText(this, "Please select a video or image file", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.please_select_video_or_image), Toast.LENGTH_SHORT).show()
                 finishInstantly()
                 return
             }
@@ -102,7 +102,7 @@ class VideoUploadActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(this, "Failed to open file: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.failed_open_file, e.message ?: ""), Toast.LENGTH_SHORT).show()
             finishInstantly()
         }
     }

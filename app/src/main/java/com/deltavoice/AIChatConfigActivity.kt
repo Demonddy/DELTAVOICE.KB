@@ -262,7 +262,7 @@ class AIChatConfigActivity : AppCompatActivity() {
             if (e.message?.contains("Unable to resolve host", ignoreCase = true) == true) {
                 mainHandler.post {
                     val hint = if (openAiKey.isNotBlank()) "" else "\n\nTip: Tap the ⚙ icon to add your OpenAI API key for when the server is unreachable."
-                    Toast.makeText(this, "Can't reach server. Check Wi‑Fi or mobile data.$hint", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.cant_reach_server_with_hint, hint), Toast.LENGTH_LONG).show()
                 }
             }
             null

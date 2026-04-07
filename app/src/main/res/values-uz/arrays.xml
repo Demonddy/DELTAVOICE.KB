@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>Aria</item>
+        <item>Odam</item>
+        <item>Rojer</item>
+        <item>Sara</item>
+        <item>Laura</item>
+        <item>Charli</item>
+        <item>Jorj</item>
+        <item>Liam</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>Ingliz</item>
+        <item>ispancha</item>
+        <item>frantsuz</item>
+        <item>nemis</item>
+        <item>italyancha</item>
+        <item>portugal</item>
+        <item>rus</item>
+        <item>yapon</item>
+        <item>koreys</item>
+        <item>Xitoy</item>
+        <item>arabcha</item>
+        <item>hind</item>
+    </string-array>
+</resources>

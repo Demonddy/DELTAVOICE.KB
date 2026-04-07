@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>Арія</item>
+        <item>Адам</item>
+        <item>Роджер</item>
+        <item>Сара</item>
+        <item>Лаура</item>
+        <item>Чарлі</item>
+        <item>Джордж</item>
+        <item>Ліам</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>англійська</item>
+        <item>Іспанська</item>
+        <item>французька</item>
+        <item>Німецький</item>
+        <item>італійська</item>
+        <item>португальська</item>
+        <item>російська</item>
+        <item>Японський</item>
+        <item>корейська</item>
+        <item>китайський</item>
+        <item>арабська</item>
+        <item>Хінді</item>
+    </string-array>
+</resources>

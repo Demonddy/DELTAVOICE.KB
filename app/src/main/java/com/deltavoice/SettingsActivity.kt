@@ -13,7 +13,6 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
-import java.util.Locale
 
 /**
  * Activity for app settings
@@ -40,14 +39,6 @@ class SettingsActivity : AppCompatActivity() {
             DeltaVoiceApplication.THEME_SYSTEM to R.string.theme_system
         )
 
-        /** Supported app locales: empty = system default, then en, es, fr, de */
-        private val APP_LOCALES = listOf(
-            "" to "system_default",
-            "en" to "English",
-            "es" to "Español",
-            "fr" to "Français",
-            "de" to "Deutsch"
-        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -137,17 +128,24 @@ class SettingsActivity : AppCompatActivity() {
         
         // Privacy Policy
         findViewById<LinearLayout>(R.id.setting_privacy_policy).setOnClickListener {
-            Toast.makeText(this, "Privacy Policy page coming soon", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.privacy_policy_coming_soon), Toast.LENGTH_SHORT).show()
         }
         
         // Terms of Service
         findViewById<LinearLayout>(R.id.setting_terms).setOnClickListener {
-            Toast.makeText(this, "Terms of Service page coming soon", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.terms_coming_soon), Toast.LENGTH_SHORT).show()
         }
     }
     
     private fun setupKeyboardHeightSetting() {
-        val heightOptions = arrayOf("Extra short", "Short", "Normal", "Tall", "Custom")
+        val heightKeys = arrayOf("Extra short", "Short", "Normal", "Tall", "Custom")
+        fun heightLabels(): Array<String> = arrayOf(
+            getString(R.string.keyboard_height_extra_short),
+            getString(R.string.keyboard_height_short),
+            getString(R.string.normal),
+            getString(R.string.keyboard_height_tall),
+            getString(R.string.keyboard_height_custom)
+        )
         val currentHeight = prefs.getString(KEY_KEYBOARD_HEIGHT, "Normal") ?: "Normal"
         val currentCustom = prefs.getInt(KEY_KEYBOARD_HEIGHT_CUSTOM, 44)
         val heightLabel = findViewById<android.widget.TextView>(R.id.current_keyboard_height)
@@ -157,7 +155,12 @@ class SettingsActivity : AppCompatActivity() {
         fun updateHeightDisplay() {
             val h = prefs.getString(KEY_KEYBOARD_HEIGHT, "Normal") ?: "Normal"
             val c = prefs.getInt(KEY_KEYBOARD_HEIGHT_CUSTOM, 44)
-            heightLabel.text = if (h == "Custom") "Custom (${c}dp)" else h
+            heightLabel.text = if (h == "Custom") {
+                getString(R.string.keyboard_height_custom_dp, c)
+            } else {
+                val idx = heightKeys.indexOf(h)
+                if (idx >= 0) heightLabels()[idx] else h
+            }
             sliderContainer.visibility = if (h == "Custom") android.view.View.VISIBLE else android.view.View.GONE
         }
         
@@ -176,23 +179,23 @@ class SettingsActivity : AppCompatActivity() {
         })
         
         findViewById<LinearLayout>(R.id.setting_keyboard_height).setOnClickListener {
-            var selectedIndex = heightOptions.indexOf(currentHeight).coerceAtLeast(0)
+            var selectedIndex = heightKeys.indexOf(currentHeight).coerceAtLeast(0)
             if (currentHeight == "Custom") selectedIndex = 4
             
             AlertDialog.Builder(this, R.style.Theme_DeltaVoice_Dialog)
-                .setTitle("Keyboard height")
-                .setSingleChoiceItems(heightOptions, selectedIndex) { _, which ->
+                .setTitle(getString(R.string.keyboard_height_dialog_title))
+                .setSingleChoiceItems(heightLabels(), selectedIndex) { _, which ->
                     selectedIndex = which
                 }
-                .setPositiveButton("OK") { _, _ ->
-                    val selected = heightOptions[selectedIndex]
+                .setPositiveButton(getString(R.string.ok)) { _, _ ->
+                    val selected = heightKeys[selectedIndex]
                     prefs.edit().putString(KEY_KEYBOARD_HEIGHT, selected).apply()
                     if (selected == "Custom") {
                         prefs.edit().putInt(KEY_KEYBOARD_HEIGHT_CUSTOM, seekbar.progress + 36).apply()
                     }
                     updateHeightDisplay()
                 }
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton(getString(R.string.cancel), null)
                 .show()
         }
     }
@@ -232,93 +235,82 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun updateAppLanguageDisplay() {
-        val displayLocale = Locale.getDefault()
         val currentLocales = AppCompatDelegate.getApplicationLocales()
-        val displayText = if (currentLocales.isEmpty) {
-            getString(R.string.system_default)
+        val idx = AppLocaleCatalog.findSelectedIndex(currentLocales)
+        val opt = AppLocaleCatalog.options.getOrNull(idx) ?: AppLocaleCatalog.options[0]
+        val displayText = if (opt.tag.isEmpty()) {
+            "${opt.nativeLabel} · ${opt.englishLabel}"
         } else {
-            val locale = currentLocales[0]
-            locale?.getDisplayName(displayLocale) ?: getString(R.string.system_default)
+            "${opt.nativeLabel} (${opt.englishLabel})"
         }
         findViewById<android.widget.TextView>(R.id.current_app_language).text = displayText
     }
-    
+
     private fun showAppLanguageDialog() {
-        val displayLocale = Locale.getDefault()
         val currentLocales = AppCompatDelegate.getApplicationLocales()
-        val currentTag = if (currentLocales.isEmpty) "" else currentLocales[0]?.toLanguageTag() ?: ""
-        
-        val options = APP_LOCALES.map { (tag, _) ->
-            if (tag.isEmpty()) getString(R.string.system_default)
-            else Locale.forLanguageTag(tag).getDisplayName(displayLocale)
-        }.toTypedArray()
-        
-        var selectedIndex = APP_LOCALES.indexOfFirst { it.first == currentTag }.coerceAtLeast(0)
-        
+        val selectedIndex = AppLocaleCatalog.findSelectedIndex(currentLocales)
+        val adapter = AppLocaleArrayAdapter(this, AppLocaleCatalog.options)
+
         AlertDialog.Builder(this, R.style.Theme_DeltaVoice_Dialog)
             .setTitle(getString(R.string.select_app_language))
-            .setSingleChoiceItems(options, selectedIndex) { _, which ->
-                selectedIndex = which
-            }
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                val (tag, _) = APP_LOCALES[selectedIndex]
-                val newLocales = if (tag.isEmpty()) {
+            .setSingleChoiceItems(adapter, selectedIndex) { dialog, which ->
+                val opt = AppLocaleCatalog.options[which]
+                val newLocales = if (opt.tag.isEmpty()) {
                     LocaleListCompat.getEmptyLocaleList()
                 } else {
-                    LocaleListCompat.forLanguageTags(tag)
+                    LocaleListCompat.forLanguageTags(opt.tag)
                 }
                 AppCompatDelegate.setApplicationLocales(newLocales)
-                // Activity is recreated automatically by setApplicationLocales
+                dialog.dismiss()
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
     
     private fun showVoiceSelectionDialog() {
-        val voices = arrayOf("Aria", "Adam", "Roger", "Sarah", "Laura", "Charlie", "George", "Liam")
+        val voices = resources.getStringArray(R.array.default_voice_options)
         val currentVoice = prefs.getString("default_voice", "Aria") ?: "Aria"
         var selectedIndex = voices.indexOf(currentVoice).coerceAtLeast(0)
         
         AlertDialog.Builder(this, R.style.Theme_DeltaVoice_Dialog)
-            .setTitle("Select default voice")
+            .setTitle(getString(R.string.select_default_voice))
             .setSingleChoiceItems(voices, selectedIndex) { _, which ->
                 selectedIndex = which
             }
-            .setPositiveButton("OK") { _, _ ->
+            .setPositiveButton(getString(R.string.ok)) { _, _ ->
                 prefs.edit().putString("default_voice", voices[selectedIndex]).apply()
                 findViewById<android.widget.TextView>(R.id.current_voice).text = voices[selectedIndex]
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
     
     private fun showLanguageSelectionDialog() {
-        val languages = arrayOf("English", "Spanish", "French", "German", "Italian", "Portuguese", 
-            "Russian", "Japanese", "Korean", "Chinese", "Arabic", "Hindi")
+        val languages = resources.getStringArray(R.array.default_language_options)
         val currentLanguage = prefs.getString("default_language", "English") ?: "English"
         var selectedIndex = languages.indexOf(currentLanguage).coerceAtLeast(0)
         
         AlertDialog.Builder(this, R.style.Theme_DeltaVoice_Dialog)
-            .setTitle("Select default language")
+            .setTitle(getString(R.string.select_default_language))
             .setSingleChoiceItems(languages, selectedIndex) { _, which ->
                 selectedIndex = which
             }
-            .setPositiveButton("OK") { _, _ ->
+            .setPositiveButton(getString(R.string.ok)) { _, _ ->
                 prefs.edit().putString("default_language", languages[selectedIndex]).apply()
                 findViewById<android.widget.TextView>(R.id.current_language).text = languages[selectedIndex]
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
     
     private fun showClearDataDialog() {
         AlertDialog.Builder(this, R.style.Theme_DeltaVoice_Dialog)
-            .setTitle("Clear all data")
-            .setMessage("This will delete all cached files and recordings. This action cannot be undone.")
-            .setPositiveButton("Clear") { _, _ ->
+            .setTitle(getString(R.string.clear_all_data_title))
+            .setMessage(getString(R.string.clear_all_data_message))
+            .setPositiveButton(getString(R.string.clear)) { _, _ ->
                 clearAllData()
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
     
@@ -339,9 +331,9 @@ class SettingsActivity : AppCompatActivity() {
                 .putInt("stat_chats", 0)
                 .apply()
             
-            Toast.makeText(this, "All data cleared successfully", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.clear_all_data_success), Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            Toast.makeText(this, "Failed to clear data: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.clear_all_data_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
         }
     }
 }

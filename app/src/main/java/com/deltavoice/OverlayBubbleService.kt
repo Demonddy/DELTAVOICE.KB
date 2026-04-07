@@ -6,6 +6,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.res.Configuration
+import android.content.res.Resources
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.os.Build
@@ -17,6 +19,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageButton
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 
@@ -43,6 +46,26 @@ class OverlayBubbleService : Service() {
         private const val CHANNEL_ID = "overlay_bubble_channel"
         private const val NOTIFICATION_ID = 1001
         const val ACTION_STOP = "com.deltavoice.OVERLAY_STOP"
+    }
+
+    private var localeResourcesCacheTag: String? = null
+    private var localeWrappedResources: Resources? = null
+
+    override fun getResources(): Resources {
+        val locales = AppCompatDelegate.getApplicationLocales()
+        val tag = if (locales.isEmpty) "" else locales[0]?.toLanguageTag() ?: ""
+        if (tag == localeResourcesCacheTag && localeWrappedResources != null) {
+            return localeWrappedResources!!
+        }
+        localeResourcesCacheTag = tag
+        localeWrappedResources = AppLocaleHelper.wrap(applicationContext).resources
+        return localeWrappedResources!!
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        localeResourcesCacheTag = null
+        localeWrappedResources = null
     }
 
     override fun onCreate() {
@@ -104,7 +127,7 @@ class OverlayBubbleService : Service() {
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Close", stopPendingIntent)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.overlay_close), stopPendingIntent)
             .build()
     }
 

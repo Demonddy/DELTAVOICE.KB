@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>ആര്യ</item>
+        <item>ആദം</item>
+        <item>റോജർ</item>
+        <item>സാറാ</item>
+        <item>ലോറ</item>
+        <item>ചാർളി</item>
+        <item>ജോർജ്ജ്</item>
+        <item>ലിയാം</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>ഇംഗ്ലീഷ്</item>
+        <item>സ്പാനിഷ്</item>
+        <item>ഫ്രഞ്ച്</item>
+        <item>ജർമ്മൻ</item>
+        <item>ഇറ്റാലിയൻ</item>
+        <item>പോർച്ചുഗീസ്</item>
+        <item>റഷ്യൻ</item>
+        <item>ജാപ്പനീസ്</item>
+        <item>കൊറിയൻ</item>
+        <item>ചൈനീസ്</item>
+        <item>അറബി</item>
+        <item>ഹിന്ദി</item>
+    </string-array>
+</resources>

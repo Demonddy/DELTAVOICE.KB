@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_voice_options">
+        <item>Арија</item>
+        <item>Адам</item>
+        <item>Роџер</item>
+        <item>Сара</item>
+        <item>Лора</item>
+        <item>Чарли</item>
+        <item>Џорџ</item>
+        <item>Лиам</item>
+    </string-array>
+    <string-array name="default_language_options">
+        <item>англиски јазик</item>
+        <item>шпански</item>
+        <item>француски</item>
+        <item>германски</item>
+        <item>италијански</item>
+        <item>португалски</item>
+        <item>руски</item>
+        <item>јапонски</item>
+        <item>корејски</item>
+        <item>кинески</item>
+        <item>арапски</item>
+        <item>хинди</item>
+    </string-array>
+</resources>

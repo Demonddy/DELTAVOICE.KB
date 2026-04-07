@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="#1A1A1A"
+    android:background="@drawable/calculator_panel_rounded_28"
     android:padding="8dp">
 
     <!-- Calculator Display -->
@@ -336,7 +336,7 @@
             android:layout_height="48dp"
             android:layout_weight="2"
             android:layout_marginEnd="6dp"
-            android:text="Insert Result"
+            android:text="@string/insert_result"
             android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="#FFFFFF"
@@ -349,12 +349,12 @@
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
-            android:text="⌫ Del"
+            android:text="@string/del"
             android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="#FFFFFF"
             android:background="@drawable/calc_button_function"
-            android:contentDescription="Delete last character"
+            android:contentDescription="@string/content_desc_delete_last_char"
             android:textAllCaps="false"
             android:minHeight="48dp" />
 
