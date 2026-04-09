@@ -77,4 +77,11 @@
 
     <!-- Spinner dropdown (theme-aware) -->
     <color name="spinner_popup_background">#FFFFFF</color>
+
+    <!-- App language picker (WhatsApp-style fixed dark) -->
+    <color name="app_language_screen_bg">#121B22</color>
+    <color name="app_language_secondary_text">#8696A0</color>
+    <color name="app_language_radio_green">#00A884</color>
+    <color name="app_language_radio_ring">#5F6B73</color>
+    <color name="app_language_header_divider">#1E2A32</color>
 </resources>

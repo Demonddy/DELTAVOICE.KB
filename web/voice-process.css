@@ -138,9 +138,10 @@ body.voice-process-page {
   padding: 0 16px;
   min-height: 56px;
   background: var(--surface-card);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   margin-bottom: 16px;
   border: 1px solid var(--border);
+  overflow: hidden;
 }
 .vp-select-wrap select {
   flex: 1;
@@ -149,6 +150,7 @@ body.voice-process-page {
   border: none;
   font-size: 15px;
   outline: none;
+  border-radius: var(--radius-lg);
 }
 
 .vp-hint {
@@ -407,4 +409,51 @@ body.voice-process-page {
   font-size: 14px;
   min-height: 80px;
   margin-top: 8px;
+}
+
+/* Light mode: readable text on pills, selects, and surfaces (matches app DayNight tokens) */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #fef7ff;
+    --surface: #ffffff;
+    --surface-card: #f3ebf8;
+    --text: #1d1a23;
+    --text-secondary: #494454;
+    --text-tertiary: #7b7486;
+    --primary: #712ae2;
+    --primary-hover: #5a00c6;
+    --border: rgba(29, 26, 35, 0.12);
+  }
+
+  body.voice-process-page {
+    color-scheme: light;
+  }
+
+  .vp-btn-secondary {
+    color: #5b21b6;
+    border-color: rgba(29, 26, 35, 0.15);
+  }
+
+  .vp-card.selected {
+    background: rgba(113, 42, 226, 0.1);
+  }
+
+  .vp-tip strong {
+    color: #b45309;
+  }
+  .vp-tip p {
+    color: #78350f;
+  }
+
+  .vp-icon-btn--ghost:hover {
+    background: rgba(0, 0, 0, 0.06);
+  }
+
+  /* video-process.css tip block */
+  .vd-tip-video strong {
+    color: #b45309;
+  }
+  .vd-tip-video p {
+    color: #78350f;
+  }
 }

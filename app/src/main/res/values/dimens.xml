@@ -12,4 +12,5 @@
     <!-- AI writing tools: max height for scrollable tool grid -->
     <dimen name="ai_writing_tools_scroll_max">280dp</dimen>
     <dimen name="theme_preview_height">260dp</dimen>
+    <dimen name="app_language_radio_size">24dp</dimen>
 </resources>

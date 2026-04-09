@@ -131,7 +131,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:spinnerMode="dropdown"
-                    android:popupBackground="#2A3140"
+                    android:popupBackground="@drawable/spinner_popup_rounded"
                     android:layout_marginStart="8dp" />
             </LinearLayout>
 
@@ -159,7 +159,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:spinnerMode="dropdown"
-                    android:popupBackground="#2A3140"
+                    android:popupBackground="@drawable/spinner_popup_rounded"
                     android:layout_marginStart="8dp" />
             </LinearLayout>
         </LinearLayout>

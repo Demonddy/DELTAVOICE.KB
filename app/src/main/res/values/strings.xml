@@ -293,6 +293,7 @@
     <string name="predictive_text_desc">Show word suggestions while typing</string>
     <string name="auto_correction">Auto-correction</string>
     <string name="auto_correction_desc">Automatically correct misspelled words when you press space</string>
+    <string name="auto_correction_summary">Suggest corrections for misspelled words</string>
     <string name="voice_ai">Voice &amp; AI</string>
     <string name="default_voice">Default voice</string>
     <string name="aria">Aria</string>
@@ -545,6 +546,9 @@
     <string name="content_desc_close">Close</string>
     <string name="content_desc_delete_last_char">Delete last character</string>
     <string name="content_desc_close_ai_tools">Close AI writing tools</string>
+    <string name="content_desc_ai_chat_keyboard">Main keyboard</string>
+    <string name="content_desc_ai_chat_language">Keyboard language</string>
+    <string name="content_desc_ai_chat_emoji">Emoji</string>
     <string name="ai_tool_grammar">Grammar</string>
     <string name="ai_tool_reply">Reply</string>
     <string name="ai_tool_translate">Translate</string>
@@ -561,4 +565,27 @@
     <string name="rename_voice_message">Choose a clear name for this processed voice</string>
     <string name="send_voice_via">Send voice via</string>
     <string name="processing_failed_generic">Processing failed</string>
+
+    <!-- Theme preset display names -->
+    <string name="select_theme_section">Select Theme</string>
+    <string name="premium_themes_heading">Premium Themes</string>
+    <string name="theme_name_dark_purple">Dark Purple</string>
+    <string name="theme_name_midnight_blue">Midnight Blue</string>
+    <string name="theme_name_forest_green">Forest Green</string>
+    <string name="theme_name_sunset_orange">Sunset Orange</string>
+    <string name="theme_name_rose_pink">Rose Pink</string>
+    <string name="theme_name_pure_dark">Pure Dark</string>
+    <string name="theme_name_galaxy">Galaxy ✨</string>
+    <string name="theme_name_neon">Neon ✨</string>
+
+    <!-- Video process button (runtime overrides layout) -->
+    <string name="video_btn_processing">⏳ Processing…</string>
+    <string name="send_video_label">Send Video</string>
+    <string name="send_audio_label">Send Audio</string>
+
+    <!-- AI chat offline fallbacks (AIChatConfigActivity) -->
+    <string name="ai_chat_fallback_hello">Hello! 👋 How can I help you today?</string>
+    <string name="ai_chat_fallback_thanks">You\'re welcome! 😊 Anything else?</string>
+    <string name="ai_chat_fallback_help">I can help with writing, translations, questions, and ideas. What do you need?</string>
+    <string name="ai_chat_fallback_offline">I\'m having trouble connecting. Please check your internet and try again. In the meantime, try: \"Write an email about…\" or \"Translate X to any language\"</string>
 </resources>

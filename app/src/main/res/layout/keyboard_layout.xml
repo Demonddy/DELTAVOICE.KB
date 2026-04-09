@@ -524,7 +524,7 @@
                 android:layout_height="32dp"
                 android:src="@android:drawable/ic_menu_close_clear_cancel"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Close"
+                android:contentDescription="@string/content_desc_close"
                 android:tint="#9CA3AF" />
         </LinearLayout>
 
@@ -607,7 +607,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:spinnerMode="dropdown"
-                    android:popupBackground="#2A3140"
+                    android:popupBackground="@drawable/spinner_popup_rounded"
                     android:layout_marginStart="8dp" />
             </LinearLayout>
 
@@ -635,7 +635,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:spinnerMode="dropdown"
-                    android:popupBackground="#2A3140"
+                    android:popupBackground="@drawable/spinner_popup_rounded"
                     android:layout_marginStart="8dp" />
             </LinearLayout>
         </LinearLayout>
@@ -698,7 +698,7 @@
                 android:layout_height="32dp"
                 android:src="@android:drawable/ic_menu_close_clear_cancel"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Close"
+                android:contentDescription="@string/content_desc_close"
                 android:tint="#9CA3AF" />
         </LinearLayout>
 
@@ -773,7 +773,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:hint="Type your message..."
+                    android:hint="@string/ai_chat_hint"
                     android:textColorHint="#6B7280"
                     android:textColor="#FFFFFF"
                     android:textSize="14sp"
@@ -882,30 +882,46 @@
                 android:gravity="center"
                 android:paddingTop="2dp">
 
-                <Button
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/ai_chat_key_keyboard"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/ai_chat_bottom_row_height"
+                    android:layout_weight="1"
+                    android:src="@drawable/ic_keyboard"
+                    app:tint="#A78BFA"
+                    android:background="@drawable/dict_key_special"
+                    android:contentDescription="@string/content_desc_ai_chat_keyboard"
+                    android:padding="8dp"
+                    android:scaleType="fitCenter"
+                    android:layout_marginStart="2dp"
+                    android:layout_marginEnd="2dp" />
+
+                <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/ai_chat_key_globe"
                     android:layout_width="0dp"
                     android:layout_height="@dimen/ai_chat_bottom_row_height"
                     android:layout_weight="1"
-                    android:text="🌐"
-                    android:textSize="18sp"
-                    android:textColor="#FFFFFF"
+                    android:src="@drawable/ic_globe"
+                    app:tint="@android:color/white"
                     android:background="@drawable/dict_key_special"
+                    android:contentDescription="@string/content_desc_ai_chat_language"
+                    android:padding="8dp"
+                    android:scaleType="fitCenter"
                     android:layout_marginStart="2dp"
-                    android:layout_marginEnd="2dp"
-                    android:textAllCaps="false" />
+                    android:layout_marginEnd="2dp" />
 
-                <Button
+                <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/ai_chat_key_emoji"
                     android:layout_width="0dp"
                     android:layout_height="@dimen/ai_chat_bottom_row_height"
                     android:layout_weight="1"
-                    android:text="\uD83D\uDE00"
-                    android:textSize="18sp"
-                    android:textColor="#FFFFFF"
+                    android:src="@drawable/ic_emoji_smileys"
+                    app:tint="@android:color/white"
                     android:background="@drawable/dict_key_special"
-                    android:layout_marginEnd="2dp"
-                    android:textAllCaps="false" />
+                    android:contentDescription="@string/content_desc_ai_chat_emoji"
+                    android:padding="8dp"
+                    android:scaleType="fitCenter"
+                    android:layout_marginEnd="2dp" />
 
                 <Button
                     android:id="@+id/ai_chat_key_space"

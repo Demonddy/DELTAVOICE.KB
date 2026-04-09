@@ -119,12 +119,12 @@ class VideoConfigActivity : AppCompatActivity() {
 
         findViewById<ImageButton>(R.id.btn_back).setOnClickListener { finish() }
 
-        val langAdapter = ArrayAdapter(this, R.layout.spinner_item_dark, languages.map { it.first })
-        langAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item_dark)
+        val langAdapter = ArrayAdapter(this, R.layout.spinner_item_on_surface, languages.map { it.first })
+        langAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item_on_surface)
         spinnerLanguage.adapter = langAdapter
 
-        val voiceAdapter = ArrayAdapter(this, R.layout.spinner_item_dark, voiceStyles.map { it.first })
-        voiceAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item_dark)
+        val voiceAdapter = ArrayAdapter(this, R.layout.spinner_item_on_surface, voiceStyles.map { it.first })
+        voiceAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item_on_surface)
         spinnerVoice.adapter = voiceAdapter
 
         val btnUpload = findViewById<Button>(R.id.btn_upload_video)

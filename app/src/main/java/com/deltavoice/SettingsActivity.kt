@@ -1,9 +1,11 @@
 package com.deltavoice
 
+import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.view.WindowManager
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.SeekBar
@@ -13,6 +15,8 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 
 /**
  * Activity for app settings
@@ -249,22 +253,35 @@ class SettingsActivity : AppCompatActivity() {
     private fun showAppLanguageDialog() {
         val currentLocales = AppCompatDelegate.getApplicationLocales()
         val selectedIndex = AppLocaleCatalog.findSelectedIndex(currentLocales)
-        val adapter = AppLocaleArrayAdapter(this, AppLocaleCatalog.options)
 
-        AlertDialog.Builder(this, R.style.Theme_DeltaVoice_Dialog)
-            .setTitle(getString(R.string.select_app_language))
-            .setSingleChoiceItems(adapter, selectedIndex) { dialog, which ->
-                val opt = AppLocaleCatalog.options[which]
-                val newLocales = if (opt.tag.isEmpty()) {
-                    LocaleListCompat.getEmptyLocaleList()
-                } else {
-                    LocaleListCompat.forLanguageTags(opt.tag)
-                }
-                AppCompatDelegate.setApplicationLocales(newLocales)
-                dialog.dismiss()
+        val dialog = Dialog(this, R.style.Theme_DeltaVoice_AppLanguage)
+        dialog.setContentView(R.layout.dialog_app_language)
+        dialog.window?.setLayout(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT
+        )
+
+        dialog.findViewById<ImageButton>(R.id.app_language_close).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        val recycler = dialog.findViewById<RecyclerView>(R.id.app_language_list)
+        recycler.layoutManager = LinearLayoutManager(this)
+        recycler.adapter = AppLanguageRowAdapter(
+            options = AppLocaleCatalog.options,
+            selectedIndex = selectedIndex
+        ) { which ->
+            val opt = AppLocaleCatalog.options[which]
+            val newLocales = if (opt.tag.isEmpty()) {
+                LocaleListCompat.getEmptyLocaleList()
+            } else {
+                LocaleListCompat.forLanguageTags(opt.tag)
             }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+            AppCompatDelegate.setApplicationLocales(newLocales)
+            updateAppLanguageDisplay()
+            dialog.dismiss()
+        }
+        dialog.show()
     }
     
     private fun showVoiceSelectionDialog() {

@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shared tool grid (portrait 2-column) — included by IME and overlay hosts -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:maxHeight="@dimen/ai_writing_tools_scroll_max"
+    android:fillViewport="true"
+    android:overScrollMode="never"
+    android:scrollbars="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Row 1: Grammar, Reply -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <Button
+                android:id="@+id/ai_tool_grammar"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:text="@string/ai_tool_grammar"
+                android:drawableStart="@drawable/ic_grammar"
+                android:drawablePadding="8dp"
+                android:background="@drawable/ai_tool_button"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                android:gravity="center" />
+
+            <Button
+                android:id="@+id/ai_tool_reply"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:text="@string/ai_tool_reply"
+                android:drawableStart="@drawable/ic_reply"
+                android:drawablePadding="8dp"
+                android:background="@drawable/ai_tool_button"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                android:gravity="center" />
+        </LinearLayout>
+
+        <!-- Row 2: Translate, Enhance Words -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <Button
+                android:id="@+id/ai_tool_translate"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:text="@string/ai_tool_translate"
+                android:drawableStart="@drawable/ic_globe"
+                android:drawablePadding="8dp"
+                android:background="@drawable/ai_tool_button"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                android:gravity="center" />
+
+            <Button
+                android:id="@+id/ai_tool_enhance"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:text="@string/ai_tool_enhance_words"
+                android:drawableStart="@drawable/ic_enhance"
+                android:drawablePadding="8dp"
+                android:background="@drawable/ai_tool_button"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                android:gravity="center" />
+        </LinearLayout>
+
+        <!-- Row 3: Tone changer, Paraphrase -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <Button
+                android:id="@+id/ai_tool_tone"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:text="@string/ai_tool_tone_changer"
+                android:drawableStart="@drawable/ic_tone"
+                android:drawablePadding="8dp"
+                android:background="@drawable/ai_tool_button"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                android:gravity="center" />
+
+            <Button
+                android:id="@+id/ai_tool_paraphrase"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:text="@string/ai_tool_paraphrase"
+                android:drawableStart="@drawable/ic_paraphrase"
+                android:drawablePadding="8dp"
+                android:background="@drawable/ai_tool_button"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                android:gravity="center" />
+        </LinearLayout>
+
+        <!-- Row 4: Continue writing, Make longer -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <Button
+                android:id="@+id/ai_tool_continue"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:text="@string/ai_tool_continue_writing"
+                android:drawableStart="@drawable/ic_continue"
+                android:drawablePadding="8dp"
+                android:background="@drawable/ai_tool_button"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                android:gravity="center" />
+
+            <Button
+                android:id="@+id/ai_tool_longer"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:text="@string/ai_tool_make_longer"
+                android:drawableStart="@drawable/ic_longer"
+                android:drawablePadding="8dp"
+                android:background="@drawable/ai_tool_button"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                android:gravity="center" />
+        </LinearLayout>
+
+        <!-- Row 5: Summarize, Synonymous -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <Button
+                android:id="@+id/ai_tool_summarize"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:text="@string/ai_tool_summarize"
+                android:drawableStart="@drawable/ic_summarize"
+                android:drawablePadding="8dp"
+                android:background="@drawable/ai_tool_button"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                android:gravity="center" />
+
+            <Button
+                android:id="@+id/ai_tool_synonymous"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:text="@string/ai_tool_synonymous"
+                android:drawableStart="@drawable/ic_synonymous"
+                android:drawablePadding="8dp"
+                android:background="@drawable/ai_tool_button"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                android:gravity="center" />
+        </LinearLayout>
+
+        <!-- Row 6: Make shorter, Email Writer -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/ai_tool_shorter"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:text="@string/ai_tool_make_shorter"
+                android:drawableStart="@drawable/ic_shorter"
+                android:drawablePadding="8dp"
+                android:background="@drawable/ai_tool_button"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                android:gravity="center" />
+
+            <Button
+                android:id="@+id/ai_tool_email"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:text="@string/ai_tool_email_writer"
+                android:drawableStart="@drawable/ic_email"
+                android:drawablePadding="8dp"
+                android:background="@drawable/ai_tool_button_highlight"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                android:gravity="center" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

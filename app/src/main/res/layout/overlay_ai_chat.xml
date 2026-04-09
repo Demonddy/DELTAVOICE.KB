@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Extracted from keyboard_layout.xml — same IDs as ai_chat_container -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/ai_chat_container"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -214,30 +215,46 @@
             android:gravity="center"
             android:paddingTop="2dp">
 
-            <Button
+            <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/ai_chat_key_keyboard"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/ai_chat_bottom_row_height"
+                android:layout_weight="1"
+                android:src="@drawable/ic_keyboard"
+                app:tint="#A78BFA"
+                android:background="@drawable/dict_key_special"
+                android:contentDescription="@string/content_desc_ai_chat_keyboard"
+                android:padding="8dp"
+                android:scaleType="fitCenter"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp" />
+
+            <androidx.appcompat.widget.AppCompatImageButton
                 android:id="@+id/ai_chat_key_globe"
                 android:layout_width="0dp"
                 android:layout_height="@dimen/ai_chat_bottom_row_height"
                 android:layout_weight="1"
-                android:text="🌐"
-                android:textSize="18sp"
-                android:textColor="#FFFFFF"
+                android:src="@drawable/ic_globe"
+                app:tint="@android:color/white"
                 android:background="@drawable/dict_key_special"
+                android:contentDescription="@string/content_desc_ai_chat_language"
+                android:padding="8dp"
+                android:scaleType="fitCenter"
                 android:layout_marginStart="2dp"
-                android:layout_marginEnd="2dp"
-                android:textAllCaps="false" />
+                android:layout_marginEnd="2dp" />
 
-            <Button
+            <androidx.appcompat.widget.AppCompatImageButton
                 android:id="@+id/ai_chat_key_emoji"
                 android:layout_width="0dp"
                 android:layout_height="@dimen/ai_chat_bottom_row_height"
                 android:layout_weight="1"
-                android:text="☺"
-                android:textSize="18sp"
-                android:textColor="#FFFFFF"
+                android:src="@drawable/ic_emoji_smileys"
+                app:tint="@android:color/white"
                 android:background="@drawable/dict_key_special"
-                android:layout_marginEnd="2dp"
-                android:textAllCaps="false" />
+                android:contentDescription="@string/content_desc_ai_chat_emoji"
+                android:padding="8dp"
+                android:scaleType="fitCenter"
+                android:layout_marginEnd="2dp" />
 
             <Button
                 android:id="@+id/ai_chat_key_space"

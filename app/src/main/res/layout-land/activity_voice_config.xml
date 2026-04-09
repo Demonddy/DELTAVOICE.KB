@@ -196,7 +196,7 @@
                         android:layout_weight="1"
                         android:layout_marginStart="8dp"
                         android:spinnerMode="dropdown"
-                        android:popupBackground="@color/spinner_popup_background" />
+                        android:popupBackground="@drawable/spinner_popup_rounded" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -221,7 +221,7 @@
                         android:layout_weight="1"
                         android:layout_marginStart="8dp"
                         android:spinnerMode="dropdown"
-                        android:popupBackground="@color/spinner_popup_background" />
+                        android:popupBackground="@drawable/spinner_popup_rounded" />
                 </LinearLayout>
             </LinearLayout>
         </ScrollView>

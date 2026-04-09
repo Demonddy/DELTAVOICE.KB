@@ -3,7 +3,6 @@ package com.deltavoice
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.os.Build
@@ -101,42 +100,13 @@ class OverlayFeatureController(private val context: Context) {
         )
         addOverlay(container, params)
 
-        view.findViewById<ImageButton>(R.id.btn_more_voice)?.setOnClickListener {
+        view.findViewById<ImageButton>(R.id.btn_more_calculator)?.setOnClickListener {
             removeOverlay(container)
-            showVoiceRecording()
-        }
-        view.findViewById<ImageButton>(R.id.btn_more_video)?.setOnClickListener {
-            removeOverlay(container)
-            showVideoRecording()
-        }
-        view.findViewById<ImageButton>(R.id.btn_more_ai_chat)?.setOnClickListener {
-            removeOverlay(container)
-            showAiChat()
+            showCalculator()
         }
         view.findViewById<ImageButton>(R.id.btn_more_dictionary)?.setOnClickListener {
             removeOverlay(container)
             showDictionary()
-        }
-        view.findViewById<ImageButton>(R.id.btn_more_clipboard)?.setOnClickListener {
-            removeOverlay(container)
-            showClipboard()
-        }
-        view.findViewById<ImageButton>(R.id.btn_more_kb_plus)?.setOnClickListener {
-            removeOverlay(container)
-            showAiWritingTools()
-        }
-        view.findViewById<ImageButton>(R.id.btn_more_three_dot)?.setOnClickListener {
-            removeOverlay(container)
-            onDismiss()
-            try {
-                context.startActivity(Intent(context, SettingsActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                })
-            } catch (_: Exception) {}
-        }
-        view.findViewById<ImageButton>(R.id.btn_more_calculator)?.setOnClickListener {
-            removeOverlay(container)
-            showCalculator()
         }
         view.findViewById<Button>(R.id.btn_more_back)?.setOnClickListener {
             removeOverlay(container)

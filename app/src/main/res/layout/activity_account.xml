@@ -21,13 +21,13 @@
             android:src="@drawable/ic_arrow_back"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:tint="@color/text_primary"
-            android:contentDescription="Back" />
+            android:contentDescription="@string/back" />
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Account"
+            android:text="@string/account"
             android:textColor="@color/text_primary"
             android:textSize="20sp"
             android:textStyle="bold"
@@ -75,7 +75,7 @@
                     android:id="@+id/account_name"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Guest User"
+                    android:text="@string/guest_user"
                     android:textColor="@color/text_primary"
                     android:textSize="24sp"
                     android:textStyle="bold" />
@@ -84,7 +84,7 @@
                     android:id="@+id/account_email"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Not signed in"
+                    android:text="@string/not_signed_in"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp"
                     android:layout_marginTop="4dp" />
@@ -95,7 +95,7 @@
                     android:layout_width="200dp"
                     android:layout_height="48dp"
                     android:layout_marginTop="20dp"
-                    android:text="Sign In / Sign Up"
+                    android:text="@string/sign_in_sign_up"
                     android:textColor="@color/text_primary"
                     android:textAllCaps="false"
                     android:textSize="14sp"
@@ -106,7 +106,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Subscription"
+                android:text="@string/subscription"
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp"
                 android:textStyle="bold"
@@ -131,7 +131,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Current Plan"
+                        android:text="@string/current_plan"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp" />
 
@@ -139,7 +139,7 @@
                         android:id="@+id/plan_name"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Free"
+                        android:text="@string/free"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
@@ -154,7 +154,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Free plan includes:"
+                    android:text="@string/free_plan_includes"
                     android:textColor="@color/text_secondary"
                     android:textSize="13sp"
                     android:layout_marginBottom="8dp" />
@@ -162,7 +162,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="• 10 voice translations per day\n• 3 video translations per day\n• 50 AI chat messages per day\n• Basic themes"
+                    android:text="@string/free_plan_details"
                     android:textColor="@color/text_primary"
                     android:textSize="14sp"
                     android:lineSpacingMultiplier="1.4" />
@@ -172,7 +172,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
                     android:layout_marginTop="16dp"
-                    android:text="Upgrade to Premium"
+                    android:text="@string/upgrade_to_premium_btn"
                     android:textColor="@color/premium_banner_text_primary"
                     android:textAllCaps="false"
                     android:textStyle="bold"
@@ -183,7 +183,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Account Actions"
+                android:text="@string/account_actions"
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp"
                 android:textStyle="bold"
@@ -206,7 +206,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Edit Profile"
+                    android:text="@string/edit_profile"
                     android:textColor="@color/text_primary"
                     android:textSize="16sp" />
 
@@ -233,7 +233,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Change Password"
+                    android:text="@string/change_password"
                     android:textColor="@color/text_primary"
                     android:textSize="16sp" />
 
@@ -261,7 +261,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Sign Out"
+                    android:text="@string/sign_out"
                     android:textColor="@color/warning"
                     android:textSize="16sp" />
 
@@ -288,7 +288,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Delete Account"
+                    android:text="@string/delete_account"
                     android:textColor="@color/error"
                     android:textSize="16sp" />
 

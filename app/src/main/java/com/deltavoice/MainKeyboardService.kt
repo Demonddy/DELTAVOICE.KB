@@ -30,6 +30,7 @@ import android.view.HapticFeedbackConstants
 import android.view.SoundEffectConstants
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
+import android.widget.EditText
 import android.widget.Button
 import android.widget.GridLayout
 import android.widget.ImageButton
@@ -519,6 +520,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     // AI Writing Tools
     private lateinit var aiWritingToolsContainer: View
     private var isAiWritingToolsVisible = false
+    /** Overlay-only; null when tools are shown from IME (grid without [R.id.ai_writing_tools_input]). */
+    private var aiWritingToolsInput: EditText? = null
 
     // Clipboard (Gboard-style)
     private val clipboardHistory = mutableListOf<String>()
@@ -1387,7 +1390,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         // Update UI for processing state - show loading
         voiceStep2ActionButton()?.apply {
             isEnabled = false
-            text = "  Processing..."
+            text = getString(R.string.btn_processing)
             background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_purple)
         }
         audioDurationText.text = getString(R.string.status_loading)
@@ -2124,59 +2127,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val kbPlusButton = view.findViewById<ImageButton>(R.id.btn_kb_plus)
         val dictionaryButton = view.findViewById<ImageButton>(R.id.btn_more_dictionary)
         val appGridButton = view.findViewById<ImageButton>(R.id.btn_app_grid)
-        val moreVoiceButton = view.findViewById<ImageButton>(R.id.btn_more_voice)
-        val moreVideoButton = view.findViewById<ImageButton>(R.id.btn_more_video)
-        val moreAiChatButton = view.findViewById<ImageButton>(R.id.btn_more_ai_chat)
-        val moreClipboardButton = view.findViewById<ImageButton>(R.id.btn_more_clipboard)
-        val moreKbPlusButton = view.findViewById<ImageButton>(R.id.btn_more_kb_plus)
-        val moreThreeDotButton = view.findViewById<ImageButton>(R.id.btn_more_three_dot)
 
         // Prevent focus on all AI buttons
-        listOf(
-            calculatorButton, cameraButton, listButton, textTButton, kbPlusButton, dictionaryButton, appGridButton,
-            moreVoiceButton, moreVideoButton, moreAiChatButton, moreClipboardButton, moreKbPlusButton, moreThreeDotButton
-        )
+        listOf(calculatorButton, cameraButton, listButton, textTButton, kbPlusButton, dictionaryButton, appGridButton)
             .forEach { button ->
                 button?.isFocusable = false
                 button?.isFocusableInTouchMode = false
             }
-
-        moreVoiceButton?.setOnClickListener {
-            playKeyFeedback(it)
-            if (isListening) stopVoiceInput()
-            hideMoreOptions()
-            showRecordingUI()
-        }
-
-        moreVideoButton?.setOnClickListener {
-            playKeyFeedback(it)
-            hideMoreOptions()
-            toggleVideoRecording()
-        }
-
-        moreAiChatButton?.setOnClickListener {
-            playKeyFeedback(it)
-            hideMoreOptions()
-            toggleAiChat()
-        }
-
-        moreClipboardButton?.setOnClickListener {
-            playKeyFeedback(it)
-            hideMoreOptions()
-            toggleClipboardPopup()
-        }
-
-        moreKbPlusButton?.setOnClickListener {
-            playKeyFeedback(it)
-            hideMoreOptions()
-            toggleAiWritingTools()
-        }
-
-        moreThreeDotButton?.setOnClickListener {
-            playKeyFeedback(it)
-            hideMoreOptions()
-            openKeyboardSettings()
-        }
 
         // Dictionary button (in more options)
         dictionaryButton?.setOnClickListener {
@@ -2209,9 +2166,6 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
         appGridButton?.setOnClickListener {
             playKeyFeedback(it)
-            if (moreOptionsContainer.visibility == View.VISIBLE) {
-                hideMoreOptions()
-            }
             toggleClipboardPopup()
         }
 
@@ -2238,8 +2192,17 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         
         // Setup backspace button
         view.findViewById<ImageButton>(R.id.emoji_backspace_btn)?.setOnClickListener {
-            // Send backspace to input connection
-            currentInputConnection?.deleteSurroundingText(1, 0)
+            when {
+                isAiChatVisible && aiChatInputText.isNotEmpty() -> {
+                    aiChatInputText.deleteLastCodePoint()
+                    updateAiChatInputDisplay()
+                }
+                isDictionaryVisible && dictSearchText.isNotEmpty() -> {
+                    dictSearchText.deleteLastCodePoint()
+                    updateDictSearchDisplay()
+                }
+                else -> deleteLastCodePointFromInputConnection(currentInputConnection)
+            }
         }
         
         // Setup back to keyboard button
@@ -2761,6 +2724,28 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun setupAiWritingTools(view: View) {
         aiWritingToolsContainer = view.findViewById(R.id.ai_writing_tools_include)
         aiWritingToolsContainer.visibility = View.GONE
+        aiWritingToolsInput = view.findViewById(R.id.ai_writing_tools_input)
+        aiWritingToolsInput?.let { edit ->
+            edit.isFocusableInTouchMode = true
+            val showKb = {
+                edit.requestFocus()
+                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                edit.post {
+                    imm.showSoftInput(edit, InputMethodManager.SHOW_IMPLICIT)
+                    requestShowSelf(InputMethodManager.SHOW_IMPLICIT)
+                }
+            }
+            edit.setOnClickListener { showKb() }
+            edit.setOnFocusChangeListener { _, hasFocus ->
+                if (hasFocus) {
+                    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                    edit.post {
+                        imm.showSoftInput(edit, InputMethodManager.SHOW_IMPLICIT)
+                        requestShowSelf(InputMethodManager.SHOW_IMPLICIT)
+                    }
+                }
+            }
+        }
 
         view.findViewById<ImageButton>(R.id.ai_tools_close_btn)?.setOnClickListener {
             hideAiWritingTools()
@@ -2814,7 +2799,15 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             return
         }
         val (fullText, beforeLen, afterLen) = input
-        runToolCommandInAiChat(task, fullText.trim(), option ?: "", label, beforeLen, afterLen)
+        val skipHostReplace = aiWritingToolsInput != null
+        runToolCommandInAiChat(
+            task,
+            fullText.trim(),
+            option ?: "",
+            label,
+            if (skipHostReplace) null else beforeLen,
+            if (skipHostReplace) null else afterLen
+        )
     }
     
     /**
@@ -2881,7 +2874,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
         val commandPrompt = buildAiToolCommandPrompt(task, text, option)
         addChatMessage("$userMessage:\n\n$text", isUser = true)
-        addChatMessage("Processing...", isUser = false, isLoading = true)
+        addChatMessage(getString(R.string.please_wait_processing), isUser = false, isLoading = true)
 
         serviceScope.launch {
             try {
@@ -2961,8 +2954,15 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     
     /** Get current text in the input field (before + after cursor) and lengths for replacement. */
     private fun getCurrentInputText(): Triple<String, Int, Int>? {
-        // When AI chat visible, or writing tools open with AI chat text (from prior AI chat session)
-        if (isAiChatVisible || (isAiWritingToolsVisible && aiChatInputText.isNotEmpty())) {
+        if (isAiChatVisible) {
+            val text = aiChatInputText.toString()
+            return Triple(text, 0, text.length)
+        }
+        if (isAiWritingToolsVisible && aiWritingToolsInput != null) {
+            val text = aiWritingToolsInput?.text?.toString() ?: ""
+            return Triple(text, 0, text.length)
+        }
+        if (isAiWritingToolsVisible && aiChatInputText.isNotEmpty()) {
             val text = aiChatInputText.toString()
             return Triple(text, 0, text.length)
         }
@@ -2975,8 +2975,18 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     
     /** Replace the current input region with new text. */
     private fun replaceCurrentInputText(beforeLen: Int, afterLen: Int, newText: String) {
-        // When source was AI chat input (or writing tools used AI chat text)
-        if (isAiChatVisible || (isAiWritingToolsVisible && aiChatInputText.isNotEmpty())) {
+        if (isAiChatVisible) {
+            aiChatInputText.clear()
+            aiChatInputText.append(newText)
+            updateAiChatInputDisplay()
+            return
+        }
+        if (isAiWritingToolsVisible && aiWritingToolsInput != null) {
+            aiWritingToolsInput?.setText(newText)
+            aiWritingToolsInput?.setSelection(newText.length.coerceAtLeast(0))
+            return
+        }
+        if (isAiWritingToolsVisible && aiChatInputText.isNotEmpty()) {
             aiChatInputText.clear()
             aiChatInputText.append(newText)
             updateAiChatInputDisplay()
@@ -3211,14 +3221,29 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         // Setup mini keyboard
         setupDictMiniKeyboard(view)
         
-        // Symbols button - keyboard layout language selector
-        view.findViewById<Button>(R.id.dict_key_symbols)?.setOnClickListener {
+        // Keyboard icon — return to main IME (same as closing dictionary)
+        view.findViewById<Button>(R.id.dict_key_symbols)?.let {
+            setKeyPressWithAnimation(it) { hideDictionary() }
+        }
+        
+        // Globe button - mini keyboard layout language selector
+        view.findViewById<Button>(R.id.dict_key_globe)?.setOnClickListener {
             showDictMiniKeyboardLanguageSelector()
         }
         
-        // Globe button - keyboard layout language selector (same as symbols)
-        view.findViewById<Button>(R.id.dict_key_globe)?.setOnClickListener {
-            showDictMiniKeyboardLanguageSelector()
+        view.findViewById<Button>(R.id.dict_key_emoji)?.let {
+            setKeyPressWithAnimation(it) { showEmojiPicker() }
+        }
+        
+        view.findViewById<Button>(R.id.dict_key_dot)?.let {
+            setKeyPressWithAnimation(it) {
+                dictSearchText.append(".")
+                updateDictSearchDisplay()
+            }
+        }
+        
+        view.findViewById<Button>(R.id.dict_key_search)?.let {
+            setKeyPressWithAnimation(it) { searchDictionary() }
         }
         
         // Space bar - insert space into search field
@@ -3501,7 +3526,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         // Add backspace to row 3
         row3?.addView(createDictSpecialKey("⌫") {
             if (dictSearchText.isNotEmpty()) {
-                dictSearchText.deleteCharAt(dictSearchText.length - 1)
+                dictSearchText.deleteLastCodePoint()
                 updateDictSearchDisplay()
             }
         })
@@ -4656,8 +4681,15 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         // Setup mini keyboard for AI chat
         setupAiChatMiniKeyboard(view)
         
-        // Emoji button - action first, then feedback; lightweight scale animation
-        view.findViewById<Button>(R.id.ai_chat_key_emoji)?.let { setKeyPressWithAnimation(it) { hideAiChat(); showEmojiPicker() } }
+        // Return to main keyboard
+        view.findViewById<View>(R.id.ai_chat_key_keyboard)?.let {
+            setIconKeyPressWithAnimation(it) { hideAiChat() }
+        }
+        
+        // Emoji — keep AI chat open; insertEmoji routes picks into aiChatInputText
+        view.findViewById<View>(R.id.ai_chat_key_emoji)?.let {
+            setIconKeyPressWithAnimation(it) { showEmojiPicker() }
+        }
         
         // Space button
         view.findViewById<Button>(R.id.ai_chat_key_space)?.let { setKeyPressWithAnimation(it) { aiChatInputText.append(" "); updateAiChatInputDisplay() } }
@@ -4666,7 +4698,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         view.findViewById<Button>(R.id.ai_chat_key_send)?.let { setKeyPressWithAnimation(it) { sendAiChatMessage() } }
         
         // Globe button for language switch
-        view.findViewById<Button>(R.id.ai_chat_key_globe)?.let { setKeyPressWithAnimation(it) { showAiChatLanguageSelector() } }
+        view.findViewById<View>(R.id.ai_chat_key_globe)?.let {
+            setIconKeyPressWithAnimation(it) { showAiChatLanguageSelector() }
+        }
     }
     
     /**
@@ -4797,7 +4831,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
         row3?.addView(createAiChatSpecialKey("⌫") {
             if (aiChatInputText.isNotEmpty()) {
-                aiChatInputText.deleteCharAt(aiChatInputText.length - 1)
+                aiChatInputText.deleteLastCodePoint()
                 updateAiChatInputDisplay()
             }
         })
@@ -4847,7 +4881,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         // Add backspace
         row3?.addView(createAiChatSpecialKey("⌫", isLandscape) {
             if (aiChatInputText.isNotEmpty()) {
-                aiChatInputText.deleteCharAt(aiChatInputText.length - 1)
+                aiChatInputText.deleteLastCodePoint()
                 updateAiChatInputDisplay()
             }
         })
@@ -6166,7 +6200,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 withContext(Dispatchers.Main) {
                     videoUiContent()?.findViewById<Button>(R.id.btn_process_video)?.apply {
                         isEnabled = false
-                        text = "⏳ Processing..."
+                        text = getString(R.string.video_btn_processing)
                     }
                 }
                 
@@ -6206,7 +6240,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     if (!response.convertedAudioBase64.isNullOrBlank()) {
                         withContext(Dispatchers.Main) {
                             videoUiContent()?.findViewById<Button>(R.id.btn_process_video)?.apply {
-                                text = "⏳ Muxing video..."
+                                text = getString(R.string.video_status_muxing)
                             }
                         }
                         
@@ -6250,7 +6284,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                                 Toast.makeText(this@MainKeyboardService, getString(R.string.video_ready_tap_preview), Toast.LENGTH_LONG).show()
                                 videoUiContent()?.findViewById<Button>(R.id.btn_process_video)?.apply {
                                     isEnabled = true
-                                    text = "  Send Video"
+                                    text = "  ${getString(R.string.send_video_label)}"
                                     setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_send, 0, 0, 0)
                                     background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_green)
                                 }
@@ -6264,7 +6298,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                                 Toast.makeText(this@MainKeyboardService, getString(R.string.audio_ready_video_mux_failed), Toast.LENGTH_LONG).show()
                                 videoUiContent()?.findViewById<Button>(R.id.btn_process_video)?.apply {
                                     isEnabled = true
-                                    text = "  Send Audio"
+                                    text = "  ${getString(R.string.send_audio_label)}"
                                     setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_send, 0, 0, 0)
                                     background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_green)
                                 }
@@ -6656,7 +6690,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun resetVideoProcessButton() {
         videoUiContent()?.findViewById<Button>(R.id.btn_process_video)?.apply {
             isEnabled = true
-            text = "  Process Video"
+            text = "  ${getString(R.string.process_video)}"
             setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_ai_mode, 0, 0, 0)
             background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_purple)
         }
@@ -6813,23 +6847,49 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
     }
 
-    private fun openKeyboardSettings() {
-        try {
-            val intent = Intent(this, SettingsActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            startActivity(intent)
-        } catch (e: Exception) {
-            Toast.makeText(this, getString(R.string.failed_open_app_settings), Toast.LENGTH_SHORT).show()
-        }
-    }
-
     /**
      * Insert emoji into the current input field
      */
     private fun insertEmoji(emoji: String) {
-        val inputConnection: InputConnection? = currentInputConnection
-        inputConnection?.commitText(emoji, 1)
+        when {
+            isAiChatVisible -> {
+                aiChatInputText.append(emoji)
+                updateAiChatInputDisplay()
+            }
+            isDictionaryVisible -> {
+                dictSearchText.append(emoji)
+                updateDictSearchDisplay()
+            }
+            else -> currentInputConnection?.commitText(emoji, 1)
+        }
+    }
+
+    /**
+     * Keyboard rows must follow the **keyboard language** (LTR vs RTL script), not the app UI locale.
+     * Otherwise, when app language is RTL, horizontal [LinearLayout]s mirror children and QWERTY appears reversed.
+     */
+    private fun localeForKeyboardLanguage(code: String): Locale {
+        if (code.equals("iw", ignoreCase = true)) return Locale("he")
+        val normalized = code.trim().replace('_', '-')
+        if (normalized.isEmpty()) return Locale.ENGLISH
+        val loc = Locale.forLanguageTag(normalized)
+        return if (loc.language.isEmpty()) Locale.ENGLISH else loc
+    }
+
+    private fun keyboardKeyRowsLayoutDirection(): Int =
+        TextUtils.getLayoutDirectionFromLocale(localeForKeyboardLanguage(currentKeyboardLanguage))
+
+    private fun applyKeyboardKeyRowsLayoutDirection(view: View) {
+        val dir = keyboardKeyRowsLayoutDirection()
+        listOf(
+            R.id.row_numbers,
+            R.id.row_qwerty,
+            R.id.row_asdf,
+            R.id.row_zxcv,
+            R.id.row_bottom
+        ).forEach { id ->
+            view.findViewById<LinearLayout>(id)?.layoutDirection = dir
+        }
     }
 
     /**
@@ -6890,6 +6950,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
         val enterButton = createSpecialKeyButton("↵", "ENTER", weight = 1.2f, isEnterKey = true)
         rowBottom.addView(enterButton)
+
+        applyKeyboardKeyRowsLayoutDirection(view)
     }
 
     /**
@@ -7238,6 +7300,38 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * response (supports 12-15 chars/sec). commitText/action runs synchronously; no debounce.
      * For letter/number keys with accent variants, a long-press (300ms) shows the accent popup.
      */
+    /**
+     * Key feedback for icon-only controls ([ImageButton] / non-letter keys). No accent long-press.
+     */
+    private fun setIconKeyPressWithAnimation(view: View, action: () -> Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            view.stateListAnimator = null
+            view.elevation = 0f
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            (view as? Button)?.foreground = null
+        }
+        view.setOnTouchListener { v, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    action()
+                    Handler(Looper.getMainLooper()).post { playKeyFeedback(v) }
+                    v.animate().scaleX(0.94f).scaleY(0.94f)
+                        .setDuration(KEY_PRESS_ANIM_DURATION_MS)
+                        .setInterpolator(LinearInterpolator()).start()
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    v.animate().scaleX(1f).scaleY(1f)
+                        .setDuration(KEY_PRESS_ANIM_DURATION_MS)
+                        .setInterpolator(LinearInterpolator()).start()
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
     private fun setKeyPressWithAnimation(button: Button, action: () -> Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             button.stateListAnimator = null
@@ -7344,6 +7438,27 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         lastTypingEventMs = now
     }
 
+    /** Removes the last Unicode code point (handles UTF-16 surrogate pairs so emoji delete in one step). */
+    private fun StringBuilder.deleteLastCodePoint() {
+        if (isEmpty()) return
+        val s = toString()
+        val end = s.length
+        val cp = Character.codePointBefore(s, end)
+        val count = Character.charCount(cp)
+        delete(end - count, end)
+    }
+
+    /** Delete last code point before cursor in the host field (emoji-safe). */
+    private fun deleteLastCodePointFromInputConnection(ic: InputConnection?) {
+        if (ic == null) return
+        val before = ic.getTextBeforeCursor(8, 0) ?: return
+        if (before.isEmpty()) return
+        val len = before.length
+        val cp = Character.codePointBefore(before, len)
+        val count = Character.charCount(cp)
+        ic.deleteSurroundingText(count, 0)
+    }
+
     /**
      * Delete one character. Used for single tap and repeat. No debounce; immediate execution.
      * If the last action was auto-correct and user immediately backspaces, undo the correction.
@@ -7352,7 +7467,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         markTypingCadence()
         if (isAiChatVisible) {
             if (aiChatInputText.isNotEmpty()) {
-                aiChatInputText.deleteCharAt(aiChatInputText.length - 1)
+                aiChatInputText.deleteLastCodePoint()
                 updateAiChatInputDisplay()
             }
         } else if (autoCorrectUndoable && lastAutoCorrectOriginal != null && lastAutoCorrectReplacement != null) {
@@ -7369,7 +7484,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
         } else {
             autoCorrectUndoable = false
-            currentInputConnection?.deleteSurroundingText(1, 0)
+            deleteLastCodePointFromInputConnection(currentInputConnection)
         }
         if (triggerPredictionUpdate) {
             schedulePredictionUpdate()
@@ -8288,7 +8403,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         // Create popup window with language options
         val popupView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#1A1F2E"))
+            background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.spinner_popup_rounded)
             setPadding(16.dpToPx(), 12.dpToPx(), 16.dpToPx(), 12.dpToPx())
         }
         
@@ -8505,6 +8620,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 updateShiftButton()
                 updateLetterKeysForShift()
             }
+
+            applyKeyboardKeyRowsLayoutDirection(view)
         }
     }
     

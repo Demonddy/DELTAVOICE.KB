@@ -512,4 +512,24 @@
     <string name="rename_voice_message">Chọn tên rõ ràng cho giọng nói đã xử lý này</string>
     <string name="send_voice_via">Gửi giọng nói qua</string>
     <string name="processing_failed_generic">Xử lý không thành công</string>
+
+    <!-- Merged missing keys from default -->
+    <string name="auto_correction_summary">Suggest corrections for misspelled words</string>
+    <string name="select_theme_section">Select Theme</string>
+    <string name="premium_themes_heading">Premium Themes</string>
+    <string name="theme_name_dark_purple">Dark Purple</string>
+    <string name="theme_name_midnight_blue">Midnight Blue</string>
+    <string name="theme_name_forest_green">Forest Green</string>
+    <string name="theme_name_sunset_orange">Sunset Orange</string>
+    <string name="theme_name_rose_pink">Rose Pink</string>
+    <string name="theme_name_pure_dark">Pure Dark</string>
+    <string name="theme_name_galaxy">Galaxy ✨</string>
+    <string name="theme_name_neon">Neon ✨</string>
+    <string name="video_btn_processing">⏳ Processing…</string>
+    <string name="send_video_label">Send Video</string>
+    <string name="send_audio_label">Send Audio</string>
+    <string name="ai_chat_fallback_hello">Hello! 👋 How can I help you today?</string>
+    <string name="ai_chat_fallback_thanks">You\'re welcome! 😊 Anything else?</string>
+    <string name="ai_chat_fallback_help">I can help with writing, translations, questions, and ideas. What do you need?</string>
+    <string name="ai_chat_fallback_offline">I\'m having trouble connecting. Please check your internet and try again. In the meantime, try: \"Write an email about…\" or \"Translate X to any language\"</string>
 </resources>

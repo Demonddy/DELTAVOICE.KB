@@ -154,7 +154,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Keyboard"
+                android:text="@string/keyboard"
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp"
                 android:textStyle="bold"
@@ -179,14 +179,14 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Sound on keypress"
+                        android:text="@string/sound_on_keypress"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Play sound when typing"
+                        android:text="@string/sound_on_keypress_desc"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
                 </LinearLayout>
@@ -216,14 +216,14 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Haptic feedback"
+                        android:text="@string/haptic_feedback"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Vibrate on keypress"
+                        android:text="@string/haptic_feedback_desc"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
                 </LinearLayout>
@@ -253,14 +253,14 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Auto-capitalize"
+                        android:text="@string/auto_capitalize"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Capitalize first letter of sentences"
+                        android:text="@string/auto_capitalize_desc"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
                 </LinearLayout>
@@ -305,7 +305,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Keyboard height"
+                            android:text="@string/keyboard_height"
                             android:textColor="@color/text_primary"
                             android:textSize="16sp"
                             android:textStyle="bold" />
@@ -314,7 +314,7 @@
                             android:id="@+id/current_keyboard_height"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Normal"
+                            android:text="@string/normal"
                             android:textColor="@color/text_secondary"
                             android:textSize="13sp" />
                     </LinearLayout>
@@ -337,7 +337,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Custom height"
+                        android:text="@string/custom_height"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
 
@@ -370,14 +370,14 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Predictive text"
+                        android:text="@string/predictive_text"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Show word suggestions while typing"
+                        android:text="@string/predictive_text_desc"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
                 </LinearLayout>
@@ -407,14 +407,14 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Auto-correction"
+                        android:text="@string/auto_correction"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Suggest corrections for misspelled words"
+                        android:text="@string/auto_correction_summary"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
                 </LinearLayout>
@@ -429,7 +429,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Voice &amp; AI"
+                android:text="@string/voice_ai"
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp"
                 android:textStyle="bold"
@@ -457,7 +457,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Default voice"
+                        android:text="@string/default_voice"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -465,7 +465,7 @@
                         android:id="@+id/current_voice"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Aria"
+                        android:text="@string/aria"
                         android:textColor="@color/accent"
                         android:textSize="13sp" />
                 </LinearLayout>
@@ -498,7 +498,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Default language"
+                        android:text="@string/default_language"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
@@ -506,7 +506,7 @@
                         android:id="@+id/current_language"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="English"
+                        android:text="@string/english"
                         android:textColor="@color/accent"
                         android:textSize="13sp" />
                 </LinearLayout>
@@ -521,7 +521,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Privacy"
+                android:text="@string/privacy"
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp"
                 android:textStyle="bold"
@@ -549,14 +549,14 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Permissions"
+                        android:text="@string/permissions"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Manage app permissions"
+                        android:text="@string/manage_permissions"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
                 </LinearLayout>
@@ -589,14 +589,14 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Clear all data"
+                        android:text="@string/clear_all_data"
                         android:textColor="@color/error"
                         android:textSize="16sp" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Delete cached files and recordings"
+                        android:text="@string/clear_data_desc"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
                 </LinearLayout>
@@ -611,7 +611,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="About"
+                android:text="@string/about"
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp"
                 android:textStyle="bold"
@@ -631,14 +631,14 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="App version"
+                    android:text="@string/app_version_label"
                     android:textColor="@color/text_primary"
                     android:textSize="16sp" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="1.0.0"
+                    android:text="@string/version_number"
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp" />
             </LinearLayout>
@@ -660,7 +660,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Privacy Policy"
+                    android:text="@string/privacy_policy"
                     android:textColor="@color/text_primary"
                     android:textSize="16sp" />
 
@@ -687,7 +687,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Terms of Service"
+                    android:text="@string/terms_of_service"
                     android:textColor="@color/text_primary"
                     android:textSize="16sp" />
 

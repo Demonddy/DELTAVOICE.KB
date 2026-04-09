@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="oval">
+            <size
+                android:width="@dimen/app_language_radio_size"
+                android:height="@dimen/app_language_radio_size" />
+            <solid android:color="@color/app_language_radio_green" />
+        </shape>
+    </item>
+    <item
+        android:bottom="7dp"
+        android:left="7dp"
+        android:right="7dp"
+        android:top="7dp">
+        <shape android:shape="oval">
+            <solid android:color="@color/app_language_radio_green" />
+        </shape>
+    </item>
+</layer-list>

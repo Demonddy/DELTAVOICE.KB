@@ -6,7 +6,7 @@
 
     <include
         android:id="@+id/ai_writing_tools_include"
-        layout="@layout/ai_writing_tools"
+        layout="@layout/ai_writing_tools_overlay"
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
 </FrameLayout>

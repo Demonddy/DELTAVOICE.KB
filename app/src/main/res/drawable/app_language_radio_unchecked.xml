@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <size
+        android:width="@dimen/app_language_radio_size"
+        android:height="@dimen/app_language_radio_size" />
+    <stroke
+        android:width="2dp"
+        android:color="@color/app_language_radio_ring" />
+    <solid android:color="@android:color/transparent" />
+</shape>

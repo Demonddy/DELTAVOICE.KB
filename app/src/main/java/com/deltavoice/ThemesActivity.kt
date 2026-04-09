@@ -97,7 +97,18 @@ class ThemesActivity : AppCompatActivity() {
         if (themeId == KeyboardThemeStore.THEME_CUSTOM) {
             return getString(R.string.theme_custom)
         }
-        return themeId.replace("_", " ").replaceFirstChar { it.uppercase() }
+        val resId = when (themeId) {
+            KeyboardThemeStore.THEME_DARK_PURPLE -> R.string.theme_name_dark_purple
+            KeyboardThemeStore.THEME_MIDNIGHT_BLUE -> R.string.theme_name_midnight_blue
+            KeyboardThemeStore.THEME_FOREST_GREEN -> R.string.theme_name_forest_green
+            KeyboardThemeStore.THEME_SUNSET_ORANGE -> R.string.theme_name_sunset_orange
+            KeyboardThemeStore.THEME_ROSE_PINK -> R.string.theme_name_rose_pink
+            KeyboardThemeStore.THEME_PURE_DARK -> R.string.theme_name_pure_dark
+            KeyboardThemeStore.THEME_GALAXY -> R.string.theme_name_galaxy
+            KeyboardThemeStore.THEME_NEON -> R.string.theme_name_neon
+            else -> null
+        }
+        return if (resId != null) getString(resId) else themeId.replace("_", " ").replaceFirstChar { it.uppercase() }
     }
 
     private fun applyStagedTheme() {

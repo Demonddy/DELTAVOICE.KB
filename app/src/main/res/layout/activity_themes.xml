@@ -21,13 +21,13 @@
             android:src="@drawable/ic_arrow_back"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:tint="@color/text_primary"
-            android:contentDescription="Back" />
+            android:contentDescription="@string/back" />
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Themes"
+            android:text="@string/themes"
             android:textColor="@color/text_primary"
             android:textSize="20sp"
             android:textStyle="bold"
@@ -79,7 +79,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Select Theme"
+                android:text="@string/select_theme_section"
                 android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold"
@@ -112,7 +112,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Dark Purple"
+                        android:text="@string/theme_name_dark_purple"
                         android:textColor="@color/text_primary"
                         android:textSize="12sp"
                         android:layout_marginTop="8dp" />
@@ -138,7 +138,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Midnight Blue"
+                        android:text="@string/theme_name_midnight_blue"
                         android:textColor="@color/text_primary"
                         android:textSize="12sp"
                         android:layout_marginTop="8dp" />
@@ -172,7 +172,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Forest Green"
+                        android:text="@string/theme_name_forest_green"
                         android:textColor="@color/text_primary"
                         android:textSize="12sp"
                         android:layout_marginTop="8dp" />
@@ -198,7 +198,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Sunset Orange"
+                        android:text="@string/theme_name_sunset_orange"
                         android:textColor="@color/text_primary"
                         android:textSize="12sp"
                         android:layout_marginTop="8dp" />
@@ -232,7 +232,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Rose Pink"
+                        android:text="@string/theme_name_rose_pink"
                         android:textColor="@color/text_primary"
                         android:textSize="12sp"
                         android:layout_marginTop="8dp" />
@@ -258,7 +258,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Pure Dark"
+                        android:text="@string/theme_name_pure_dark"
                         android:textColor="@color/text_primary"
                         android:textSize="12sp"
                         android:layout_marginTop="8dp" />
@@ -335,7 +335,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Premium Themes"
+                    android:text="@string/premium_themes_heading"
                     android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold" />
@@ -373,7 +373,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Galaxy ✨"
+                        android:text="@string/theme_name_galaxy"
                         android:textColor="@color/premium_gold"
                         android:textSize="12sp"
                         android:layout_marginTop="8dp" />
@@ -399,7 +399,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Neon ✨"
+                        android:text="@string/theme_name_neon"
                         android:textColor="@color/premium_gold"
                         android:textSize="12sp"
                         android:layout_marginTop="8dp" />

@@ -34,6 +34,15 @@
         <item name="android:fontFamily">@font/plus_jakarta_sans_semibold</item>
     </style>
 
+    <!-- Full-screen app language picker (fixed dark, WhatsApp-like) -->
+    <style name="Theme.DeltaVoice.AppLanguage" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/app_language_screen_bg</item>
+        <item name="android:statusBarColor">@color/app_language_screen_bg</item>
+        <item name="android:navigationBarColor">@color/app_language_screen_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:fontFamily">@font/manrope_regular</item>
+    </style>
+
     <!-- Dialog theme: dark surface, accent buttons -->
     <style name="Theme.DeltaVoice.Dialog" parent="Theme.AppCompat.DayNight.Dialog.Alert">
         <item name="android:windowBackground">@drawable/bg_dialog_dark</item>

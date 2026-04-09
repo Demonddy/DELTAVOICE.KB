@@ -84,7 +84,7 @@ class AIChatConfigActivity : AppCompatActivity() {
     }
 
     private fun addWelcomeMessage() {
-        addMessage("Hi! I'm your AI assistant. Ask me anything - writing, questions, translations, and more!", false)
+        addMessage(getString(R.string.ai_chat_welcome), false)
     }
 
     /** Scroll chat to bottom without triggering focus changes (prevents keyboard flicker). */
@@ -500,10 +500,10 @@ class AIChatConfigActivity : AppCompatActivity() {
         val lower = message.lowercase()
         return when {
             lower.contains("hello") || lower.contains("hi") || lower.contains("hey") ->
-                "Hello! 👋 How can I help you today?"
-            lower.contains("thank") -> "You're welcome! 😊 Anything else?"
-            lower.contains("help") -> "I can help with writing, translations, questions, and ideas. What do you need?"
-            else -> "I'm having trouble connecting. Please check your internet and try again. In the meantime, try: \"Write an email about...\" or \"Translate X to any language \""
+                getString(R.string.ai_chat_fallback_hello)
+            lower.contains("thank") -> getString(R.string.ai_chat_fallback_thanks)
+            lower.contains("help") -> getString(R.string.ai_chat_fallback_help)
+            else -> getString(R.string.ai_chat_fallback_offline)
         }
     }
 }

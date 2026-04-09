@@ -121,18 +121,18 @@ class VoiceProcessModeActivity : AppCompatActivity() {
     private fun setupSpinners() {
         val languageAdapter = ArrayAdapter(
             this,
-            android.R.layout.simple_spinner_item,
+            R.layout.spinner_item_on_surface,
             languages.map { it.first }
         )
-        languageAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        languageAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item_on_surface)
         spinnerLanguage.adapter = languageAdapter
 
         val voiceAdapter = ArrayAdapter(
             this,
-            android.R.layout.simple_spinner_item,
+            R.layout.spinner_item_on_surface,
             voiceStyles.map { it.first }
         )
-        voiceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        voiceAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item_on_surface)
         spinnerVoice.adapter = voiceAdapter
     }
 
