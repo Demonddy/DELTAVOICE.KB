@@ -10,6 +10,7 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.Switch
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -119,6 +120,7 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<LinearLayout>(R.id.setting_default_language).setOnClickListener {
             showLanguageSelectionDialog()
         }
+        refreshDefaultVoiceAndLanguageLabels()
         
         // Permissions
         findViewById<LinearLayout>(R.id.setting_permissions).setOnClickListener {
@@ -139,6 +141,24 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<LinearLayout>(R.id.setting_terms).setOnClickListener {
             Toast.makeText(this, getString(R.string.terms_coming_soon), Toast.LENGTH_SHORT).show()
         }
+
+        refreshDefaultVoiceAndLanguageLabels()
+    }
+
+    private fun refreshDefaultVoiceAndLanguageLabels() {
+        val voices = resources.getStringArray(R.array.default_voice_options)
+        val currentVoice = prefs.getString("default_voice", "Aria") ?: "Aria"
+        val vIdx = voices.indexOf(currentVoice).coerceAtLeast(0)
+        findViewById<TextView>(R.id.current_voice).text = voices[vIdx.coerceAtMost(voices.size - 1)]
+
+        val canonical = resources.getStringArray(R.array.default_language_canonical)
+        val displayLang = resources.getStringArray(R.array.default_language_options)
+        val stored = prefs.getString("default_language", "English") ?: "English"
+        var idx = canonical.indexOf(stored)
+        if (idx < 0) idx = displayLang.indexOf(stored)
+        if (idx < 0) idx = 0
+        idx = idx.coerceIn(0, displayLang.lastIndex.coerceAtLeast(0))
+        findViewById<TextView>(R.id.current_language).text = displayLang[idx]
     }
     
     private fun setupKeyboardHeightSetting() {
@@ -296,25 +316,29 @@ class SettingsActivity : AppCompatActivity() {
             }
             .setPositiveButton(getString(R.string.ok)) { _, _ ->
                 prefs.edit().putString("default_voice", voices[selectedIndex]).apply()
-                findViewById<android.widget.TextView>(R.id.current_voice).text = voices[selectedIndex]
+                findViewById<TextView>(R.id.current_voice).text = voices[selectedIndex]
             }
             .setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
     
     private fun showLanguageSelectionDialog() {
-        val languages = resources.getStringArray(R.array.default_language_options)
-        val currentLanguage = prefs.getString("default_language", "English") ?: "English"
-        var selectedIndex = languages.indexOf(currentLanguage).coerceAtLeast(0)
-        
+        val displayLanguages = resources.getStringArray(R.array.default_language_options)
+        val canonical = resources.getStringArray(R.array.default_language_canonical)
+        val stored = prefs.getString("default_language", "English") ?: "English"
+        var selectedIndex = canonical.indexOf(stored)
+        if (selectedIndex < 0) selectedIndex = displayLanguages.indexOf(stored)
+        if (selectedIndex < 0) selectedIndex = 0
+        selectedIndex = selectedIndex.coerceIn(0, canonical.lastIndex.coerceAtLeast(0))
+
         AlertDialog.Builder(this, R.style.Theme_DeltaVoice_Dialog)
             .setTitle(getString(R.string.select_default_language))
-            .setSingleChoiceItems(languages, selectedIndex) { _, which ->
+            .setSingleChoiceItems(displayLanguages, selectedIndex) { _, which ->
                 selectedIndex = which
             }
             .setPositiveButton(getString(R.string.ok)) { _, _ ->
-                prefs.edit().putString("default_language", languages[selectedIndex]).apply()
-                findViewById<android.widget.TextView>(R.id.current_language).text = languages[selectedIndex]
+                prefs.edit().putString("default_language", canonical[selectedIndex]).apply()
+                findViewById<TextView>(R.id.current_language).text = displayLanguages[selectedIndex]
             }
             .setNegativeButton(getString(R.string.cancel), null)
             .show()

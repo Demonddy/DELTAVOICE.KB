@@ -7,13 +7,18 @@ import androidx.appcompat.app.AppCompatDelegate
 /**
  * Application class for deltavoice.
  *
- * The app uses the device's system language by default. Android automatically
- * selects the appropriate string resources (e.g. values-es/strings.xml for Spanish)
- * based on the user's phone language settings. No locale override is applied.
+ * When the user picks a language in Settings, [AppCompatDelegate.setApplicationLocales]
+ * is used. [AppLocaleHelper.wrap] applies that choice to the application [Context] so
+ * [Resources] match Activities and the IME (which also wraps via [AppLocaleHelper]).
+ * If the user leaves "System default", locales are empty and Android follows the device.
  *
  * App appearance (light/dark/system) is applied at startup from user preference.
  */
 class DeltaVoiceApplication : Application() {
+
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(AppLocaleHelper.wrap(base))
+    }
 
     override fun onCreate() {
         applyAppTheme()

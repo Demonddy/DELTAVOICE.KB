@@ -24,4 +24,19 @@
         <item>Arabic</item>
         <item>Hindi</item>
     </string-array>
+    <!-- Stored in prefs; same order as default_language_options. Not overridden per locale. -->
+    <string-array name="default_language_canonical" translatable="false">
+        <item>English</item>
+        <item>Spanish</item>
+        <item>French</item>
+        <item>German</item>
+        <item>Italian</item>
+        <item>Portuguese</item>
+        <item>Russian</item>
+        <item>Japanese</item>
+        <item>Korean</item>
+        <item>Chinese</item>
+        <item>Arabic</item>
+        <item>Hindi</item>
+    </string-array>
 </resources>

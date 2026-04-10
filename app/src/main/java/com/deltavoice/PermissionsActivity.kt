@@ -11,7 +11,7 @@ import androidx.core.content.ContextCompat
 
 /**
  * Activity to handle permissions for microphone and camera.
- * When all permissions are granted, shows "All set" and a Done button.
+ * When all permissions are granted, shows localized "All set" and Done.
  */
 class PermissionsActivity : AppCompatActivity() {
 
@@ -50,10 +50,6 @@ class PermissionsActivity : AppCompatActivity() {
         return hasMic && hasCamera
     }
 
-    /**
-     * Update the UI to show current permission status.
-     * When all granted: title "All set", button "Done". Otherwise: "Permissions Required", "Request Permissions".
-     */
     private fun updatePermissionStatus() {
         val hasMic = ContextCompat.checkSelfPermission(
             this,
@@ -66,24 +62,21 @@ class PermissionsActivity : AppCompatActivity() {
         ) == PackageManager.PERMISSION_GRANTED
 
         val status = buildString {
-            append(if (hasMic) "Microphone: ✓ Granted" else "Microphone: ✗ Denied")
+            append(if (hasMic) getString(R.string.permission_mic_granted) else getString(R.string.permission_mic_denied))
             append("\n")
-            append(if (hasCamera) "Camera: ✓ Granted" else "Camera: ✗ Denied")
+            append(if (hasCamera) getString(R.string.permission_camera_granted) else getString(R.string.permission_camera_denied))
         }
         statusText.text = status
 
         if (allPermissionsGranted()) {
-            titleText.text = "All set"
-            requestButton.text = "Done"
+            titleText.text = getString(R.string.permissions_all_set)
+            requestButton.text = getString(R.string.permissions_done)
         } else {
-            titleText.text = "Permissions required"
-            requestButton.text = "Request permissions"
+            titleText.text = getString(R.string.permissions_required_title)
+            requestButton.text = getString(R.string.permissions_request_button)
         }
     }
 
-    /**
-     * Request microphone and camera permissions
-     */
     private fun requestPermissions() {
         val permissions = arrayOf(
             Manifest.permission.RECORD_AUDIO,
@@ -109,4 +102,3 @@ class PermissionsActivity : AppCompatActivity() {
         }
     }
 }
-

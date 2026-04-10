@@ -532,4 +532,24 @@
     <string name="ai_chat_fallback_thanks">You\'re welcome! 😊 Anything else?</string>
     <string name="ai_chat_fallback_help">I can help with writing, translations, questions, and ideas. What do you need?</string>
     <string name="ai_chat_fallback_offline">I\'m having trouble connecting. Please check your internet and try again. In the meantime, try: \"Write an email about…\" or \"Translate X to any language\"</string>
+
+    <!-- Merged missing keys from default -->
+    <string name="voice_step2_label_done">  Done</string>
+    <string name="voice_step2_label_send">  Send</string>
+    <string name="permissions_intro">Microphone and camera are needed for voice input and video features.</string>
+    <string name="permissions_status_checking">Checking permissions…</string>
+    <string name="permissions_all_set">All set</string>
+    <string name="permissions_done">Done</string>
+    <string name="permissions_required_title">Permissions required</string>
+    <string name="permissions_request_button">Request permissions</string>
+    <string name="permission_mic_granted">Microphone: ✓ Granted</string>
+    <string name="permission_mic_denied">Microphone: ✗ Denied</string>
+    <string name="permission_camera_granted">Camera: ✓ Granted</string>
+    <string name="permission_camera_denied">Camera: ✗ Denied</string>
+    <string name="content_desc_play_recording">Play recording</string>
+    <string name="content_desc_send_raw_voice">Send recorded voice without processing</string>
+    <string name="content_desc_close_voice_step2">Close voice processing</string>
+    <string name="content_desc_ai_chat_keyboard">Main keyboard</string>
+    <string name="content_desc_ai_chat_language">Keyboard language</string>
+    <string name="content_desc_ai_chat_emoji">Emoji</string>
 </resources>

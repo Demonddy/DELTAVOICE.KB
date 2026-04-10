@@ -70,6 +70,9 @@
     <string name="voice_mode_action_done">Done</string>
     <string name="voice_mode_action_processing">Processing…</string>
     <string name="voice_mode_action_send">Send</string>
+    <!-- Step 2 primary button (leading spaces match compound drawable padding in code) -->
+    <string name="voice_step2_label_done">  Done</string>
+    <string name="voice_step2_label_send">  Send</string>
 
     <!-- AI Chat -->
     <string name="ai_chat_title">AI Assistant</string>
@@ -301,6 +304,16 @@
     <string name="english">English</string>
     <string name="privacy">Privacy</string>
     <string name="permissions">Permissions</string>
+    <string name="permissions_intro">Microphone and camera are needed for voice input and video features.</string>
+    <string name="permissions_status_checking">Checking permissions…</string>
+    <string name="permissions_all_set">All set</string>
+    <string name="permissions_done">Done</string>
+    <string name="permissions_required_title">Permissions required</string>
+    <string name="permissions_request_button">Request permissions</string>
+    <string name="permission_mic_granted">Microphone: ✓ Granted</string>
+    <string name="permission_mic_denied">Microphone: ✗ Denied</string>
+    <string name="permission_camera_granted">Camera: ✓ Granted</string>
+    <string name="permission_camera_denied">Camera: ✗ Denied</string>
     <string name="manage_permissions">Manage app permissions</string>
     <string name="clear_all_data">Clear all data</string>
     <string name="clear_data_desc">Delete cached files and recordings</string>
@@ -544,6 +557,9 @@
     <string name="lang_label_arabic">العربية</string>
     <string name="content_desc_swap_languages">Swap languages</string>
     <string name="content_desc_close">Close</string>
+    <string name="content_desc_play_recording">Play recording</string>
+    <string name="content_desc_send_raw_voice">Send recorded voice without processing</string>
+    <string name="content_desc_close_voice_step2">Close voice processing</string>
     <string name="content_desc_delete_last_char">Delete last character</string>
     <string name="content_desc_close_ai_tools">Close AI writing tools</string>
     <string name="content_desc_ai_chat_keyboard">Main keyboard</string>

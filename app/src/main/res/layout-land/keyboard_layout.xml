@@ -648,7 +648,7 @@
                     android:id="@+id/keyboard_button_action"
                     android:layout_width="match_parent"
                     android:layout_height="38dp"
-                    android:text="@string/voice_mode_action_done"
+                    android:text="@string/voice_step2_label_done"
                     android:drawableStart="@drawable/ic_ai_mode"
                     android:drawablePadding="6dp"
                     android:background="@drawable/voice_mode_button_purple"

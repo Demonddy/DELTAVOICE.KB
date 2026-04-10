@@ -1025,18 +1025,17 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         
         // Action button - handles both processing and sending
         actionBtn.setOnClickListener {
-            val btnText = actionBtn.text.toString().trim()
+            val btnText = actionBtn.text.toString()
+            val sendWord = getString(R.string.voice_mode_action_send)
+            val processingWord = getString(R.string.btn_processing).trim()
             when {
-                btnText.contains("Send", ignoreCase = true) -> {
-                    // Send the processed audio
+                btnText.contains(sendWord, ignoreCase = true) -> {
                     shareProcessedAudio()
                 }
-                btnText.contains("Processing", ignoreCase = true) -> {
-                    // Already processing, ignore clicks
+                btnText.contains(processingWord, ignoreCase = true) -> {
                     Toast.makeText(this, getString(R.string.please_wait_processing), Toast.LENGTH_SHORT).show()
                 }
                 else -> {
-                    // "Done" state - start processing
                     processRecordedVoice(pendingWorkflowType)
                 }
             }
@@ -1246,7 +1245,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             audioDurationText.text = getString(R.string.status_no_internet)
             voiceStep2ActionButton()?.apply {
                 isEnabled = true
-                text = "  Done"
+                text = getString(R.string.voice_step2_label_done)
                 background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_purple)
                 setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_ai_mode, 0, 0, 0)
                 compoundDrawables.forEach { drawable -> drawable?.setTint(Color.WHITE) }
@@ -1362,7 +1361,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 audioDurationText.text = getString(R.string.status_need_8_seconds)
                 voiceStep2ActionButton()?.apply {
                     isEnabled = true
-                    text = "  Done"
+                    text = getString(R.string.voice_step2_label_done)
                 }
                 return
             }
@@ -1488,7 +1487,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         // Reset button states
         voiceStep2ActionButton()?.apply {
             isEnabled = true
-            text = "  Done"
+            text = getString(R.string.voice_step2_label_done)
             background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_purple)
         }
         
@@ -1747,7 +1746,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     // Update button states - change to Send mode
                     voiceStep2ActionButton()?.apply {
                         isEnabled = true
-                        text = "  Send"
+                        text = getString(R.string.voice_step2_label_send)
                         background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_green)
                         setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_send, 0, 0, 0)
                         compoundDrawables.forEach { drawable ->
@@ -2008,7 +2007,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         isProcessedAudioReady = false
         voiceStep2ActionButton()?.apply {
             isEnabled = true
-            text = "  Done"
+            text = getString(R.string.voice_step2_label_done)
             background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_purple)
             setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_ai_mode, 0, 0, 0)
             compoundDrawables.forEach { drawable -> drawable?.setTint(Color.WHITE) }
@@ -9193,7 +9192,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun resetButtonState() {
         voiceStep2ActionButton()?.apply {
             isEnabled = true
-            text = "  Done"
+            text = getString(R.string.voice_step2_label_done)
             background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.voice_mode_button_purple)
             setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_ai_mode, 0, 0, 0)
             compoundDrawables.forEach { drawable ->

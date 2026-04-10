@@ -31,7 +31,7 @@
                     android:layout_height="40dp"
                     android:src="@drawable/ic_play"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Play recording"
+                    android:contentDescription="@string/content_desc_play_recording"
                     android:padding="8dp"
                     android:tint="#3B82F6" />
 
@@ -64,7 +64,7 @@
                     android:layout_height="32dp"
                     android:src="@drawable/ic_send"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Send recorded voice without processing"
+                    android:contentDescription="@string/content_desc_send_raw_voice"
                     android:padding="6dp"
                     android:tint="#10B981" />
             </LinearLayout>
@@ -98,7 +98,7 @@
                 android:layout_height="32dp"
                 android:src="@android:drawable/ic_menu_close_clear_cancel"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Close"
+                android:contentDescription="@string/content_desc_close_voice_step2"
                 android:padding="4dp" />
         </LinearLayout>
 
@@ -312,7 +312,7 @@
             android:layout_width="match_parent"
             android:layout_height="52dp"
             android:layout_marginTop="16dp"
-            android:text="@string/voice_mode_action_done"
+            android:text="@string/voice_step2_label_done"
             android:drawableStart="@drawable/ic_ai_mode"
             android:drawablePadding="10dp"
             android:background="@drawable/voice_mode_button_purple"

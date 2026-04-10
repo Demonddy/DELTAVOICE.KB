@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="default_language_options">
+        <item>الإنجليزية</item>
+        <item>الإسبانية</item>
+        <item>الفرنسية</item>
+        <item>الألمانية</item>
+        <item>الإيطالية</item>
+        <item>البرتغالية</item>
+        <item>الروسية</item>
+        <item>اليابانية</item>
+        <item>الكورية</item>
+        <item>الصينية</item>
+        <item>العربية</item>
+        <item>الهندية</item>
+    </string-array>
+</resources>
