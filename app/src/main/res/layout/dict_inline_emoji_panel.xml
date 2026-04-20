@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shown in place of dictionary letter rows; not the full-screen emoji picker -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/dict_inline_emoji_panel"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:visibility="gone"
+    android:background="#141821">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <HorizontalScrollView
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:scrollbars="none"
+            android:fillViewport="false">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp">
+
+                <ImageButton
+                    android:id="@+id/dict_inline_emoji_tab_recent"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:src="@android:drawable/ic_menu_recent_history"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Recent"
+                    android:tint="#888888"
+                    android:padding="6dp" />
+
+                <ImageButton
+                    android:id="@+id/dict_inline_emoji_tab_smileys"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:src="@drawable/ic_emoji_smileys"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Smileys"
+                    android:tint="#4A9EFF"
+                    android:padding="6dp" />
+
+                <ImageButton
+                    android:id="@+id/dict_inline_emoji_tab_people"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:src="@drawable/ic_emoji_people"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="People"
+                    android:tint="#888888"
+                    android:padding="6dp" />
+
+                <ImageButton
+                    android:id="@+id/dict_inline_emoji_tab_animals"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:src="@drawable/ic_emoji_animals"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Animals"
+                    android:tint="#888888"
+                    android:padding="6dp" />
+
+                <ImageButton
+                    android:id="@+id/dict_inline_emoji_tab_food"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:src="@drawable/ic_emoji_food"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Food"
+                    android:tint="#888888"
+                    android:padding="6dp" />
+
+                <ImageButton
+                    android:id="@+id/dict_inline_emoji_tab_symbols"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:src="@drawable/ic_emoji_symbols"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Symbols"
+                    android:tint="#888888"
+                    android:padding="6dp" />
+
+                <ImageButton
+                    android:id="@+id/dict_inline_emoji_tab_flags"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:src="@drawable/ic_emoji_flags"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Flags"
+                    android:tint="#888888"
+                    android:padding="6dp" />
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/dict_inline_emoji_top_back_to_keys"
+            android:layout_width="40dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_keyboard"
+            android:background="@drawable/dict_key_special"
+            app:tint="#A78BFA"
+            android:contentDescription="@string/content_desc_ai_chat_keyboard"
+            android:padding="6dp"
+            android:scaleType="fitCenter"
+            android:layout_marginEnd="4dp" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxHeight="@dimen/ai_chat_inline_emoji_scroll_max"
+        android:scrollbars="vertical"
+        android:fadeScrollbars="false"
+        android:overScrollMode="never"
+        android:background="#161B26">
+
+        <GridLayout
+            android:id="@+id/dict_inline_emoji_grid"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="8"
+            android:padding="4dp"
+            android:useDefaultMargins="false" />
+    </ScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="40dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical|end"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:background="#1A1F2E">
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/dict_inline_emoji_backspace"
+            android:layout_width="44dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_backspace"
+            android:background="@drawable/dict_key_special"
+            app:tint="@android:color/white"
+            android:contentDescription="@string/content_desc_delete_last_char"
+            android:padding="6dp"
+            android:scaleType="fitCenter" />
+    </LinearLayout>
+</LinearLayout>

@@ -7,58 +7,152 @@ import java.util.Locale
 /**
  * Comprehensive multi-language predictive word lists with frequency data.
  * Supports 40+ languages with frequency-ranked dictionaries.
- * Frequencies: 10000 = most common, 1 = least common.
+ * Per asset file, the first line maps to [maxFrequency] (default 10_000; English uses 50_000) and the last to 1.
  */
 object PredictiveWordList {
 
-    private val dictionaries by lazy {
-        mapOf(
-            "en" to englishWords, "es" to spanishWords, "fr" to frenchWords,
-            "de" to germanWords, "it" to italianWords, "pt" to portugueseWords,
-            "ru" to russianWords, "ar" to arabicWords, "hi" to hindiWords,
-            "ja" to japaneseWords, "ko" to koreanWords, "zh" to chinesePinyinWords,
-            "tr" to turkishWords, "nl" to dutchWords, "pl" to polishWords,
-            "cs" to czechWords, "sv" to swedishWords, "no" to norwegianWords,
-            "da" to danishWords, "fi" to finnishWords, "hu" to hungarianWords,
-            "ro" to romanianWords, "el" to greekWords, "uk" to ukrainianWords,
-            "bg" to bulgarianWords, "hr" to croatianWords, "sr" to serbianWords,
-            "sk" to slovakWords, "sl" to slovenianWords, "et" to estonianWords,
-            "lv" to latvianWords, "lt" to lithuanianWords, "vi" to vietnameseWords,
-            "th" to thaiWords, "id" to indonesianWords, "ms" to malayWords,
-            "tl" to filipinoWords, "sw" to swahiliWords, "he" to hebrewWords,
-            "fa" to persianWords, "ur" to urduWords, "bn" to bengaliWords,
-            "ta" to tamilWords, "te" to teluguWords, "ca" to catalanWords,
-            "gl" to galicianWords, "eu" to basqueWords
-        )
+    /**
+     * Codes with an entry in [dictionaryForLanguage]. Resolves one language at a time — do not use
+     * [mapOf] of all languages (that eagerly evaluated every embedded dictionary at once and OOM'd).
+     */
+    private val supportedLanguageCodes: Set<String> = setOf(
+        "en", "es", "fr", "de", "it", "pt", "ru", "ar", "hi", "ja", "ko", "zh", "tr", "nl", "pl",
+        "cs", "sv", "no", "da", "fi", "hu", "ro", "el", "uk", "bg", "hr", "sr", "sk", "sl", "et",
+        "lv", "lt", "vi", "th", "id", "ms", "tl", "sw", "he", "fa", "ur", "bn", "ta", "te", "ca",
+        "gl", "eu"
+    )
+
+    private fun dictionaryForLanguage(code: String): Map<String, Int> {
+        return when (code) {
+            "en" -> englishWords
+            "es" -> spanishWords
+            "fr" -> frenchWords
+            "de" -> germanWords
+            "it" -> italianWords
+            "pt" -> portugueseWords
+            "ru" -> russianWords
+            "ar" -> arabicWords
+            "hi" -> hindiWords
+            "ja" -> japaneseWords
+            "ko" -> koreanWords
+            "zh" -> chinesePinyinWords
+            "tr" -> turkishWords
+            "nl" -> dutchWords
+            "pl" -> polishWords
+            "cs" -> czechWords
+            "sv" -> swedishWords
+            "no" -> norwegianWords
+            "da" -> danishWords
+            "fi" -> finnishWords
+            "hu" -> hungarianWords
+            "ro" -> romanianWords
+            "el" -> greekWords
+            "uk" -> ukrainianWords
+            "bg" -> bulgarianWords
+            "hr" -> croatianWords
+            "sr" -> serbianWords
+            "sk" -> slovakWords
+            "sl" -> slovenianWords
+            "et" -> estonianWords
+            "lv" -> latvianWords
+            "lt" -> lithuanianWords
+            "vi" -> vietnameseWords
+            "th" -> thaiWords
+            "id" -> indonesianWords
+            "ms" -> malayWords
+            "tl" -> filipinoWords
+            "sw" -> swahiliWords
+            "he" -> hebrewWords
+            "fa" -> persianWords
+            "ur" -> urduWords
+            "bn" -> bengaliWords
+            "ta" -> tamilWords
+            "te" -> teluguWords
+            "ca" -> catalanWords
+            "gl" -> galicianWords
+            "eu" -> basqueWords
+            else -> englishWords
+        }
     }
 
     fun getWordsForLanguage(languageCode: String): Set<String> =
-        (dictionaries[languageCode] ?: dictionaries["en"]!!).keys
+        dictionaryForLanguage(languageCode).keys
 
     fun getWordsWithFrequency(languageCode: String): Map<String, Int> =
-        dictionaries[languageCode] ?: dictionaries["en"]!!
+        dictionaryForLanguage(languageCode)
 
-    fun getSupportedLanguages(): Set<String> = dictionaries.keys
+    fun getSupportedLanguages(): Set<String> = supportedLanguageCodes
 
-    // ======================== ENGLISH (~10k common words, assets) ========================
+    // ======================== ENGLISH (~50k common words, assets) ========================
+    private var appContext: Context? = null
     private var englishWordsCache: Map<String, Int>? = null
 
     /**
-     * Must be called from [Application.onCreate] before prediction dictionaries load.
-     * Loads frequency-ranked word lists from assets (one word per line, no duplicates):
-     * predictive_en, fr, ar, sw, hi, es, pt.
-     * Frequencies: 10000 for the first line down to 1 for the last (per language file).
+     * Must be called from [Application.onCreate]. Asset word lists load **lazily** on first use per
+     * language (avoids loading 50k+ English and six other large files at once — that OOM'd the process).
      */
     fun initializePredictiveWordAssets(context: Context) {
+        appContext = context.applicationContext
+    }
+
+    private fun ensureEnglishAssetLoaded() {
+        val ctx = appContext ?: return
         synchronized(this) {
             if (englishWordsCache != null) return
-            englishWordsCache = loadPredictiveWordsFromAsset(context, "predictive_en.txt", ::normalizeEnglishWord)
-            frenchWordsCache = loadPredictiveWordsFromAsset(context, "predictive_fr.txt", ::normalizeFrenchWord)
-            arabicWordsCache = loadPredictiveWordsFromAsset(context, "predictive_ar.txt", ::normalizeArabicWord)
-            swahiliWordsCache = loadPredictiveWordsFromAsset(context, "predictive_sw.txt", ::normalizeSwahiliWord)
-            hindiWordsCache = loadPredictiveWordsFromAsset(context, "predictive_hi.txt", ::normalizeHindiWord)
-            spanishWordsCache = loadPredictiveWordsFromAsset(context, "predictive_es.txt", ::normalizeSpanishWord)
-            portugueseWordsCache = loadPredictiveWordsFromAsset(context, "predictive_pt.txt", ::normalizePortugueseWord)
+            englishWordsCache = loadPredictiveWordsFromAsset(
+                ctx,
+                "predictive_en.txt",
+                ::normalizeEnglishWord,
+                maxFrequency = 50_000
+            )
+        }
+    }
+
+    private fun ensureFrenchAssetLoaded() {
+        val ctx = appContext ?: return
+        synchronized(this) {
+            if (frenchWordsCache != null) return
+            frenchWordsCache = loadPredictiveWordsFromAsset(ctx, "predictive_fr.txt", ::normalizeFrenchWord)
+        }
+    }
+
+    private fun ensureArabicAssetLoaded() {
+        val ctx = appContext ?: return
+        synchronized(this) {
+            if (arabicWordsCache != null) return
+            arabicWordsCache = loadPredictiveWordsFromAsset(ctx, "predictive_ar.txt", ::normalizeArabicWord)
+        }
+    }
+
+    private fun ensureSwahiliAssetLoaded() {
+        val ctx = appContext ?: return
+        synchronized(this) {
+            if (swahiliWordsCache != null) return
+            swahiliWordsCache = loadPredictiveWordsFromAsset(ctx, "predictive_sw.txt", ::normalizeSwahiliWord)
+        }
+    }
+
+    private fun ensureHindiAssetLoaded() {
+        val ctx = appContext ?: return
+        synchronized(this) {
+            if (hindiWordsCache != null) return
+            hindiWordsCache = loadPredictiveWordsFromAsset(ctx, "predictive_hi.txt", ::normalizeHindiWord)
+        }
+    }
+
+    private fun ensureSpanishAssetLoaded() {
+        val ctx = appContext ?: return
+        synchronized(this) {
+            if (spanishWordsCache != null) return
+            spanishWordsCache = loadPredictiveWordsFromAsset(ctx, "predictive_es.txt", ::normalizeSpanishWord)
+        }
+    }
+
+    private fun ensurePortugueseAssetLoaded() {
+        val ctx = appContext ?: return
+        synchronized(this) {
+            if (portugueseWordsCache != null) return
+            portugueseWordsCache = loadPredictiveWordsFromAsset(ctx, "predictive_pt.txt", ::normalizePortugueseWord)
         }
     }
 
@@ -90,7 +184,8 @@ object PredictiveWordList {
     private fun loadPredictiveWordsFromAsset(
         context: Context,
         assetName: String,
-        normalizeLine: (String) -> String
+        normalizeLine: (String) -> String,
+        maxFrequency: Int = 10_000
     ): Map<String, Int> {
         return try {
             val lines = context.assets.open(assetName).bufferedReader().use { it.readLines() }
@@ -98,8 +193,9 @@ object PredictiveWordList {
             val unique = lines.map(normalizeLine).filter { it.isNotEmpty() && seen.add(it) }
             if (unique.isEmpty()) return emptyMap()
             val maxIdx = unique.size - 1
+            val span = maxFrequency - 1
             unique.mapIndexed { i, w ->
-                val freq = if (maxIdx == 0) 10_000 else 10_000 - (i * 9_999 / maxIdx)
+                val freq = if (maxIdx == 0) maxFrequency else maxFrequency - (i * span / maxIdx)
                 w to freq
             }.toMap()
         } catch (_: Exception) {
@@ -140,7 +236,10 @@ object PredictiveWordList {
     )
 
     private val englishWords: Map<String, Int>
-        get() = englishWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedEnglishFallback()
+        get() {
+            ensureEnglishAssetLoaded()
+            return englishWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedEnglishFallback()
+        }
 
     private var frenchWordsCache: Map<String, Int>? = null
     private var arabicWordsCache: Map<String, Int>? = null
@@ -150,22 +249,40 @@ object PredictiveWordList {
     private var portugueseWordsCache: Map<String, Int>? = null
 
     private val frenchWords: Map<String, Int>
-        get() = frenchWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedFrenchFallback()
+        get() {
+            ensureFrenchAssetLoaded()
+            return frenchWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedFrenchFallback()
+        }
 
     private val arabicWords: Map<String, Int>
-        get() = arabicWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedArabicFallback()
+        get() {
+            ensureArabicAssetLoaded()
+            return arabicWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedArabicFallback()
+        }
 
     private val swahiliWords: Map<String, Int>
-        get() = swahiliWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedSwahiliFallback()
+        get() {
+            ensureSwahiliAssetLoaded()
+            return swahiliWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedSwahiliFallback()
+        }
 
     private val hindiWords: Map<String, Int>
-        get() = hindiWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedHindiFallback()
+        get() {
+            ensureHindiAssetLoaded()
+            return hindiWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedHindiFallback()
+        }
 
     private val spanishWords: Map<String, Int>
-        get() = spanishWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedSpanishFallback()
+        get() {
+            ensureSpanishAssetLoaded()
+            return spanishWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedSpanishFallback()
+        }
 
     private val portugueseWords: Map<String, Int>
-        get() = portugueseWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedPortugueseFallback()
+        get() {
+            ensurePortugueseAssetLoaded()
+            return portugueseWordsCache?.takeIf { it.isNotEmpty() } ?: embeddedPortugueseFallback()
+        }
 
     // ======================== GERMAN (2000+ words) ========================
     private val germanWords: Map<String, Int> by lazy { mapOf(

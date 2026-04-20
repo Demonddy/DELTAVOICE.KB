@@ -315,11 +315,25 @@
 
         <!-- Row 4: Space and special keys -->
         <LinearLayout
+            android:id="@+id/dict_row4"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center"
             android:paddingTop="2dp">
+
+            <Button
+                android:id="@+id/dict_key_mode"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="@string/numbers_mode_symbols"
+                android:textSize="13sp"
+                android:textColor="#9CA3AF"
+                android:background="@drawable/dict_key_special"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp"
+                android:textAllCaps="false" />
 
             <Button
                 android:id="@+id/dict_key_symbols"

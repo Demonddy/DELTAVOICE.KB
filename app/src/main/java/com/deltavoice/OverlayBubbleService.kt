@@ -5,7 +5,9 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.content.pm.ServiceInfo
@@ -16,12 +18,14 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 
 /**
  * Foreground service that displays a floating bubble overlay.
@@ -35,6 +39,7 @@ class OverlayBubbleService : Service() {
     private var bubbleParams: WindowManager.LayoutParams? = null
     private var topRowParams: WindowManager.LayoutParams? = null
     private var featureController: OverlayFeatureController? = null
+    private var appLocaleReceiver: BroadcastReceiver? = null
 
     private var initialX = 0
     private var initialY = 0
@@ -72,6 +77,19 @@ class OverlayBubbleService : Service() {
         super.onCreate()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         featureController = OverlayFeatureController(this)
+        appLocaleReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: android.content.Context?, intent: Intent?) {
+                if (intent?.action != AppLocaleHelper.ACTION_APP_LOCALE_CHANGED) return
+                localeResourcesCacheTag = null
+                localeWrappedResources = null
+            }
+        }
+        ContextCompat.registerReceiver(
+            this,
+            appLocaleReceiver,
+            IntentFilter(AppLocaleHelper.ACTION_APP_LOCALE_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -136,6 +154,7 @@ class OverlayBubbleService : Service() {
 
         val inflater = LayoutInflater.from(this)
         bubbleView = inflater.inflate(R.layout.overlay_bubble, null)
+        forceLtr(bubbleView)
 
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -194,6 +213,16 @@ class OverlayBubbleService : Service() {
         }
     }
 
+    private fun forceLtr(root: View?) {
+        if (root == null) return
+        root.layoutDirection = View.LAYOUT_DIRECTION_LTR
+        if (root is ViewGroup) {
+            for (i in 0 until root.childCount) {
+                root.getChildAt(i)?.layoutDirection = View.LAYOUT_DIRECTION_LTR
+            }
+        }
+    }
+
     private fun bubbleSizePx(): Int =
         (48 * resources.displayMetrics.density).toInt()
 
@@ -221,6 +250,7 @@ class OverlayBubbleService : Service() {
 
         if (useArc) {
             topRowView = inflater.inflate(R.layout.overlay_top_row_arc, null)
+            forceLtr(topRowView)
             val root = topRowView as FrameLayout
             val geom = OverlayTopRowPlacer.layoutArcBand(
                 root,
@@ -241,6 +271,7 @@ class OverlayBubbleService : Service() {
         } else {
             val stripWidth = (dm.widthPixels * widthScale).toInt().coerceAtLeast(1)
             topRowView = inflater.inflate(R.layout.overlay_top_row, null)
+            forceLtr(topRowView)
             topRowView?.measure(
                 View.MeasureSpec.makeMeasureSpec(stripWidth, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
@@ -316,6 +347,13 @@ class OverlayBubbleService : Service() {
     }
 
     override fun onDestroy() {
+        appLocaleReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (_: Exception) {
+            }
+        }
+        appLocaleReceiver = null
         featureController?.dismissAll()
         hideTopRow()
         bubbleView?.let {

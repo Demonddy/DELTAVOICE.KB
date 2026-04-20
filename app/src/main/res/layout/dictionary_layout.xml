@@ -277,49 +277,81 @@
         android:paddingTop="6dp"
         android:paddingBottom="8dp">
 
-        <!-- Row 0: 1 2 3 4 5 6 7 8 9 0 -->
-        <LinearLayout
-            android:id="@+id/dict_row0"
+        <!-- Letter rows OR inline emoji (same slot); bottom row stays below -->
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center" />
+            android:layout_height="wrap_content">
 
-        <!-- Row 1: Q W E R T Y U I O P -->
-        <LinearLayout
-            android:id="@+id/dict_row1"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center" />
+            <LinearLayout
+                android:id="@+id/dict_mini_keyboard_letter_area"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
 
-        <!-- Row 2: A S D F G H J K L -->
-        <LinearLayout
-            android:id="@+id/dict_row2"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp" />
+                <!-- Row 0: 1 2 3 4 5 6 7 8 9 0 -->
+                <LinearLayout
+                    android:id="@+id/dict_row0"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center" />
 
-        <!-- Row 3: Z X C V B N M ⌫ -->
-        <LinearLayout
-            android:id="@+id/dict_row3"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center"
-            android:paddingStart="24dp"
-            android:paddingEnd="4dp" />
+                <!-- Row 1: Q W E R T Y U I O P -->
+                <LinearLayout
+                    android:id="@+id/dict_row1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center" />
+
+                <!-- Row 2: A S D F G H J K L -->
+                <LinearLayout
+                    android:id="@+id/dict_row2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp" />
+
+                <!-- Row 3: Z X C V B N M ⌫ -->
+                <LinearLayout
+                    android:id="@+id/dict_row3"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="4dp" />
+            </LinearLayout>
+
+            <include
+                layout="@layout/dict_inline_emoji_panel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+        </FrameLayout>
 
         <!-- Row 4: Space and special keys -->
         <LinearLayout
+            android:id="@+id/dict_row4"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center"
             android:paddingTop="2dp">
+
+            <Button
+                android:id="@+id/dict_key_mode"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="@string/numbers_mode_symbols"
+                android:textSize="13sp"
+                android:textColor="#9CA3AF"
+                android:background="@drawable/dict_key_special"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp"
+                android:textAllCaps="false" />
 
             <Button
                 android:id="@+id/dict_key_symbols"

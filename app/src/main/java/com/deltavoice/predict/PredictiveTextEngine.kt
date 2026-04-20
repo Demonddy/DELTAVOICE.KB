@@ -59,15 +59,25 @@ class PredictiveTextEngine {
 
     /**
      * Load dictionary from frequency map (preferred path). Each entry is word -> frequency.
+     * [maxWordsInCorrector] limits SymmetricDelete index size (memory-heavy); the trie always
+     * receives all entries for prefix suggestions. Use for large EN lists (e.g. 50k words).
      */
-    fun loadDictionaryWithFrequencies(lang: String, wordFrequencies: Map<String, Int>) {
+    fun loadDictionaryWithFrequencies(
+        lang: String,
+        wordFrequencies: Map<String, Int>,
+        maxWordsInCorrector: Int = Int.MAX_VALUE
+    ) {
         val trie = getTrie(lang)
         val corrector = getCorrector(lang)
         trie.clear()
         corrector.clear()
+        var correctorCount = 0
         wordFrequencies.forEach { (word, freq) ->
             trie.insert(word, freq)
-            corrector.addWord(word, freq)
+            if (correctorCount < maxWordsInCorrector) {
+                corrector.addWord(word, freq)
+                correctorCount++
+            }
         }
     }
 

@@ -319,7 +319,122 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             "/" to listOf("\\"),
             "$" to listOf("€", "£", "¥", "₩", "₹", "₽"),
             "&" to listOf("§"),
-            "%" to listOf("‰")
+            "%" to listOf("‰"),
+
+            // Arabic letters (Gboard-style variants; Persian/Urdu letters reuse these bases)
+            "ا" to listOf("آ", "أ", "إ", "ء", "ى", "ٱ"),
+            "ه" to listOf("ة", "ۀ"),
+            "ي" to listOf("ى", "ئ", "ی", "ې"),
+            "و" to listOf("ؤ", "ۆ", "ۇ", "ۈ"),
+            "ل" to listOf("لا", "لأ", "لإ", "لآ"),
+            "ك" to listOf("گ", "ک", "ڭ"),
+            "ب" to listOf("پ"),
+            "ج" to listOf("چ"),
+            "ت" to listOf("ة"),
+            "د" to listOf("ذ"),
+            "ر" to listOf("ڕ"),
+            "ز" to listOf("ژ"),
+            "ف" to listOf("ڤ"),
+            "ق" to listOf("ڨ"),
+            "ى" to listOf("ی", "ي"),
+            "ة" to listOf("ت", "ه"),
+            "ؤ" to listOf("و"),
+            "ئ" to listOf("ى", "ي"),
+
+            // Arabic-Indic digits -> Western digit
+            "٠" to listOf("0"),
+            "١" to listOf("1"),
+            "٢" to listOf("2"),
+            "٣" to listOf("3"),
+            "٤" to listOf("4"),
+            "٥" to listOf("5"),
+            "٦" to listOf("6"),
+            "٧" to listOf("7"),
+            "٨" to listOf("8"),
+            "٩" to listOf("9"),
+
+            // Urdu-specific letters
+            "ٹ" to listOf("ت"),
+            "ڈ" to listOf("د"),
+            "ڑ" to listOf("ر"),
+            "ں" to listOf("ن"),
+            "ے" to listOf("ی"),
+
+            // Russian Cyrillic
+            "е" to listOf("ё"),
+            "Е" to listOf("Ё"),
+            "ь" to listOf("ъ"),
+            "Ь" to listOf("Ъ"),
+            "и" to listOf("й"),
+            "И" to listOf("Й"),
+
+            // Greek
+            "α" to listOf("ά"),
+            "ε" to listOf("έ"),
+            "η" to listOf("ή"),
+            "ι" to listOf("ί", "ϊ", "ΐ"),
+            "ο" to listOf("ό"),
+            "υ" to listOf("ύ", "ϋ", "ΰ"),
+            "ω" to listOf("ώ"),
+            "σ" to listOf("ς"),
+            "Α" to listOf("Ά"),
+            "Ε" to listOf("Έ"),
+            "Η" to listOf("Ή"),
+            "Ι" to listOf("Ί", "Ϊ"),
+            "Ο" to listOf("Ό"),
+            "Υ" to listOf("Ύ", "Ϋ"),
+            "Ω" to listOf("Ώ"),
+
+            // Hebrew (final-form and dagesh variants)
+            "כ" to listOf("ך"),
+            "מ" to listOf("ם"),
+            "נ" to listOf("ן"),
+            "פ" to listOf("ף"),
+            "צ" to listOf("ץ"),
+            "ש" to listOf("שׁ", "שׂ"),
+            "ו" to listOf("וֹ", "וּ"),
+            "ב" to listOf("בּ"),
+            "י" to listOf("יִ"),
+            "ה" to listOf("הַ"),
+            "א" to listOf("ﬡ"),
+
+            // Hindi (Devanagari) — matra variants
+            "ा" to listOf("ॉ", "ॅ"),
+            "े" to listOf("ै"),
+            "ो" to listOf("ौ"),
+            "ि" to listOf("ी"),
+            "ु" to listOf("ू"),
+            "ं" to listOf("ँ", "ः"),
+
+            // Japanese hiragana (dakuten / handakuten / small kana)
+            "か" to listOf("が"),
+            "き" to listOf("ぎ"),
+            "く" to listOf("ぐ"),
+            "け" to listOf("げ"),
+            "こ" to listOf("ご"),
+            "さ" to listOf("ざ"),
+            "し" to listOf("じ"),
+            "す" to listOf("ず"),
+            "せ" to listOf("ぜ"),
+            "そ" to listOf("ぞ"),
+            "た" to listOf("だ"),
+            "ち" to listOf("ぢ"),
+            "つ" to listOf("づ", "っ"),
+            "て" to listOf("で"),
+            "と" to listOf("ど"),
+            "は" to listOf("ば", "ぱ"),
+            "ひ" to listOf("び", "ぴ"),
+            "ふ" to listOf("ぶ", "ぷ"),
+            "へ" to listOf("べ", "ぺ"),
+            "ほ" to listOf("ぼ", "ぽ"),
+            "や" to listOf("ゃ"),
+            "ゆ" to listOf("ゅ"),
+            "よ" to listOf("ょ"),
+            "あ" to listOf("ぁ"),
+            "い" to listOf("ぃ"),
+            "う" to listOf("ぅ"),
+            "え" to listOf("ぇ"),
+            "お" to listOf("ぉ")
         )
     }
 
@@ -475,6 +590,26 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     // Category tab buttons
     private val categoryTabs = mutableMapOf<EmojiData.Category, ImageButton>()
     
+    /** Inline emoji panel in AI chat (replaces letter rows only; not [emojiPickerContainer]). */
+    private var aiChatMiniKeyboardLetterArea: View? = null
+    private var aiChatInlineEmojiPanel: View? = null
+    private var aiChatInlineEmojiGrid: GridLayout? = null
+    private var isAiChatInlineEmojiVisible = false
+    private var currentAiChatInlineEmojiCategory = EmojiData.Category.SMILEYS
+    private val aiChatInlineEmojiTabViews = mutableMapOf<EmojiData.Category, ImageButton>()
+    /** Mini-bottom-row MAIN IME exit; hidden while inline emoji is visible. */
+    private var aiChatKeyKeyboardButton: View? = null
+
+    /** Inline emoji panel in Dictionary (mirrors AI chat; replaces dict_row0..3 only). */
+    private var dictMiniKeyboardLetterArea: View? = null
+    private var dictInlineEmojiPanel: View? = null
+    private var dictInlineEmojiGrid: GridLayout? = null
+    private var isDictInlineEmojiVisible = false
+    private var currentDictInlineEmojiCategory = EmojiData.Category.SMILEYS
+    private val dictInlineEmojiTabViews = mutableMapOf<EmojiData.Category, ImageButton>()
+    /** Dict row 4 MAIN IME exit (⌨); hidden while inline emoji is visible. */
+    private var dictKeySymbolsButton: View? = null
+    
     // Calculator
     private lateinit var calculatorContainer: View
     private var isCalculatorVisible = false
@@ -498,6 +633,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private var dictCurrentLanguage = "en"
     private var dictTargetLanguage = "ar" // For translation
     private var dictMiniKeyboardLanguage = "en" // Current mini keyboard language
+    private var dictNumbersMode = false
+    private var dictSymbolsPage2 = false
+    private var dictKeyModeButton: Button? = null
     
     // AI Chat
     private lateinit var aiChatContainer: View
@@ -516,6 +654,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private val aiChatEdgeTotalTimeoutMs = 15000L
     private val aiChatMessages = mutableListOf<Pair<String, Boolean>>() // message, isUser
     private var aiConversationHistory = mutableListOf<Map<String, String>>() // For context
+    private var aiChatNumbersMode = false
+    private var aiChatSymbolsPage2 = false
+    private var aiChatKeyModeButton: Button? = null
     
     // AI Writing Tools
     private lateinit var aiWritingToolsContainer: View
@@ -790,6 +931,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
     private var videoUploadReceiver: BroadcastReceiver? = null
     private var audioUploadReceiver: BroadcastReceiver? = null
+    private var appLocaleReceiver: BroadcastReceiver? = null
     private var pendingShowVoiceFromUpload = false
     private var pendingShowVideoFromUpload = false
 
@@ -2241,7 +2383,6 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             categoryTabs[category] = tab
             tab?.setOnClickListener {
                 loadEmojiCategory(category)
-                updateCategoryTabSelection(category)
             }
         }
     }
@@ -2262,20 +2403,19 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     /**
-     * Load emojis for a specific category into the grid
+     * Fill a [GridLayout] with emoji cells (full picker or AI chat inline panel).
      */
-    private fun loadEmojiCategory(category: EmojiData.Category) {
-        val grid = emojiGridFull ?: return
-        grid.removeAllViews()
-        
+    private fun fillEmojiGrid(grid: GridLayout?, category: EmojiData.Category) {
+        val g = grid ?: return
+        g.removeAllViews()
+
         val emojis = if (category == EmojiData.Category.RECENT) {
             recentEmojis.toList()
         } else {
             EmojiData.getEmojisForCategory(category)
         }
-        
+
         if (emojis.isEmpty() && category == EmojiData.Category.RECENT) {
-            // Show placeholder for empty recent
             val placeholder = android.widget.TextView(this).apply {
                 text = "No recent emojis"
                 textSize = 14f
@@ -2288,14 +2428,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 width = GridLayout.LayoutParams.MATCH_PARENT
             }
             placeholder.layoutParams = params
-            grid.addView(placeholder)
+            g.addView(placeholder)
             return
         }
-        
-        // Configure grid
-        grid.columnCount = 8
 
-        // Create emoji buttons
+        g.columnCount = 8
+
         emojis.forEach { emoji ->
             val button = android.widget.TextView(this).apply {
                 text = emoji
@@ -2308,16 +2446,156 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     addToRecentEmojis(emoji)
                 }
             }
-            
+
             val params = GridLayout.LayoutParams().apply {
                 width = 0
                 height = GridLayout.LayoutParams.WRAP_CONTENT
                 columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
             }
-            
+
             button.layoutParams = params
-            grid.addView(button)
+            g.addView(button)
         }
+    }
+
+    /**
+     * Load emojis for a specific category into the full-screen picker grid
+     */
+    private fun loadEmojiCategory(category: EmojiData.Category) {
+        fillEmojiGrid(emojiGridFull, category)
+        updateCategoryTabSelection(category)
+    }
+
+    private fun setupAiChatInlineEmojiPanel(view: View) {
+        aiChatMiniKeyboardLetterArea = view.findViewById(R.id.ai_chat_mini_keyboard_letter_area)
+        aiChatInlineEmojiPanel = view.findViewById(R.id.ai_chat_inline_emoji_panel)
+        aiChatInlineEmojiGrid = view.findViewById(R.id.ai_chat_inline_emoji_grid)
+        aiChatKeyKeyboardButton = view.findViewById(R.id.ai_chat_key_keyboard)
+        aiChatInlineEmojiTabViews.clear()
+        val tabMappings = listOf(
+            R.id.ai_chat_inline_emoji_tab_recent to EmojiData.Category.RECENT,
+            R.id.ai_chat_inline_emoji_tab_smileys to EmojiData.Category.SMILEYS,
+            R.id.ai_chat_inline_emoji_tab_people to EmojiData.Category.PEOPLE,
+            R.id.ai_chat_inline_emoji_tab_animals to EmojiData.Category.ANIMALS,
+            R.id.ai_chat_inline_emoji_tab_food to EmojiData.Category.FOOD,
+            R.id.ai_chat_inline_emoji_tab_symbols to EmojiData.Category.SYMBOLS,
+            R.id.ai_chat_inline_emoji_tab_flags to EmojiData.Category.FLAGS,
+        )
+        tabMappings.forEach { (id, category) ->
+            val tab = view.findViewById<ImageButton>(id)
+            aiChatInlineEmojiTabViews[category] = tab
+            tab?.setOnClickListener {
+                loadAiChatInlineEmojiCategory(category)
+            }
+        }
+        view.findViewById<View>(R.id.ai_chat_inline_emoji_top_back_to_keys)?.setOnClickListener {
+            hideAiChatInlineEmojiPicker()
+        }
+        view.findViewById<View>(R.id.ai_chat_inline_emoji_backspace)?.setOnClickListener {
+            if (aiChatInputText.isNotEmpty()) {
+                aiChatInputText.deleteLastCodePoint()
+                updateAiChatInputDisplay()
+            }
+        }
+    }
+
+    private fun loadAiChatInlineEmojiCategory(category: EmojiData.Category) {
+        currentAiChatInlineEmojiCategory = category
+        fillEmojiGrid(aiChatInlineEmojiGrid, category)
+        updateAiChatInlineEmojiTabTints(category)
+    }
+
+    private fun updateAiChatInlineEmojiTabTints(selected: EmojiData.Category) {
+        aiChatInlineEmojiTabViews.forEach { (cat, tab) ->
+            val tint = if (cat == selected) Color.parseColor("#4A9EFF") else Color.parseColor("#888888")
+            tab?.setColorFilter(tint)
+        }
+    }
+
+    private fun showAiChatInlineEmojiPicker() {
+        hideEmojiPicker()
+        aiChatMiniKeyboardLetterArea?.visibility = View.GONE
+        aiChatInlineEmojiPanel?.visibility = View.VISIBLE
+        aiChatKeyKeyboardButton?.visibility = View.GONE
+        isAiChatInlineEmojiVisible = true
+        loadAiChatInlineEmojiCategory(currentAiChatInlineEmojiCategory)
+    }
+
+    private fun hideAiChatInlineEmojiPicker() {
+        aiChatMiniKeyboardLetterArea?.visibility = View.VISIBLE
+        aiChatInlineEmojiPanel?.visibility = View.GONE
+        aiChatKeyKeyboardButton?.visibility = View.VISIBLE
+        isAiChatInlineEmojiVisible = false
+    }
+
+    private fun toggleAiChatInlineEmojiPicker() {
+        if (isAiChatInlineEmojiVisible) hideAiChatInlineEmojiPicker() else showAiChatInlineEmojiPicker()
+    }
+
+    private fun setupDictInlineEmojiPanel(view: View) {
+        dictMiniKeyboardLetterArea = view.findViewById(R.id.dict_mini_keyboard_letter_area)
+        dictInlineEmojiPanel = view.findViewById(R.id.dict_inline_emoji_panel)
+        dictInlineEmojiGrid = view.findViewById(R.id.dict_inline_emoji_grid)
+        dictKeySymbolsButton = view.findViewById(R.id.dict_key_symbols)
+        dictInlineEmojiTabViews.clear()
+        val tabMappings = listOf(
+            R.id.dict_inline_emoji_tab_recent to EmojiData.Category.RECENT,
+            R.id.dict_inline_emoji_tab_smileys to EmojiData.Category.SMILEYS,
+            R.id.dict_inline_emoji_tab_people to EmojiData.Category.PEOPLE,
+            R.id.dict_inline_emoji_tab_animals to EmojiData.Category.ANIMALS,
+            R.id.dict_inline_emoji_tab_food to EmojiData.Category.FOOD,
+            R.id.dict_inline_emoji_tab_symbols to EmojiData.Category.SYMBOLS,
+            R.id.dict_inline_emoji_tab_flags to EmojiData.Category.FLAGS,
+        )
+        tabMappings.forEach { (id, category) ->
+            val tab = view.findViewById<ImageButton>(id)
+            dictInlineEmojiTabViews[category] = tab
+            tab?.setOnClickListener {
+                loadDictInlineEmojiCategory(category)
+            }
+        }
+        view.findViewById<View>(R.id.dict_inline_emoji_top_back_to_keys)?.setOnClickListener {
+            hideDictInlineEmojiPicker()
+        }
+        view.findViewById<View>(R.id.dict_inline_emoji_backspace)?.setOnClickListener {
+            if (dictSearchText.isNotEmpty()) {
+                dictSearchText.deleteLastCodePoint()
+                updateDictSearchDisplay()
+            }
+        }
+    }
+
+    private fun loadDictInlineEmojiCategory(category: EmojiData.Category) {
+        currentDictInlineEmojiCategory = category
+        fillEmojiGrid(dictInlineEmojiGrid, category)
+        updateDictInlineEmojiTabTints(category)
+    }
+
+    private fun updateDictInlineEmojiTabTints(selected: EmojiData.Category) {
+        dictInlineEmojiTabViews.forEach { (cat, tab) ->
+            val tint = if (cat == selected) Color.parseColor("#4A9EFF") else Color.parseColor("#888888")
+            tab?.setColorFilter(tint)
+        }
+    }
+
+    private fun showDictInlineEmojiPicker() {
+        hideEmojiPicker()
+        dictMiniKeyboardLetterArea?.visibility = View.GONE
+        dictInlineEmojiPanel?.visibility = View.VISIBLE
+        dictKeySymbolsButton?.visibility = View.GONE
+        isDictInlineEmojiVisible = true
+        loadDictInlineEmojiCategory(currentDictInlineEmojiCategory)
+    }
+
+    private fun hideDictInlineEmojiPicker() {
+        dictMiniKeyboardLetterArea?.visibility = View.VISIBLE
+        dictInlineEmojiPanel?.visibility = View.GONE
+        dictKeySymbolsButton?.visibility = View.VISIBLE
+        isDictInlineEmojiVisible = false
+    }
+
+    private fun toggleDictInlineEmojiPicker() {
+        if (isDictInlineEmojiVisible) hideDictInlineEmojiPicker() else showDictInlineEmojiPicker()
     }
     
     /**
@@ -2360,6 +2638,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Show the emoji picker - sized to ~half screen like messaging apps
      */
     private fun showEmojiPicker() {
+        if (isAiChatVisible && isAiChatInlineEmojiVisible) {
+            hideAiChatInlineEmojiPicker()
+        }
+        if (isDictionaryVisible && isDictInlineEmojiVisible) {
+            hideDictInlineEmojiPicker()
+        }
         applyImeKeyboardContainerVisible(false)
         emojiPickerContainer?.let { container ->
             // Size to half screen (like WhatsApp/Telegram emoji picker)
@@ -2375,7 +2659,6 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         isEmojiPickerVisible = true
         // Refresh current category
         loadEmojiCategory(currentEmojiCategory)
-        updateCategoryTabSelection(currentEmojiCategory)
     }
     
     /**
@@ -2383,8 +2666,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun hideEmojiPicker() {
         emojiPickerContainer?.visibility = View.GONE
-        applyImeKeyboardContainerVisible(true)
         isEmojiPickerVisible = false
+        val keepMainKeyboardHidden = isAiChatVisible || isDictionaryVisible || isCalculatorVisible ||
+            isAiWritingToolsVisible || isVoiceUiActive() || isVideoRecordingVisible || isVideoPreviewVisible
+        applyImeKeyboardContainerVisible(!keepMainKeyboardHidden)
     }
     
     /**
@@ -3219,6 +3504,18 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         
         // Setup mini keyboard
         setupDictMiniKeyboard(view)
+        setupDictInlineEmojiPanel(view)
+
+        dictKeyModeButton = view.findViewById(R.id.dict_key_mode)
+        updateDictKeyModeButtonText()
+        view.findViewById<Button>(R.id.dict_key_mode)?.let {
+            setKeyPressWithAnimation(it) {
+                dictNumbersMode = !dictNumbersMode
+                if (!dictNumbersMode) dictSymbolsPage2 = false
+                updateDictKeyModeButtonText()
+                rebuildDictMiniKeyboard(dictContentRoot() ?: view)
+            }
+        }
         
         // Keyboard icon — return to main IME (same as closing dictionary)
         view.findViewById<Button>(R.id.dict_key_symbols)?.let {
@@ -3231,7 +3528,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
         
         view.findViewById<Button>(R.id.dict_key_emoji)?.let {
-            setKeyPressWithAnimation(it) { showEmojiPicker() }
+            setKeyPressWithAnimation(it) { toggleDictInlineEmojiPicker() }
         }
         
         view.findViewById<Button>(R.id.dict_key_dot)?.let {
@@ -3482,7 +3779,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun rebuildDictMiniKeyboard(view: View? = dictContentRoot()) {
         view ?: return
-        
+        hideDictInlineEmojiPicker()
+
         val row0 = view.findViewById<LinearLayout>(R.id.dict_row0)
         val row1 = view.findViewById<LinearLayout>(R.id.dict_row1)
         val row2 = view.findViewById<LinearLayout>(R.id.dict_row2)
@@ -3494,41 +3792,58 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         row2?.removeAllViews()
         row3?.removeAllViews()
         
-        val numbers = if (dictMiniKeyboardLanguage == "ar") {
-            listOf("١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", ".")
-        } else {
-            listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
-        }
-        val layout = dictMiniKeyboardLayouts[dictMiniKeyboardLanguage] 
-            ?: dictMiniKeyboardLayouts["en"]!!
-        
-        // Number row
-        numbers.forEach { key ->
-            row0?.addView(createDictKey(key, isNumber = true))
-        }
-        
-        // Row 1
-        layout.first.forEach { key ->
-            row1?.addView(createDictKey(key))
-        }
-        
-        // Row 2
-        layout.second.forEach { key ->
-            row2?.addView(createDictKey(key))
-        }
-        
-        // Row 3 with backspace
-        layout.third.forEach { key ->
-            row3?.addView(createDictKey(key))
-        }
-        
-        // Add backspace to row 3
-        row3?.addView(createDictSpecialKey("⌫") {
-            if (dictSearchText.isNotEmpty()) {
-                dictSearchText.deleteLastCodePoint()
-                updateDictSearchDisplay()
+        if (dictNumbersMode) {
+            val numbers = if (dictMiniKeyboardLanguage == "ar") {
+                listOf("١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", "٠")
+            } else {
+                listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
             }
-        })
+            numbers.forEach { key ->
+                row0?.addView(createDictKey(key, isNumber = true))
+            }
+            val (symQwerty, symAsdf, symZxcv) = SymbolLayoutPages.rowsForPage(dictSymbolsPage2)
+            symQwerty.forEach { key -> row1?.addView(createDictKey(key)) }
+            symAsdf.forEach { key -> row2?.addView(createDictKey(key)) }
+            row3?.addView(createDictSpecialKey(SymbolLayoutPages.pageToggleLabel(dictSymbolsPage2), {
+                dictSymbolsPage2 = !dictSymbolsPage2
+                rebuildDictMiniKeyboard(view)
+            }, weight = 1.5f))
+            symZxcv.forEach { key -> row3?.addView(createDictKey(key)) }
+            row3?.addView(createDictSpecialKey("⌫", {
+                if (dictSearchText.isNotEmpty()) {
+                    dictSearchText.deleteLastCodePoint()
+                    updateDictSearchDisplay()
+                }
+            }))
+        } else {
+            val numbers = if (dictMiniKeyboardLanguage == "ar") {
+                listOf("١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", ".")
+            } else {
+                listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+            }
+            val layout = dictMiniKeyboardLayouts[dictMiniKeyboardLanguage]
+                ?: dictMiniKeyboardLayouts["en"]!!
+            numbers.forEach { key ->
+                row0?.addView(createDictKey(key, isNumber = true))
+            }
+            layout.first.forEach { key ->
+                row1?.addView(createDictKey(key))
+            }
+            layout.second.forEach { key ->
+                row2?.addView(createDictKey(key))
+            }
+            layout.third.forEach { key ->
+                row3?.addView(createDictKey(key))
+            }
+            row3?.addView(createDictSpecialKey("⌫", {
+                if (dictSearchText.isNotEmpty()) {
+                    dictSearchText.deleteLastCodePoint()
+                    updateDictSearchDisplay()
+                }
+            }))
+        }
+
+        applyDictMiniKeyboardRowsLayoutDirection(view)
     }
     
     /**
@@ -3622,6 +3937,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             val (langCode, langName) = availableLanguages[i]
             button.setOnClickListener {
                 dictMiniKeyboardLanguage = langCode
+                dictSymbolsPage2 = false
                 rebuildDictMiniKeyboard()
                 Toast.makeText(this, getString(R.string.keyboard_lang, langName), Toast.LENGTH_SHORT).show()
                 popupWindow.dismiss()
@@ -3684,7 +4000,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     /**
      * Create a dictionary special key
      */
-    private fun createDictSpecialKey(label: String, onClick: () -> Unit): Button {
+    private fun createDictSpecialKey(label: String, onClick: () -> Unit, weight: Float = 1.3f): Button {
         val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         val keyHeightDp = if (isLandscape) 40 else 48
         return Button(this).apply {
@@ -3702,7 +4018,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             minimumHeight = 0
             
             val params = LinearLayout.LayoutParams(0, keyHeightDp.dpToPx()).apply {
-                weight = 1.3f
+                this.weight = weight
                 marginStart = 2.dpToPx()
                 marginEnd = 2.dpToPx()
                 topMargin = 2.dpToPx()
@@ -3770,7 +4086,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 includeCorrections = true
             ) { result ->
                 if (isDictionaryVisible && prefix.isNotEmpty() && result.suggestions.isNotEmpty()) {
-                    showDictSuggestions(result.suggestions)
+                    val lastWord = dictSearchText.toString()
+                        .takeLastWhile { c -> c.isLetter() || c == '\'' }
+                    val case = suggestionCase(lastWord, shiftOn = false, capsOn = false)
+                    showDictSuggestions(result.suggestions.map { applyCase(it, case) })
                 } else {
                     hideDictSuggestions()
                 }
@@ -4452,6 +4771,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
             dictionaryContainer.visibility = View.VISIBLE
             isDictionaryVisible = true
+            dictNumbersMode = false
+            dictSymbolsPage2 = false
+            updateDictKeyModeButtonText()
+            rebuildDictMiniKeyboard(dictContentRoot())
             if (!isNetworkAvailable()) {
                 Toast.makeText(this, getString(R.string.internet_required_dictionary), Toast.LENGTH_LONG).show()
             }
@@ -4471,6 +4794,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         voiceProcessingStep2Container.visibility = View.GONE
         dictionaryContainer.visibility = View.VISIBLE
         isDictionaryVisible = true
+        dictNumbersMode = false
+        dictSymbolsPage2 = false
+        updateDictKeyModeButtonText()
+        rebuildDictMiniKeyboard(dictContentRoot())
         
         // Reset search
         dictSearchText.clear()
@@ -4498,6 +4825,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Hide the dictionary
      */
     private fun hideDictionary() {
+        hideDictInlineEmojiPicker()
         if (overlayDictionaryRoot != null) {
             val cb = overlayDictionaryClose
             overlayDictionaryRoot = null
@@ -4509,6 +4837,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 dictionaryContainer.visibility = View.GONE
             }
             isDictionaryVisible = false
+            dictNumbersMode = false
+            dictSymbolsPage2 = false
+            updateDictKeyModeButtonText()
             cb?.invoke()
             return
         }
@@ -4516,6 +4847,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         applyImeKeyboardContainerVisible(true)
         showTopBarsAfterOverlay()
         isDictionaryVisible = false
+        dictNumbersMode = false
+        dictSymbolsPage2 = false
+        updateDictKeyModeButtonText()
     }
     
     /**
@@ -4679,15 +5013,22 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         
         // Setup mini keyboard for AI chat
         setupAiChatMiniKeyboard(view)
+        setupAiChatInlineEmojiPanel(view)
+        
+        aiChatKeyModeButton = view.findViewById(R.id.ai_chat_key_mode)
+        updateAiChatKeyModeButtonText()
+        view.findViewById<Button>(R.id.ai_chat_key_mode)?.let {
+            setKeyPressWithAnimation(it) { toggleAiChatNumbersModeFromUser() }
+        }
         
         // Return to main keyboard
         view.findViewById<View>(R.id.ai_chat_key_keyboard)?.let {
             setIconKeyPressWithAnimation(it) { hideAiChat() }
         }
         
-        // Emoji — keep AI chat open; insertEmoji routes picks into aiChatInputText
+        // Emoji — inline grid replaces letter rows (not the half-screen IME picker)
         view.findViewById<View>(R.id.ai_chat_key_emoji)?.let {
-            setIconKeyPressWithAnimation(it) { showEmojiPicker() }
+            setIconKeyPressWithAnimation(it) { toggleAiChatInlineEmojiPicker() }
         }
         
         // Space button
@@ -4780,6 +5121,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             val (langCode, langName) = availableLanguages[i]
             button.setOnClickListener {
                 aiChatKeyboardLanguage = langCode
+                aiChatSymbolsPage2 = false
                 rebuildAiChatMiniKeyboard()
                 Toast.makeText(this, getString(R.string.keyboard_lang, langName), Toast.LENGTH_SHORT).show()
                 popupWindow.dismiss()
@@ -4793,6 +5135,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Rebuild AI chat mini keyboard with current language
      */
     private fun rebuildAiChatMiniKeyboard() {
+        hideAiChatInlineEmojiPicker()
         val view = aiChatContainer
         val row0 = view.findViewById<LinearLayout>(R.id.ai_chat_row0)
         val row1 = view.findViewById<LinearLayout>(R.id.ai_chat_row1)
@@ -4804,86 +5147,80 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         row2?.removeAllViews()
         row3?.removeAllViews()
 
-        val numbers = if (aiChatKeyboardLanguage == "ar") {
-            listOf("١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", ".")
-        } else {
-            listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
-        }
-        val layout = dictMiniKeyboardLayouts[aiChatKeyboardLanguage]
-            ?: dictMiniKeyboardLayouts["en"]!!
+        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-        numbers.forEach { key ->
-            row0?.addView(createAiChatKey(key))
-        }
-
-        layout.first.forEach { key ->
-            row1?.addView(createAiChatKey(key))
-        }
-
-        layout.second.forEach { key ->
-            row2?.addView(createAiChatKey(key))
-        }
-
-        layout.third.forEach { key ->
-            row3?.addView(createAiChatKey(key))
-        }
-
-        row3?.addView(createAiChatSpecialKey("⌫") {
-            if (aiChatInputText.isNotEmpty()) {
-                aiChatInputText.deleteLastCodePoint()
-                updateAiChatInputDisplay()
+        if (aiChatNumbersMode) {
+            val numbers = if (aiChatKeyboardLanguage == "ar") {
+                listOf("١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", "٠")
+            } else {
+                listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
             }
-        })
+            numbers.forEach { key -> row0?.addView(createAiChatKey(key, isLandscape)) }
+            val (symQwerty, symAsdf, symZxcv) = SymbolLayoutPages.rowsForPage(aiChatSymbolsPage2)
+            symQwerty.forEach { key -> row1?.addView(createAiChatKey(key, isLandscape)) }
+            symAsdf.forEach { key -> row2?.addView(createAiChatKey(key, isLandscape)) }
+            row3?.addView(createAiChatSpecialKey(SymbolLayoutPages.pageToggleLabel(aiChatSymbolsPage2), isLandscape, weight = 1.5f) {
+                aiChatSymbolsPage2 = !aiChatSymbolsPage2
+                rebuildAiChatMiniKeyboard()
+            })
+            symZxcv.forEach { key -> row3?.addView(createAiChatKey(key, isLandscape)) }
+            row3?.addView(createAiChatSpecialKey("⌫", isLandscape) {
+                if (aiChatInputText.isNotEmpty()) {
+                    aiChatInputText.deleteLastCodePoint()
+                    updateAiChatInputDisplay()
+                }
+            })
+        } else {
+            val numbers = if (aiChatKeyboardLanguage == "ar") {
+                listOf("١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", ".")
+            } else {
+                listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+            }
+            val layout = dictMiniKeyboardLayouts[aiChatKeyboardLanguage]
+                ?: dictMiniKeyboardLayouts["en"]!!
+            numbers.forEach { key -> row0?.addView(createAiChatKey(key, isLandscape)) }
+            layout.first.forEach { key -> row1?.addView(createAiChatKey(key, isLandscape)) }
+            layout.second.forEach { key -> row2?.addView(createAiChatKey(key, isLandscape)) }
+            layout.third.forEach { key -> row3?.addView(createAiChatKey(key, isLandscape)) }
+            row3?.addView(createAiChatSpecialKey("⌫", isLandscape) {
+                if (aiChatInputText.isNotEmpty()) {
+                    aiChatInputText.deleteLastCodePoint()
+                    updateAiChatInputDisplay()
+                }
+            })
+        }
+
+        applyAiChatMiniKeyboardRowsLayoutDirection(view)
     }
-    
+
+    private fun updateAiChatKeyModeButtonText() {
+        aiChatKeyModeButton?.text = if (aiChatNumbersMode) {
+            getString(R.string.numbers_mode_abc)
+        } else {
+            getString(R.string.numbers_mode_symbols)
+        }
+    }
+
+    private fun updateDictKeyModeButtonText() {
+        dictKeyModeButton?.text = if (dictNumbersMode) {
+            getString(R.string.numbers_mode_abc)
+        } else {
+            getString(R.string.numbers_mode_symbols)
+        }
+    }
+
+    private fun toggleAiChatNumbersModeFromUser() {
+        aiChatNumbersMode = !aiChatNumbersMode
+        if (!aiChatNumbersMode) aiChatSymbolsPage2 = false
+        updateAiChatKeyModeButtonText()
+        rebuildAiChatMiniKeyboard()
+    }
+
     /**
      * Setup mini keyboard for AI chat
      */
     private fun setupAiChatMiniKeyboard(view: View) {
-        val row0 = view.findViewById<LinearLayout>(R.id.ai_chat_row0)
-        val row1 = view.findViewById<LinearLayout>(R.id.ai_chat_row1)
-        val row2 = view.findViewById<LinearLayout>(R.id.ai_chat_row2)
-        val row3 = view.findViewById<LinearLayout>(R.id.ai_chat_row3)
-        // setupAiChat runs on first inflate, on overlay attach, and when rebinding root after overlay —
-        // always clear programmatic keys so rows are not duplicated.
-        row0?.removeAllViews()
-        row1?.removeAllViews()
-        row2?.removeAllViews()
-        row3?.removeAllViews()
-        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-
-        val numbers = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
-        val keys1 = listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p")
-        val keys2 = listOf("a", "s", "d", "f", "g", "h", "j", "k", "l")
-        val keys3 = listOf("z", "x", "c", "v", "b", "n", "m")
-
-        // Number row
-        numbers.forEach { key ->
-            row0?.addView(createAiChatKey(key, isLandscape))
-        }
-
-        // QWERTY row
-        keys1.forEach { key ->
-            row1?.addView(createAiChatKey(key, isLandscape))
-        }
-
-        // ASDF row
-        keys2.forEach { key ->
-            row2?.addView(createAiChatKey(key, isLandscape))
-        }
-
-        // ZXCV row + backspace
-        keys3.forEach { key ->
-            row3?.addView(createAiChatKey(key, isLandscape))
-        }
-
-        // Add backspace
-        row3?.addView(createAiChatSpecialKey("⌫", isLandscape) {
-            if (aiChatInputText.isNotEmpty()) {
-                aiChatInputText.deleteLastCodePoint()
-                updateAiChatInputDisplay()
-            }
-        })
+        rebuildAiChatMiniKeyboard()
     }
 
     /**
@@ -4934,7 +5271,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     /**
      * Create AI chat special key (e.g. backspace). Uses icon for delete key for visibility.
      */
-    private fun createAiChatSpecialKey(label: String, isLandscape: Boolean = false, onClick: () -> Unit): Button {
+    private fun createAiChatSpecialKey(
+        label: String,
+        isLandscape: Boolean = false,
+        weight: Float = 1.3f,
+        onClick: () -> Unit
+    ): Button {
         val keyHeightPx = resources.getDimensionPixelSize(R.dimen.ai_chat_key_height)
         val margin = if (isLandscape) 1 else 2
         val isBackspace = label == "⌫"
@@ -4955,7 +5297,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             gravity = Gravity.CENTER
 
             val params = LinearLayout.LayoutParams(0, keyHeightPx).apply {
-                weight = 1.3f
+                this.weight = weight
                 marginStart = margin.dpToPx()
                 marginEnd = margin.dpToPx()
                 topMargin = margin.dpToPx()
@@ -5001,7 +5343,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 includeCorrections = autoCorrectionEnabled
             ) { result ->
                 if (isAiChatVisible && result.suggestions.isNotEmpty()) {
-                    showAiChatSuggestions(result.suggestions)
+                    val case = suggestionCase(currentWord, shiftOn = false, capsOn = false)
+                    showAiChatSuggestions(result.suggestions.map { applyCase(it, case) })
                 } else {
                     hideAiChatSuggestions()
                 }
@@ -5570,6 +5913,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
         aiChatContainer.visibility = View.VISIBLE
         isAiChatVisible = true
+        aiChatNumbersMode = false
+        aiChatSymbolsPage2 = false
+        updateAiChatKeyModeButtonText()
+        rebuildAiChatMiniKeyboard()
         
         // Ensure AI chat mini keyboard is visible.
         aiChatContainer.findViewById<View>(R.id.ai_chat_row0)?.visibility = View.VISIBLE
@@ -5600,6 +5947,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Hide AI Chat
      */
     private fun hideAiChat() {
+        hideAiChatInlineEmojiPicker()
+        aiChatNumbersMode = false
+        aiChatSymbolsPage2 = false
+        updateAiChatKeyModeButtonText()
         aiChatContainer.visibility = View.GONE
         applyImeKeyboardContainerVisible(true)
         showTopBarsAfterOverlay()
@@ -6864,8 +7215,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
 
     /**
-     * Keyboard rows must follow the **keyboard language** (LTR vs RTL script), not the app UI locale.
-     * Otherwise, when app language is RTL, horizontal [LinearLayout]s mirror children and QWERTY appears reversed.
+     * Key rows are always rendered LTR — matching Gboard, where even Arabic/Hebrew keyboards
+     * lay out their keys left-to-right (only the glyph inside each key reads RTL). The arrays
+     * in [KeyboardLayouts] are stored in Gboard visual order, so forcing LTR here makes
+     * portrait and landscape produce identical layouts and guards against parents in the
+     * hierarchy inheriting RTL from the app UI locale.
      */
     private fun localeForKeyboardLanguage(code: String): Locale {
         if (code.equals("iw", ignoreCase = true)) return Locale("he")
@@ -6875,17 +7229,47 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         return if (loc.language.isEmpty()) Locale.ENGLISH else loc
     }
 
-    private fun keyboardKeyRowsLayoutDirection(): Int =
-        TextUtils.getLayoutDirectionFromLocale(localeForKeyboardLanguage(currentKeyboardLanguage))
+    private fun layoutDirectionForKeyboardLanguageCode(code: String): Int =
+        TextUtils.getLayoutDirectionFromLocale(localeForKeyboardLanguage(code))
+
+    private fun keyboardKeyRowsLayoutDirection(): Int = View.LAYOUT_DIRECTION_LTR
 
     private fun applyKeyboardKeyRowsLayoutDirection(view: View) {
-        val dir = keyboardKeyRowsLayoutDirection()
+        val dir = View.LAYOUT_DIRECTION_LTR
         listOf(
             R.id.row_numbers,
             R.id.row_qwerty,
             R.id.row_asdf,
             R.id.row_zxcv,
             R.id.row_bottom
+        ).forEach { id ->
+            view.findViewById<LinearLayout>(id)?.layoutDirection = dir
+        }
+    }
+
+    /** Mini keyboard rows always render LTR for the same reason as the main keyboard. */
+    private fun applyDictMiniKeyboardRowsLayoutDirection(view: View) {
+        val dir = View.LAYOUT_DIRECTION_LTR
+        listOf(
+            R.id.dict_row0,
+            R.id.dict_row1,
+            R.id.dict_row2,
+            R.id.dict_row3,
+            R.id.dict_row4
+        ).forEach { id ->
+            view.findViewById<LinearLayout>(id)?.layoutDirection = dir
+        }
+    }
+
+    /** AI chat mini keyboard rows always render LTR for the same reason as the main keyboard. */
+    private fun applyAiChatMiniKeyboardRowsLayoutDirection(view: View) {
+        val dir = View.LAYOUT_DIRECTION_LTR
+        listOf(
+            R.id.ai_chat_row0,
+            R.id.ai_chat_row1,
+            R.id.ai_chat_row2,
+            R.id.ai_chat_row3,
+            R.id.ai_chat_mini_keyboard_bottom_row
         ).forEach { id ->
             view.findViewById<LinearLayout>(id)?.layoutDirection = dir
         }
@@ -7530,10 +7914,15 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     deleteOneCharacter(triggerPredictionUpdate = true)
                 }
                 "SHIFT" -> toggleShift()
-                "NUMBERS" -> toggleNumbersSymbols()
-                "EMOJI" -> { hideAiChat(); showEmojiPicker() }
+                "NUMBERS" -> toggleAiChatNumbersModeFromUser()
+                "EMOJI" -> toggleAiChatInlineEmojiPicker()
                 "LANGUAGE" -> showLanguageSelector()
-                "TOGGLE_SYMBOLS" -> toggleSymbolsMode()
+                "TOGGLE_SYMBOLS" -> {
+                    if (aiChatNumbersMode) {
+                        aiChatSymbolsPage2 = !aiChatSymbolsPage2
+                        rebuildAiChatMiniKeyboard()
+                    }
+                }
                 "ENTER", "\n" -> sendAiChatMessage()
                 "SEARCH" -> {
                     val text = aiChatInputText.toString().trim()
@@ -7703,6 +8092,42 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             else -> correction
         }
     }
+
+    private enum class SuggCase { LOWER, TITLE, UPPER }
+
+    /**
+     * Decide the case to apply to suggestion chips. Prefers evidence from what the user
+     * already typed ([prefix]); falls back to keyboard Shift / Caps-Lock state when the
+     * prefix has no letters (e.g. next-word prediction right after a space).
+     */
+    private fun suggestionCase(prefix: String, shiftOn: Boolean, capsOn: Boolean): SuggCase {
+        val letters = prefix.filter { it.isLetter() }
+        if (letters.isNotEmpty()) {
+            val allUpper = letters.all { it.isUpperCase() }
+            return when {
+                allUpper && (letters.length >= 2 || capsOn) -> SuggCase.UPPER
+                letters.first().isUpperCase() -> SuggCase.TITLE
+                else -> SuggCase.LOWER
+            }
+        }
+        return when {
+            capsOn -> SuggCase.UPPER
+            shiftOn -> SuggCase.TITLE
+            else -> SuggCase.LOWER
+        }
+    }
+
+    private fun applyCase(word: String, case: SuggCase): String {
+        if (word.isEmpty()) return word
+        return when (case) {
+            SuggCase.LOWER -> word
+            SuggCase.UPPER -> word.uppercase(Locale.ROOT)
+            SuggCase.TITLE -> word.replaceFirstChar {
+                if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString()
+            }
+        }
+    }
+
     
     /**
      * Schedule a delayed prediction update (debounced)
@@ -7816,7 +8241,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             pendingAutoCorrect = result.autoCorrect
             if (result.suggestions.isNotEmpty()) {
                 isClipboardVisible = false
-                showPredictionsHideIcons(aiRow, predictionsContainer, predictionsRow, result.suggestions, result.autoCorrect)
+                val case = suggestionCase(currentWord, isShiftPressed, isCapsLocked)
+                val casedSuggestions = result.suggestions.map { applyCase(it, case) }
+                val casedAutoCorrect = result.autoCorrect?.let { applyCase(it, case) }
+                showPredictionsHideIcons(aiRow, predictionsContainer, predictionsRow, casedSuggestions, casedAutoCorrect)
             } else if (!isClipboardVisible) {
                 pendingAutoCorrect = null
                 lastRenderedSuggestions = emptyList()
@@ -8529,55 +8957,26 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             rowZxcv.removeAllViews()
             
             if (isNumbersMode) {
-                // Numbers/Symbols layout
                 val numbersRow1 = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
-                val symbolsRow1 = listOf("@", "#", "$", "%", "&", "-", "+", "(", ")")
-                val symbolsRow2 = listOf("*", "\"", "'", ":", ";", "!", "?")
-                
-                if (isSymbolsMode) {
-                    // More symbols
-                    val moreSymbols1 = listOf("~", "`", "|", "•", "√", "π", "÷", "×", "¶", "∆")
-                    val moreSymbols2 = listOf("£", "€", "¥", "^", "°", "=", "{", "}", "\\")
-                    val moreSymbols3 = listOf("©", "®", "™", "✓", "[", "]", "<", ">")
-                    
-                    moreSymbols1.forEach { key ->
-                        rowNumbers.addView(createKeyButton(key, key, weight = 1f))
-                    }
-                    moreSymbols2.forEach { key ->
-                        rowQwerty.addView(createKeyButton(key, key, weight = 1f))
-                    }
-                    moreSymbols3.forEach { key ->
-                        rowAsdf.addView(createKeyButton(key, key, weight = 1f))
-                    }
-                    
-                    // Toggle button for more symbols
-                    val moreButton = createSpecialKeyButton("123", "TOGGLE_SYMBOLS", weight = 1.5f)
-                    rowZxcv.addView(moreButton)
-                    
-                    listOf(",", ".", "/", "?", "!", "'").forEach { key ->
-                        rowZxcv.addView(createKeyButton(key, key, weight = 1f))
-                    }
-                } else {
-                    // Basic numbers and symbols
-                    numbersRow1.forEach { key ->
-                        rowNumbers.addView(createKeyButton(key, key, weight = 1f))
-                    }
-                    symbolsRow1.forEach { key ->
-                        rowQwerty.addView(createKeyButton(key, key, weight = 1f))
-                    }
-                    symbolsRow2.forEach { key ->
-                        rowAsdf.addView(createKeyButton(key, key, weight = 1f))
-                    }
-                    
-                    // Toggle button for more symbols
-                    val moreButton = createSpecialKeyButton("=\\<", "TOGGLE_SYMBOLS", weight = 1.5f)
-                    rowZxcv.addView(moreButton)
-                    
-                    listOf(",", ".", "/", "_", "~", "`").forEach { key ->
-                        rowZxcv.addView(createKeyButton(key, key, weight = 1f))
-                    }
+                numbersRow1.forEach { key ->
+                    rowNumbers.addView(createKeyButton(key, key, weight = 1f))
                 }
-                
+                val (symQwerty, symAsdf, symZxcv) = SymbolLayoutPages.rowsForPage(isSymbolsMode)
+                symQwerty.forEach { key ->
+                    rowQwerty.addView(createKeyButton(key, key, weight = 1f))
+                }
+                symAsdf.forEach { key ->
+                    rowAsdf.addView(createKeyButton(key, key, weight = 1f))
+                }
+                val pageToggle = createSpecialKeyButton(
+                    SymbolLayoutPages.pageToggleLabel(isSymbolsMode),
+                    "TOGGLE_SYMBOLS",
+                    weight = 1.5f
+                )
+                rowZxcv.addView(pageToggle)
+                symZxcv.forEach { key ->
+                    rowZxcv.addView(createKeyButton(key, key, weight = 1f))
+                }
                 val backspaceButton = createSpecialKeyButton("⌫", "BACKSPACE", weight = 1.5f)
                 rowZxcv.addView(backspaceButton)
                 
@@ -8922,6 +9321,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         // TTS fallback: backend returned text but no audio (cloud TTS failed)
         if (response.ttsFallback == true) {
             val text = response.translatedText?.takeIf { it.isNotBlank() }
+                ?: response.originalText?.takeIf { it.isNotBlank() }
             if (text != null) {
                 val fallbackLang = response.targetLanguage?.takeIf { it.isNotBlank() } ?: "en"
                 android.util.Log.d("DeltaVoice", "TTS fallback: synthesizing with device TTS, lang=$fallbackLang")
@@ -8936,6 +9336,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         // When no audio returned but we have text (complete/voice-only), try device TTS fallback
         if (!hasAudio && (workflowType == "complete" || workflowType == "voice-only")) {
             val text = response.translatedText?.takeIf { it.isNotBlank() }
+                ?: response.originalText?.takeIf { it.isNotBlank() }
             if (text != null) {
                 val fallbackLang = response.targetLanguage?.takeIf { it.isNotBlank() } ?: "en"
                 android.util.Log.d("DeltaVoice", "No cloud audio - trying device TTS fallback, lang=$fallbackLang")
@@ -8952,20 +9353,15 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         
         when (workflowType) {
             "complete" -> {
-                // Full Conversion: Insert text and show audio
-                response.translatedText?.takeIf { it.isNotBlank() }?.let { 
-                    insertText(it)
-                    android.util.Log.d("DeltaVoice", "Inserted translated text")
-                }
-                
+                // Change Language & Voice: produce only the preset-voice audio, ready to send.
+                // Do NOT insert translated text — that is reserved for the text-only mode.
                 if (hasAudio) {
-                    android.util.Log.d("DeltaVoice", "Saving and playing audio...")
+                    android.util.Log.d("DeltaVoice", "Saving preset-voice audio (audio-only)...")
                     saveAndShowProcessedAudio(audioBase64!!, "mp3")
                     Toast.makeText(this, getString(R.string.ready_tap_hear_send), Toast.LENGTH_LONG).show()
                 } else {
-                    android.util.Log.w("DeltaVoice", "No audio returned - showing text only result")
-                    Toast.makeText(this, getString(R.string.text_translated_no_audio), Toast.LENGTH_LONG).show()
-                    // Don't hide UI - let user see the result and retry if needed
+                    android.util.Log.w("DeltaVoice", "No audio returned for complete mode")
+                    Toast.makeText(this, getString(R.string.no_audio_returned), Toast.LENGTH_LONG).show()
                     audioDurationText.text = getString(R.string.status_no_audio)
                     resetButtonState()
                 }
@@ -9078,109 +9474,57 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * When cloud TTS fails, synthesize with device Android TTS and show result.
      */
     private fun handleTtsFallback(text: String, targetLang: String, workflowType: String) {
-        if (!ttsInitialized) {
-            android.util.Log.w("DeltaVoice", "TTS fallback: TTS not initialized")
+        if (workflowType == "text-only") {
             insertText(text)
-            Toast.makeText(this, getString(R.string.text_ready_device_voice_unavailable), Toast.LENGTH_LONG).show()
-            if (workflowType == "text-only") hideVoiceProcessingUI() else resetButtonState()
+            Toast.makeText(this, getString(R.string.translated_text_inserted), Toast.LENGTH_SHORT).show()
+            hideVoiceProcessingUI()
+            recordingFilePath = null
             return
         }
 
-        when (workflowType) {
-            "text-only" -> {
-                insertText(text)
-                Toast.makeText(this, getString(R.string.translated_text_inserted), Toast.LENGTH_SHORT).show()
-                hideVoiceProcessingUI()
-                recordingFilePath = null
-                return
-            }
-        }
-
-        // For complete/voice-only: insert text and synthesize with device TTS
-        insertText(text)
+        // complete / voice-only: always try to produce a previewable device-TTS WAV.
         audioDurationText.text = getString(R.string.status_device_voice)
 
-        // Map language codes to proper Locale for TTS (some need region for best results)
-        val locale = when (val code = targetLang.trim().lowercase()) {
-            "" -> java.util.Locale.getDefault()
-            "zh" -> java.util.Locale.SIMPLIFIED_CHINESE
-            "ja" -> java.util.Locale.JAPANESE
-            "ko" -> java.util.Locale.KOREAN
-            "ar" -> java.util.Locale("ar")
-            "hi" -> java.util.Locale("hi")
-            else -> try {
-                java.util.Locale.forLanguageTag(code.replace("_", "-"))
-            } catch (_: Exception) {
-                java.util.Locale.getDefault()
+        serviceScope.launch {
+            val wav = try {
+                DeviceTtsWav.synthesizeToWav(
+                    context = this@MainKeyboardService,
+                    text = text,
+                    targetLangCode = targetLang,
+                    cacheDir = cacheDir
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("DeltaVoice", "TTS fallback exception", e)
+                null
             }
-        }
-        val tts = textToSpeech ?: return
-        val prevLang = selectedLanguage
-        var setOk = tts.setLanguage(locale)
-        if (setOk == TextToSpeech.LANG_MISSING_DATA || setOk == TextToSpeech.LANG_NOT_SUPPORTED) {
-            setOk = tts.setLanguage(java.util.Locale.getDefault())
-        }
-        if (setOk == TextToSpeech.LANG_MISSING_DATA || setOk == TextToSpeech.LANG_NOT_SUPPORTED) {
-            android.util.Log.w("DeltaVoice", "TTS fallback: language $targetLang not available, using default")
-        }
 
-        val outFile = File(cacheDir, "tts_fallback_${System.currentTimeMillis()}.wav")
-        val utteranceId = "tts_fallback_${System.currentTimeMillis()}"
-
-        tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            override fun onStart(utteranceId: String?) {}
-            override fun onDone(utteranceId: String?) {
-                Handler(Looper.getMainLooper()).post {
+            withContext(Dispatchers.Main) {
+                if (wav != null && wav.exists() && wav.length() > 0) {
                     try {
-                        if (outFile.exists() && outFile.length() > 0) {
-                            val bytes = outFile.readBytes()
-                            val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                            saveAndShowProcessedAudio(base64, "wav")
-                            Toast.makeText(this@MainKeyboardService,
-                                "✓ Using device voice (cloud service unavailable)", Toast.LENGTH_LONG).show()
-                        } else {
-                            Toast.makeText(this@MainKeyboardService,
-                                "✓ Text ready (device voice failed)", Toast.LENGTH_LONG).show()
-                            resetButtonState()
-                        }
+                        val bytes = wav.readBytes()
+                        val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                        saveAndShowProcessedAudio(base64, "wav")
+                        val note = if (workflowType == "voice-only")
+                            "Using device voice (clone unavailable)"
+                        else
+                            "Using device voice (cloud service unavailable)"
+                        Toast.makeText(this@MainKeyboardService, note, Toast.LENGTH_LONG).show()
                     } catch (e: Exception) {
-                        android.util.Log.e("DeltaVoice", "TTS fallback error", e)
+                        android.util.Log.e("DeltaVoice", "TTS fallback read error", e)
                         Toast.makeText(this@MainKeyboardService,
-                            "✓ Text ready (audio failed)", Toast.LENGTH_LONG).show()
+                            getString(R.string.text_ready_device_voice_failed), Toast.LENGTH_LONG).show()
+                        audioDurationText.text = getString(R.string.status_no_audio)
                         resetButtonState()
                     } finally {
-                        outFile.delete()
-                        tts.setLanguage(prevLang)
+                        try { wav.delete() } catch (_: Exception) {}
                     }
-                }
-            }
-            @Suppress("DEPRECATION")
-            override fun onError(utteranceId: String?) {
-                Handler(Looper.getMainLooper()).post {
-                    outFile.delete()
-                    tts.setLanguage(prevLang)
+                } else {
                     Toast.makeText(this@MainKeyboardService,
-                        "✓ Text ready (device voice failed)", Toast.LENGTH_LONG).show()
+                        getString(R.string.text_ready_device_voice_failed), Toast.LENGTH_LONG).show()
+                    audioDurationText.text = getString(R.string.status_no_audio)
                     resetButtonState()
                 }
             }
-            override fun onError(utteranceId: String?, errorCode: Int) {
-                Handler(Looper.getMainLooper()).post {
-                    outFile.delete()
-                    tts.setLanguage(prevLang)
-                    Toast.makeText(this@MainKeyboardService,
-                        "✓ Text ready (device voice failed)", Toast.LENGTH_LONG).show()
-                    resetButtonState()
-                }
-            }
-        })
-
-        val params = Bundle().apply { putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId) }
-        val result = tts.synthesizeToFile(text, params, outFile, utteranceId)
-        if (result != TextToSpeech.SUCCESS) {
-            tts.setLanguage(prevLang)
-            Toast.makeText(this, getString(R.string.text_ready_device_voice_failed), Toast.LENGTH_LONG).show()
-            resetButtonState()
         }
     }
     
@@ -9671,6 +10015,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
         }
         audioUploadReceiver = null
+        appLocaleReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (_: Exception) {
+            }
+        }
+        appLocaleReceiver = null
         clipboardListener?.let { clipboardManager?.removePrimaryClipChangedListener(it) }
         clipboardListener = null
         clipboardManager = null
@@ -9698,6 +10049,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         videoUploadReceiver = null
         audioUploadReceiver?.let { unregisterReceiver(it) }
         audioUploadReceiver = null
+        appLocaleReceiver?.let { unregisterReceiver(it) }
+        appLocaleReceiver = null
         clipboardListener?.let { clipboardManager?.removePrimaryClipChangedListener(it) }
         clipboardListener = null
         clipboardManager = null

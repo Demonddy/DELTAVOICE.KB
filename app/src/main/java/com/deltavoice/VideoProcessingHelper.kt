@@ -113,6 +113,12 @@ object VideoProcessingHelper {
                 audioExtractor.release()
                 return@withContext null
             }
+            val audioMime = audioFormat.getString(android.media.MediaFormat.KEY_MIME) ?: ""
+            if (audioMime.contains("mpeg", ignoreCase = true) && !audioMime.contains("mp4a", ignoreCase = true)) {
+                videoExtractor.release()
+                audioExtractor.release()
+                return@withContext null
+            }
             audioExtractor.selectTrack(audioTrackIndex)
 
             val muxer = android.media.MediaMuxer(
@@ -124,29 +130,63 @@ object VideoProcessingHelper {
             muxer.start()
 
             val bufferSize = 1024 * 1024
-            val buffer = java.nio.ByteBuffer.allocate(bufferSize)
+            val videoBuffer = java.nio.ByteBuffer.allocate(bufferSize)
+            val audioBuffer = java.nio.ByteBuffer.allocate(bufferSize)
             val bufferInfo = android.media.MediaCodec.BufferInfo()
 
-            while (true) {
-                val sampleSize = videoExtractor.readSampleData(buffer, 0)
-                if (sampleSize < 0) break
-                bufferInfo.offset = 0
-                bufferInfo.size = sampleSize
-                bufferInfo.presentationTimeUs = videoExtractor.sampleTime
-                bufferInfo.flags = videoExtractor.sampleFlags
-                muxer.writeSampleData(muxVideoTrack, buffer, bufferInfo)
-                videoExtractor.advance()
-            }
+            // MediaMuxer requires samples in presentation-time order across all tracks (interleaved).
+            var videoSize = videoExtractor.readSampleData(videoBuffer, 0)
+            var audioSize = audioExtractor.readSampleData(audioBuffer, 0)
+            var videoEOS = videoSize < 0
+            var audioEOS = audioSize < 0
 
-            while (true) {
-                val sampleSize = audioExtractor.readSampleData(buffer, 0)
-                if (sampleSize < 0) break
-                bufferInfo.offset = 0
-                bufferInfo.size = sampleSize
-                bufferInfo.presentationTimeUs = audioExtractor.sampleTime
-                bufferInfo.flags = audioExtractor.sampleFlags
-                muxer.writeSampleData(muxAudioTrack, buffer, bufferInfo)
-                audioExtractor.advance()
+            while (!videoEOS || !audioEOS) {
+                when {
+                    videoEOS && audioEOS -> break
+                    videoEOS -> {
+                        bufferInfo.offset = 0
+                        bufferInfo.size = audioSize
+                        bufferInfo.presentationTimeUs = audioExtractor.sampleTime
+                        bufferInfo.flags = audioExtractor.sampleFlags
+                        muxer.writeSampleData(muxAudioTrack, audioBuffer, bufferInfo)
+                        audioExtractor.advance()
+                        audioSize = audioExtractor.readSampleData(audioBuffer, 0)
+                        audioEOS = audioSize < 0
+                    }
+                    audioEOS -> {
+                        bufferInfo.offset = 0
+                        bufferInfo.size = videoSize
+                        bufferInfo.presentationTimeUs = videoExtractor.sampleTime
+                        bufferInfo.flags = videoExtractor.sampleFlags
+                        muxer.writeSampleData(muxVideoTrack, videoBuffer, bufferInfo)
+                        videoExtractor.advance()
+                        videoSize = videoExtractor.readSampleData(videoBuffer, 0)
+                        videoEOS = videoSize < 0
+                    }
+                    else -> {
+                        val vPts = videoExtractor.sampleTime
+                        val aPts = audioExtractor.sampleTime
+                        if (vPts <= aPts) {
+                            bufferInfo.offset = 0
+                            bufferInfo.size = videoSize
+                            bufferInfo.presentationTimeUs = vPts
+                            bufferInfo.flags = videoExtractor.sampleFlags
+                            muxer.writeSampleData(muxVideoTrack, videoBuffer, bufferInfo)
+                            videoExtractor.advance()
+                            videoSize = videoExtractor.readSampleData(videoBuffer, 0)
+                            videoEOS = videoSize < 0
+                        } else {
+                            bufferInfo.offset = 0
+                            bufferInfo.size = audioSize
+                            bufferInfo.presentationTimeUs = aPts
+                            bufferInfo.flags = audioExtractor.sampleFlags
+                            muxer.writeSampleData(muxAudioTrack, audioBuffer, bufferInfo)
+                            audioExtractor.advance()
+                            audioSize = audioExtractor.readSampleData(audioBuffer, 0)
+                            audioEOS = audioSize < 0
+                        }
+                    }
+                }
             }
 
             muxer.stop()
@@ -161,16 +201,15 @@ object VideoProcessingHelper {
     }
 
     /**
-     * Convert MP3 to AAC for MediaMuxer compatibility.
-     * MediaMuxer's MPEG-4 output only accepts AAC; raw MP3 cannot be muxed directly.
-     * Falls back to original file if conversion fails.
+     * Decode any supported audio file (MP3, WAV, etc.) to AAC in an M4A container for [muxVideoWithProcessedAudio].
+     * Returns null if conversion fails. If the source is already AAC in MP4, returns [sourceFile].
      */
-    suspend fun convertMp3ToAac(mp3File: File, cacheDir: File): File = withContext(Dispatchers.IO) {
+    suspend fun convertAudioToAacForMux(sourceFile: File, cacheDir: File): File? = withContext(Dispatchers.IO) {
         try {
             val aacFile = File(cacheDir, "converted_audio_${System.currentTimeMillis()}.m4a")
 
             val extractor = android.media.MediaExtractor()
-            extractor.setDataSource(mp3File.absolutePath)
+            extractor.setDataSource(sourceFile.absolutePath)
 
             var trackIndex = -1
             var inputFormat: android.media.MediaFormat? = null
@@ -184,7 +223,7 @@ object VideoProcessingHelper {
             }
             if (trackIndex == -1 || inputFormat == null) {
                 extractor.release()
-                return@withContext mp3File
+                return@withContext null
             }
             extractor.selectTrack(trackIndex)
 
@@ -198,7 +237,7 @@ object VideoProcessingHelper {
             val inputMime = inputFormat.getString(android.media.MediaFormat.KEY_MIME) ?: "audio/mpeg"
             if (inputMime.contains("mp4a", ignoreCase = true) || inputMime == "audio/mp4a-latm") {
                 extractor.release()
-                return@withContext mp3File
+                return@withContext sourceFile
             }
             val decoder = android.media.MediaCodec.createDecoderByType(inputMime)
             decoder.configure(inputFormat, null, null, 0)
@@ -301,7 +340,15 @@ object VideoProcessingHelper {
 
             aacFile
         } catch (e: Exception) {
-            mp3File
+            null
         }
     }
+
+    /**
+     * Convert MP3 to AAC for MediaMuxer compatibility.
+     * MediaMuxer's MPEG-4 output only accepts AAC; raw MP3 cannot be muxed directly.
+     * Falls back to original file if conversion fails.
+     */
+    suspend fun convertMp3ToAac(mp3File: File, cacheDir: File): File =
+        convertAudioToAacForMux(mp3File, cacheDir) ?: mp3File
 }

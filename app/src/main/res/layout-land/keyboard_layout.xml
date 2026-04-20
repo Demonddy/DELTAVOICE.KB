@@ -391,7 +391,7 @@
                     android:layout_height="36dp"
                     android:src="@drawable/ic_play"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Play recording"
+                    android:contentDescription="@string/content_desc_play_recording"
                     android:padding="7dp"
                     android:tint="#3B82F6" />
 
@@ -426,7 +426,7 @@
                     android:layout_height="28dp"
                     android:src="@drawable/ic_send"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Send recorded voice without processing"
+                    android:contentDescription="@string/content_desc_send_raw_voice"
                     android:padding="5dp"
                     android:tint="#10B981" />
             </LinearLayout>
@@ -461,6 +461,7 @@
                     android:paddingBottom="4dp">
 
                     <TextView
+                        android:id="@+id/voice_step2_title"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
@@ -474,7 +475,7 @@
                         android:layout_height="26dp"
                         android:src="@android:drawable/ic_menu_close_clear_cancel"
                         android:background="?android:attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="Close"
+                        android:contentDescription="@string/content_desc_close_voice_step2"
                         android:padding="3dp" />
                 </LinearLayout>
 
@@ -505,6 +506,7 @@
                             android:tint="@color/accent" />
 
                         <TextView
+                            android:id="@+id/voice_step2_card_full_title"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/voice_mode_full"
@@ -535,6 +537,7 @@
                             android:tint="#EDEFF4" />
 
                         <TextView
+                            android:id="@+id/voice_step2_card_voice_title"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/voice_mode_voice_only"
@@ -565,6 +568,7 @@
                             android:tint="#EDEFF4" />
 
                         <TextView
+                            android:id="@+id/voice_step2_card_text_title"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/voice_mode_text_only"
@@ -1132,6 +1136,18 @@
                         android:layout_marginStart="1dp"
                         android:layout_marginEnd="1dp" />
 
+                    <Button
+                        android:id="@+id/ai_chat_key_mode"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/ai_chat_bottom_row_height"
+                        android:layout_weight="1"
+                        android:text="@string/numbers_mode_symbols"
+                        android:textSize="10sp"
+                        android:textColor="#9CA3AF"
+                        android:background="@drawable/dict_key_special"
+                        android:layout_marginEnd="1dp"
+                        android:textAllCaps="false" />
+
                     <androidx.appcompat.widget.AppCompatImageButton
                         android:id="@+id/ai_chat_key_globe"
                         android:layout_width="0dp"
@@ -1185,11 +1201,16 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Right: mini keyboard rows -->
-            <LinearLayout
+            <!-- Right: letter rows OR inline emoji -->
+            <FrameLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="2"
+                android:layout_weight="2">
+
+            <LinearLayout
+                android:id="@+id/ai_chat_mini_keyboard_letter_area"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
                 android:orientation="vertical">
 
                 <LinearLayout
@@ -1228,6 +1249,13 @@
                     android:paddingStart="6dp"
                     android:paddingEnd="6dp" />
             </LinearLayout>
+
+            <include
+                layout="@layout/ai_chat_inline_emoji_panel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            </FrameLayout>
         </LinearLayout>
     </LinearLayout>
 

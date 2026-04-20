@@ -4,7 +4,6 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.deltavoice.PredictiveWordList
-import com.deltavoice.debug.AgentDebugLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -19,6 +18,13 @@ object PredictionProvider {
 
     private const val TAG = "PredictionProvider"
 
+    /**
+     * SymmetricDelete memory grows superlinearly with vocabulary. Large tries (e.g. English 50k)
+     * are fine, but indexing every word in the corrector can OOM. Index only the first N by
+     * frequency (map iteration order) for autocorrect; trie still gets every word for suggestions.
+     */
+    private const val MAX_WORDS_IN_CORRECTOR = 15_000
+
     private val engine = PredictiveTextEngine()
     private val scope = CoroutineScope(Dispatchers.Default)
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -30,7 +36,11 @@ object PredictionProvider {
         synchronized(loadLock) {
             if (loadedLangs.contains(lang)) return
             val freqMap = PredictiveWordList.getWordsWithFrequency(lang)
-            engine.loadDictionaryWithFrequencies(lang, freqMap)
+            engine.loadDictionaryWithFrequencies(
+                lang,
+                freqMap,
+                maxWordsInCorrector = MAX_WORDS_IN_CORRECTOR
+            )
             loadedLangs.add(lang)
         }
     }
@@ -57,19 +67,6 @@ object PredictionProvider {
                     limit = limit,
                     includeCorrections = includeCorrections
                 )
-                // #region agent log
-                AgentDebugLog.log(
-                    "H3",
-                    "PredictionProvider.getPredictions",
-                    "engine_result",
-                    mapOf(
-                        "lang" to lang,
-                        "prefixLen" to prefix.length,
-                        "suggestionCount" to result.suggestions.size,
-                        "latencyMs" to result.latencyMs
-                    )
-                )
-                // #endregion
                 mainHandler.post { onResult(result) }
             } catch (e: Exception) {
                 Log.e(TAG, "getPredictions failed for lang=$lang", e)

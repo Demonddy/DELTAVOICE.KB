@@ -10,6 +10,9 @@ import androidx.appcompat.app.AppCompatDelegate
  */
 object AppLocaleHelper {
 
+    /** Broadcast when the user changes app language so IME/services can refresh UI immediately. */
+    const val ACTION_APP_LOCALE_CHANGED = "com.deltavoice.action.APP_LOCALE_CHANGED"
+
     fun wrap(context: Context): Context {
         val locales = AppCompatDelegate.getApplicationLocales()
         if (locales.isEmpty) {

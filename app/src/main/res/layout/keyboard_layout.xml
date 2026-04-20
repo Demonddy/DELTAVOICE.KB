@@ -820,8 +820,12 @@
                     android:minHeight="40dp" />
             </HorizontalScrollView>
 
-            <!-- Mini Keyboard Rows - scrollable when space is limited -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
             <ScrollView
+                android:id="@+id/ai_chat_mini_keyboard_letter_area"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:maxHeight="220dp"
@@ -873,6 +877,13 @@
             </LinearLayout>
             </ScrollView>
 
+            <include
+                layout="@layout/ai_chat_inline_emoji_panel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            </FrameLayout>
+
             <!-- Bottom Row: Space and Special Keys -->
             <LinearLayout
                 android:id="@+id/ai_chat_mini_keyboard_bottom_row"
@@ -895,6 +906,18 @@
                     android:scaleType="fitCenter"
                     android:layout_marginStart="2dp"
                     android:layout_marginEnd="2dp" />
+
+                <Button
+                    android:id="@+id/ai_chat_key_mode"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/ai_chat_bottom_row_height"
+                    android:layout_weight="1"
+                    android:text="@string/numbers_mode_symbols"
+                    android:textSize="11sp"
+                    android:textColor="#9CA3AF"
+                    android:background="@drawable/dict_key_special"
+                    android:layout_marginEnd="2dp"
+                    android:textAllCaps="false" />
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/ai_chat_key_globe"

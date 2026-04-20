@@ -328,8 +328,74 @@ class VideoConfigActivity : AppCompatActivity() {
                             }
                         }
                     } else {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(this@VideoConfigActivity, getString(R.string.processing_no_audio), Toast.LENGTH_SHORT).show()
+                        val speakText = response.translatedText?.takeIf { it.isNotBlank() }
+                            ?: response.originalText?.takeIf { it.isNotBlank() }
+                        if (speakText == null) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@VideoConfigActivity, getString(R.string.processing_no_audio), Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            withContext(Dispatchers.Main) {
+                                videoStatus.text = getString(R.string.video_status_muxing)
+                            }
+                            val wavFile = DeviceTtsWav.synthesizeToWav(
+                                this@VideoConfigActivity,
+                                speakText,
+                                response.targetLanguage ?: langCode,
+                                cacheDir
+                            )
+                            processedAudioPath = wavFile?.absolutePath
+
+                            var aacFile: File? = wavFile?.let {
+                                VideoProcessingHelper.convertAudioToAacForMux(it, cacheDir)
+                            }
+                            var muxedVideo: File? = null
+                            if (aacFile != null) {
+                                muxedVideo = VideoProcessingHelper.muxVideoWithProcessedAudio(videoFile, aacFile, cacheDir)
+                            }
+                            if (aacFile != null && wavFile != null && aacFile != wavFile) {
+                                try {
+                                    aacFile.delete()
+                                } catch (_: Exception) {
+                                }
+                            }
+
+                            if (muxedVideo != null && muxedVideo.exists()) {
+                                val voiceName = voiceStyles.getOrNull(spinnerVoice.selectedItemPosition)?.first ?: "Video"
+                                val item = ProcessedVideoItem(
+                                    filePath = muxedVideo.absolutePath,
+                                    label = "$voiceName #${processedVideos.size + 1}",
+                                    isVideo = true
+                                )
+                                processedVideos.add(item)
+                                withContext(Dispatchers.Main) {
+                                    updateProcessedVideosList()
+                                    videoStatus.text = getString(R.string.video_status_ready_tap_download)
+                                    Toast.makeText(this@VideoConfigActivity, getString(R.string.done_tap_download), Toast.LENGTH_LONG).show()
+                                }
+                            } else if (wavFile != null && wavFile.exists()) {
+                                val voiceName = voiceStyles.getOrNull(spinnerVoice.selectedItemPosition)?.first ?: "Audio"
+                                val item = ProcessedVideoItem(
+                                    filePath = wavFile.absolutePath,
+                                    label = "$voiceName #${processedVideos.size + 1} (audio)",
+                                    isVideo = false
+                                )
+                                processedVideos.add(item)
+                                withContext(Dispatchers.Main) {
+                                    updateProcessedVideosList()
+                                    videoStatus.text = getString(R.string.video_status_mux_failed_tap_audio)
+                                    Toast.makeText(this@VideoConfigActivity, getString(R.string.video_mux_failed), Toast.LENGTH_LONG).show()
+                                }
+                            } else {
+                                try {
+                                    wavFile?.delete()
+                                } catch (_: Exception) {
+                                }
+                                processedAudioPath = null
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(this@VideoConfigActivity, getString(R.string.processing_no_audio), Toast.LENGTH_SHORT).show()
+                                }
+                            }
                         }
                     }
                 } else {

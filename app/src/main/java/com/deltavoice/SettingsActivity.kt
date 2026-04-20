@@ -299,6 +299,9 @@ class SettingsActivity : AppCompatActivity() {
             }
             AppCompatDelegate.setApplicationLocales(newLocales)
             updateAppLanguageDisplay()
+            sendBroadcast(
+                Intent(AppLocaleHelper.ACTION_APP_LOCALE_CHANGED).setPackage(packageName)
+            )
             dialog.dismiss()
         }
         dialog.show()

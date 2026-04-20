@@ -82,6 +82,7 @@
         android:paddingBottom="8dp">
 
         <TextView
+            android:id="@+id/voice_step2_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -100,6 +101,7 @@
     </LinearLayout>
 
     <TextView
+        android:id="@+id/voice_step2_subtitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/voice_mode_subtitle"
@@ -133,6 +135,7 @@
                 android:tint="@color/accent" />
 
             <TextView
+                android:id="@+id/voice_step2_card_full_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/voice_mode_full"
@@ -144,6 +147,7 @@
                 android:lineSpacingMultiplier="1.1" />
 
             <TextView
+                android:id="@+id/voice_step2_card_full_desc"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/voice_mode_full_desc"
@@ -173,6 +177,7 @@
                 android:tint="#EDEFF4" />
 
             <TextView
+                android:id="@+id/voice_step2_card_voice_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/voice_mode_voice_only"
@@ -184,6 +189,7 @@
                 android:lineSpacingMultiplier="1.1" />
 
             <TextView
+                android:id="@+id/voice_step2_card_voice_desc"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/voice_mode_voice_only_desc"
@@ -213,6 +219,7 @@
                 android:tint="#EDEFF4" />
 
             <TextView
+                android:id="@+id/voice_step2_card_text_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/voice_mode_text_only"
@@ -224,6 +231,7 @@
                 android:lineSpacingMultiplier="1.1" />
 
             <TextView
+                android:id="@+id/voice_step2_card_text_desc"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/voice_mode_text_only_desc"

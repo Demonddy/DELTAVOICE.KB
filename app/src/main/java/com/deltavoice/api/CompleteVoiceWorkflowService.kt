@@ -76,9 +76,9 @@ class CompleteVoiceWorkflowService {
             format = audioFile.extension.takeIf { it.isNotBlank() } ?: "m4a"
         )
 
-        // Use Convex for real-time delivery of complete and voice-only workflows
+        // Use Convex for real-time delivery (includes text-only: transcribe + translate, no TTS)
         val useConvex = ConvexConfig.USE_CONVEX_FOR_VOICE_WORKFLOW &&
-            (workflowType == "complete" || workflowType == "voice-only")
+            (workflowType == "complete" || workflowType == "voice-only" || workflowType == "text-only")
 
         if (useConvex && !ConvexConfig.CONVEX_SITE_URL.contains("YOUR_DEPLOYMENT")) {
             val convexMaxRetries = 3
