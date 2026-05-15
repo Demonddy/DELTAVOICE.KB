@@ -85,6 +85,22 @@
             android:exported="false"
             android:taskAffinity="" />
 
+        <!-- Keyboard-only video upload picker (isolated prefs/broadcast from in-app flow) -->
+        <activity
+            android:name=".KeyboardVideoUploadActivity"
+            android:theme="@style/Theme.DeltaVoice.Translucent"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity="" />
+
+        <!-- Keyboard-only audio upload picker (isolated prefs/broadcast from in-app flow) -->
+        <activity
+            android:name=".KeyboardAudioUploadActivity"
+            android:theme="@style/Theme.DeltaVoice.Translucent"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity="" />
+
         <!-- Voice Process Mode Activity -->
         <activity
             android:name=".VoiceProcessModeActivity"

@@ -323,30 +323,48 @@ async function convertTextToSpeech(
         use_speaker_boost: true,
       };
   const modelsToTry = isClonedVoice
-    ? ["eleven_multilingual_v2", "eleven_turbo_v2_5"]
-    : ["eleven_turbo_v2_5", "eleven_multilingual_v2"];
+    ? ["eleven_multilingual_v2", "eleven_flash_v2_5"]
+    : ["eleven_flash_v2_5", "eleven_multilingual_v2"];
 
   let response: Response | null = null;
   let lastError = "";
-  for (const modelId of modelsToTry) {
-    const ttsBody: Record<string, unknown> = {
-      text,
-      model_id: modelId,
-      voice_settings: voiceSettings,
-    };
-    if (langCode) ttsBody.language_code = langCode;
 
-    response = await fetch(ttsUrl, {
-      method: "POST",
-      headers: {
-        Accept: "audio/mpeg",
-        "Content-Type": "application/json",
-        "xi-api-key": elevenLabsApiKey,
-      },
-      body: JSON.stringify(ttsBody),
-    });
-    if (response.ok) break;
-    lastError = await response.text();
+  async function trySynthesize(includeLanguageCode: boolean): Promise<Response | null> {
+    let res: Response | null = null;
+    for (const modelId of modelsToTry) {
+      const ttsBody: Record<string, unknown> = {
+        text,
+        model_id: modelId,
+        voice_settings: voiceSettings,
+      };
+      if (includeLanguageCode && langCode) {
+        ttsBody.language_code = langCode;
+      }
+
+      console.log(`ElevenLabs TTS attempt: model=${modelId}, voice=${voiceId}, langCode=${includeLanguageCode ? langCode : 'omitted'}, textLen=${text.length}`);
+      res = await fetch(ttsUrl, {
+        method: "POST",
+        headers: {
+          Accept: "audio/mpeg",
+          "Content-Type": "application/json",
+          "xi-api-key": elevenLabsApiKey,
+        },
+        body: JSON.stringify(ttsBody),
+      });
+      if (res.ok) {
+        console.log(`ElevenLabs TTS SUCCESS: model=${modelId}, status=${res.status}`);
+        return res;
+      }
+      lastError = await res.text();
+      console.error(`ElevenLabs TTS FAILED: model=${modelId}, status=${res.status}, error=${lastError.substring(0, 300)}`);
+    }
+    return null;
+  }
+
+  // Prefer language_code when API accepts it; many failures are fixed by omitting it.
+  response = await trySynthesize(true);
+  if (!response || !response.ok) {
+    response = await trySynthesize(false);
   }
 
   if (!response || !response.ok) {
@@ -414,8 +432,10 @@ export async function runVoiceWorkflow(
 
   const shouldTranslate =
     targetLanguage && targetLanguage.trim().length > 0;
-  let translatedText: string;
-  let convertedAudioBase64: string;
+  // Must default so the T catch block never reads an unassigned variable (TDZ)
+  // when translateText throws before assignment.
+  let translatedText = "";
+  let convertedAudioBase64 = "";
 
   if (workflowType === "text-only") {
     translatedText = shouldTranslate
@@ -463,12 +483,17 @@ export async function runVoiceWorkflow(
   } catch (ttsError) {
     const err =
       ttsError instanceof Error ? ttsError : new Error(String(ttsError));
+    const msg = err.message || "";
+    console.error("TTS ERROR:", msg);
     const isTtsError =
-      err.message?.includes("Voice conversion failed") ||
-      err.message?.includes("Voice clone creation failed");
+      msg.includes("Voice conversion failed") ||
+      msg.includes("Voice clone creation failed") ||
+      msg.includes("Voice clone requires") ||
+      msg.includes("text-to-speech") ||
+      msg.includes("ElevenLabs") ||
+      msg.includes("voice_id");
     const hasText =
-      (originalText && originalText.trim()) ||
-      (translatedText && translatedText.trim());
+      Boolean(originalText?.trim()) || Boolean(translatedText?.trim());
 
     if (isTtsError && hasText) {
       return {
@@ -480,7 +505,8 @@ export async function runVoiceWorkflow(
         voiceStyle: workflowType === "voice-only" ? "myvoiceclone" : voiceStyle,
         workflowType,
         ttsFallback: true,
-      };
+        ttsError: msg.substring(0, 300),
+      } as WorkflowResult;
     }
     throw ttsError;
   }

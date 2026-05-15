@@ -13,11 +13,9 @@ package com.deltavoice.config
  * For production, consider using BuildConfig or a secure configuration system
  */
 object SupabaseConfig {
-    // Supabase project URL (voicetexco.ai)
-    const val SUPABASE_URL = "https://yvizvsojpwgvaisoahda.supabase.co"
-    
-    // Supabase anon/public key
-    const val SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2aXp2c29qcHdndmFpc29haGRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3NDMyNDEsImV4cCI6MjA2NTMxOTI0MX0.EUdnCzjgKD9fTKopQlDIkPSrDd7cke1OtW2IlXraJek"
+    const val SUPABASE_URL = "https://rkfveqzktfmgegtsoxlf.supabase.co"
+
+    const val SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrZnZlcXprdGZtZ2VndHNveGxmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NzAyMDYsImV4cCI6MjA5MjM0NjIwNn0.dOmPCxz5Dq5ZtnX3LU7LTNjyHFcxWbJ5XLNrWPUF0NM"
     
     // Edge Function names (matching supabase/functions/ folder)
     const val FUNCTION_VOICE_TO_TEXT = "voice-to-text"
@@ -31,7 +29,7 @@ object SupabaseConfig {
     const val FUNCTION_AI_CHAT = "ai-chat"
     
     /** Writing-tool Edge Function endpoint. */
-    const val WRITING_TOOL_ENDPOINT = "https://yvizvsojpwgvaisoahda.supabase.co/functions/v1/writing-tool"
+    const val WRITING_TOOL_ENDPOINT = "https://rkfveqzktfmgegtsoxlf.supabase.co/functions/v1/writing-tool"
     /** Anon key for writing-tool. If the function is on a different project, set that project's anon key here. */
     const val WRITING_TOOL_ANON_KEY = SUPABASE_ANON_KEY
     

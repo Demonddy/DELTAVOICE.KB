@@ -1,7 +1,7 @@
 package com.deltavoice.config
 
 /**
- * Convex Configuration for real-time voice workflow (complete & voice-only).
+ * Convex Configuration for real-time voice workflow (complete, voice-only, text-only).
  *
  * Setup:
  * 1. Run `npx convex dev` or `npx convex deploy` from project root
@@ -19,7 +19,7 @@ object ConvexConfig {
      */
     const val CONVEX_SITE_URL = "https://kindred-curlew-363.eu-west-1.convex.site"
 
-    /** Voice workflow path - handles complete and voice-only workflows */
+    /** Voice workflow path - transcribe, translate, TTS or text-only */
     const val VOICE_WORKFLOW_PATH = "/complete-voice-workflow"
 
     /** Video workflow path - FFmpeg worker orchestration (web; optional for app) */
@@ -41,8 +41,8 @@ object ConvexConfig {
         get() = "$CONVEX_SITE_URL$VIDEO_WORKFLOW_PATH"
 
     /**
-     * Use Convex for real-time delivery of complete and voice-only workflows when true.
-     * Convex is tried first (with retries) before falling back to Supabase.
+     * When true, Convex is the primary backend for all voice workflows (complete, voice-only,
+     * text-only), tried first with retries before falling back to Supabase.
      * Set to false to use Supabase only.
      */
     const val USE_CONVEX_FOR_VOICE_WORKFLOW = true

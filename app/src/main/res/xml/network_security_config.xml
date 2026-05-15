@@ -18,12 +18,12 @@
       openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | \
       openssl dgst -sha256 -binary | openssl enc -base64
 
-    Domains: yvizvsojpwgvaisoahda.supabase.co, kindred-curlew-363.eu-west-1.convex.site,
+    Domains: rkfveqzktfmgegtsoxlf.supabase.co, kindred-curlew-363.eu-west-1.convex.site,
              api.openai.com, api.dictionaryapi.dev
     -->
     <!--
     <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">yvizvsojpwgvaisoahda.supabase.co</domain>
+        <domain includeSubdomains="true">rkfveqzktfmgegtsoxlf.supabase.co</domain>
         <domain includeSubdomains="true">kindred-curlew-363.eu-west-1.convex.site</domain>
         <pin-set expiration="2027-01-01">
             <pin digest="SHA-256">REPLACE_WITH_ACTUAL_PIN</pin>

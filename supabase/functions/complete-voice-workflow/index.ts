@@ -329,8 +329,8 @@ async function convertTextToSpeech(
     ? { stability: 0.35, similarity_boost: 1.0, style: 0.0, use_speaker_boost: true }
     : { stability: 0.5, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true };
   const modelsToTry = isClonedVoice
-    ? ['eleven_multilingual_v2', 'eleven_turbo_v2_5']
-    : ['eleven_turbo_v2_5', 'eleven_multilingual_v2'];
+    ? ['eleven_multilingual_v2', 'eleven_flash_v2_5']
+    : ['eleven_flash_v2_5', 'eleven_multilingual_v2'];
   let response: Response | null = null;
   let lastError = '';
   for (const modelId of modelsToTry) {

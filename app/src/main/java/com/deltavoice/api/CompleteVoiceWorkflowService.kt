@@ -13,9 +13,9 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Service for full voice workflow: transcribe -> translate -> convert to speech.
- * Uses Convex for complete (Change Language & Voice) and voice-only (Translate My Same Voice)
- * when ConvexConfig.USE_CONVEX_FOR_VOICE_WORKFLOW is true.
+ * Service for full voice workflow: transcribe -> translate -> optional TTS.
+ * When [ConvexConfig.USE_CONVEX_FOR_VOICE_WORKFLOW] is true, Convex is tried first for all modes:
+ * complete, voice-only, and text-only. Supabase edge function is fallback only.
  */
 class CompleteVoiceWorkflowService {
     private val json = Json { ignoreUnknownKeys = true }
@@ -76,9 +76,11 @@ class CompleteVoiceWorkflowService {
             format = audioFile.extension.takeIf { it.isNotBlank() } ?: "m4a"
         )
 
-        // Use Convex for real-time delivery (includes text-only: transcribe + translate, no TTS)
+        // Convex primary for all workflow modes; Supabase only after retries fail
         val useConvex = ConvexConfig.USE_CONVEX_FOR_VOICE_WORKFLOW &&
-            (workflowType == "complete" || workflowType == "voice-only" || workflowType == "text-only")
+            (workflowType == "complete" ||
+                workflowType == "voice-only" ||
+                workflowType == "text-only")
 
         if (useConvex && !ConvexConfig.CONVEX_SITE_URL.contains("YOUR_DEPLOYMENT")) {
             val convexMaxRetries = 3
@@ -157,7 +159,7 @@ class CompleteVoiceWorkflowService {
     }
     
     /**
-     * Call Convex HTTP action for real-time delivery of complete and voice-only workflows.
+     * Call Convex HTTP action for complete, voice-only, and text-only workflows.
      * Uses 60s connect / 120s read timeout for long-running voice processing.
      */
     private fun callConvex(request: WorkflowRequest): WorkflowResponse? {
@@ -185,6 +187,11 @@ class CompleteVoiceWorkflowService {
             connection.disconnect()
 
             val result = json.decodeFromString<WorkflowResponse>(responseText)
+            android.util.Log.d(
+                "DeltaVoice",
+                "WorkflowService: Convex HTTP $responseCode — success=${result.success}, ttsFallback=${result.ttsFallback}, " +
+                    "audioB64Len=${result.convertedAudioBase64?.length ?: 0}"
+            )
             if (result.success || !result.originalText.isNullOrBlank() || !result.translatedText.isNullOrBlank()) {
                 result
             } else null
