@@ -20,7 +20,9 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.animation.DecelerateInterpolator
 import android.view.animation.LinearInterpolator
+import android.view.animation.OvershootInterpolator
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
@@ -86,7 +88,11 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ContentValues
 import android.content.Context
+import android.content.SharedPreferences
+import android.content.res.ColorStateList
 import android.content.res.Resources
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.os.Environment
 import android.os.SystemClock
 import android.provider.MediaStore
@@ -274,6 +280,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         // Backspace repeat: 22ms interval = 1000/22 ≈ 45 chars/sec (target 30-45)
         private const val BACKSPACE_REPEAT_START_DELAY_MS = 120L
         private const val BACKSPACE_REPEAT_INTERVAL_MS = 22L
+        private const val KEY_PRESS_DOWN_MS = 60L
+        private const val KEY_PRESS_UP_MS = 100L
+        private const val KEY_PRESS_SCALE = 0.92f
+        @Suppress("unused")
         private const val KEY_PRESS_ANIM_DURATION_MS = 35L
         private const val CLIPBOARD_PREFS = "clipboard_prefs"
         private const val CLIPBOARD_HISTORY_KEY = "clipboard_history"
@@ -281,46 +291,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         private const val CLIPBOARD_DELIMITER = "\u001E"
         private const val LONG_PRESS_DELAY_MS = 300L
 
-        /** Gboard-style: base key -> list of variants (lowercase + uppercase for letters). */
-        private val ACCENT_MAP: Map<String, List<String>> = mapOf(
-            "a" to listOf("à", "á", "â", "ã", "ä", "å", "æ", "ā", "ă", "ą", "ª", "À", "Á", "Â", "Ã", "Ä", "Å", "Æ", "Ā", "Ă", "Ą"),
-            "c" to listOf("ç", "ć", "č", "ĉ", "Ç", "Ć", "Č", "Ĉ"),
-            "d" to listOf("ð", "ď", "đ", "Ð", "Ď", "Đ"),
-            "e" to listOf("è", "é", "ê", "ë", "ē", "ė", "ę", "ě", "È", "É", "Ê", "Ë", "Ē", "Ė", "Ę", "Ě"),
-            "g" to listOf("ğ", "ĝ", "ġ", "Ğ", "Ĝ", "Ġ"),
-            "h" to listOf("ĥ", "ħ", "Ĥ", "Ħ"),
-            "i" to listOf("ì", "í", "î", "ï", "ī", "ĩ", "į", "ı", "¡", "Ì", "Í", "Î", "Ï", "Ī", "Ĩ", "Į", "İ"),
-            "j" to listOf("ĵ", "Ĵ"),
-            "l" to listOf("ł", "ĺ", "ľ", "ļ", "Ł", "Ĺ", "Ľ", "Ļ"),
-            "n" to listOf("ñ", "ń", "ň", "ņ", "Ñ", "Ń", "Ň", "Ņ"),
-            "o" to listOf("ò", "ó", "ô", "õ", "ö", "ø", "ō", "ő", "œ", "ọ", "Ò", "Ó", "Ô", "Õ", "Ö", "Ø", "Ō", "Ő", "Œ", "Ọ"),
-            "r" to listOf("ŕ", "ř", "Ŕ", "Ř"),
-            "s" to listOf("ß", "ś", "š", "ş", "ŝ", "Ś", "Š", "Ş", "Ŝ"),
-            "t" to listOf("ţ", "ť", "þ", "Ţ", "Ť", "Þ"),
-            "u" to listOf("ù", "ú", "û", "ü", "ū", "ů", "ű", "ų", "Ù", "Ú", "Û", "Ü", "Ū", "Ů", "Ű", "Ų"),
-            "w" to listOf("ŵ", "Ŵ"),
-            "y" to listOf("ý", "ŷ", "ÿ", "Ý", "Ŷ", "Ÿ"),
-            "z" to listOf("ž", "ź", "ż", "Ž", "Ź", "Ż"),
-            "0" to listOf("°", "⁰"),
-            "1" to listOf("¹", "½", "⅓", "¼", "⅛"),
-            "2" to listOf("²", "⅔"),
-            "3" to listOf("³", "¾", "⅜"),
-            "4" to listOf("⁴"),
-            "5" to listOf("⁵", "⅝"),
-            "7" to listOf("⁷", "⅞"),
-            "8" to listOf("⁸"),
-            "9" to listOf("⁹"),
-            "!" to listOf("¡"),
-            "?" to listOf("¿"),
-            "-" to listOf("–", "—", "·"),
-            "." to listOf("…", "•"),
-            "'" to listOf("'", "'", "‚", "‛"),
-            "\"" to listOf(""", """, "„", "‟"),
-            "/" to listOf("\\"),
-            "$" to listOf("€", "£", "¥", "₩", "₹", "₽"),
-            "&" to listOf("§"),
-            "%" to listOf("‰")
-        )
+        // Long-press accent maps moved to KeyboardAccentMaps.kt
     }
 
     /** True when this instance exists only to host overlay features (system IME not bound). */
@@ -365,6 +336,15 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private var longPressHandler = Handler(Looper.getMainLooper())
     private var longPressRunnable: Runnable? = null
     private var isLongPressActive = false
+
+    // Key preview popup (enlarged character above key)
+    private var keyPreviewPopup: android.widget.PopupWindow? = null
+    private var keyPreviewTextView: TextView? = null
+
+    // Theme palette — loaded from SharedPreferences, refreshed on theme change
+    private var currentPalette: com.deltavoice.theme.KeyboardThemePalette =
+        com.deltavoice.theme.KeyboardThemeStore.defaultPalette()
+    private var themePrefsListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
 
     private val languages = listOf(
         "English" to "en",
@@ -610,6 +590,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
             // #endregion
             applyOrientationOptimizations(rootView!!)
+            applyThemePalette()
             return rootView!!
         }
         // #region agent log
@@ -643,6 +624,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
 
     private fun bindKeyboardLayout(view: View) {
+        // Load current theme palette so all created views use palette colors
+        currentPalette = com.deltavoice.theme.KeyboardThemeStore.loadPalette(this)
+
         // Re-apply orientation-specific UI sizing each time the view is created.
         applyOrientationOptimizations(view)
 
@@ -716,6 +700,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         // Setup keyboard
         setupKeyboard(view)
 
+        // Apply theme palette colors to root, panels, top bar, and keys
+        applyThemePalette()
+
         // Setup language selector
         setupLanguageSelector(view)
 
@@ -760,6 +747,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         loadKeyboardLanguagePreference()
         spaceBarButton?.text = currentKeyboardLanguageName
         rebuildKeyboardLayout()
+        applyThemePalette()
         // #region agent log
         run {
             val pal = com.deltavoice.theme.KeyboardThemeStore.loadPalette(this)
@@ -869,6 +857,20 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         loadClipboardHistory()
         clipboardListener = ClipboardManager.OnPrimaryClipChangedListener { syncCurrentClipboardToHistory() }
         clipboardManager?.addPrimaryClipChangedListener(clipboardListener!!)
+
+        // Listen for theme changes from ThemesActivity and apply instantly
+        val themePrefs = com.deltavoice.theme.KeyboardThemeStore.prefs(this)
+        themePrefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key in setOf(
+                    com.deltavoice.theme.KeyboardThemeStore.KEY_SELECTED_THEME,
+                    com.deltavoice.theme.KeyboardThemeStore.KEY_CUSTOM_THEME_COLOR,
+                    com.deltavoice.theme.KeyboardThemeStore.KEY_ICON_COLOR
+                )
+            ) {
+                Handler(Looper.getMainLooper()).post { applyThemePalette() }
+            }
+        }
+        themePrefs.registerOnSharedPreferenceChangeListener(themePrefsListener)
     }
 
     /**
@@ -4773,9 +4775,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             val emptyChip = Button(this).apply {
                 text = "📋 No copied text yet"
                 textSize = 13f
-                setTextColor(Color.parseColor("#888888"))
+                setTextColor(currentPalette.keyTextMuted)
                 setPadding(16.dpToPx(), 8.dpToPx(), 16.dpToPx(), 8.dpToPx())
-                background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.glass_key_background)
+                background = makeThemedKeyDrawable(currentPalette.surface)
                 layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
@@ -4789,9 +4791,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 val chip = Button(this).apply {
                     this.text = displayText
                     textSize = 13f
-                    setTextColor(Color.parseColor("#EDEFF4"))
+                    setTextColor(currentPalette.keyText)
                     setPadding(12.dpToPx(), 8.dpToPx(), 12.dpToPx(), 8.dpToPx())
-                    background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.glass_key_background)
+                    background = makeThemedKeyDrawable(currentPalette.surface)
                     layoutParams = LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.WRAP_CONTENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT
@@ -5358,19 +5360,26 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     aiConversationHistory = aiConversationHistory.takeLast(10).toMutableList()
                 }
                 
-                // Try direct OpenAI API call only when API key is set (avoids 401)
-                if (getOpenAiApiKey().isNotBlank()) {
-                    val response = callOpenAiDirectly(message)
+                // Try user-configured provider first (OpenAI, Claude, Gemini, DeepSeek)
+                if (com.deltavoice.config.AiProviderConfig.hasDirectKey(this@MainKeyboardService)) {
+                    val response = com.deltavoice.config.AiProviderConfig.callProvider(
+                        this@MainKeyboardService, aiConversationHistory,
+                        aiChatConnectTimeoutMs, aiChatReadTimeoutMs
+                    )
                     if (response != null) {
                         aiConversationHistory.add(mapOf("role" to "assistant", "content" to response))
                         return@withContext response
                     }
                 }
                 
-                // Convex first (DeepSeek), then Supabase — DNS may not resolve Supabase host on some networks.
+                // Convex first (DeepSeek), then Supabase — each with its own timeout so
+                // a slow Convex failure doesn't starve the Supabase fallback.
                 val edgeResponse = if (isNetworkAvailable()) {
-                    withTimeoutOrNull(aiChatEdgeTotalTimeoutMs) {
-                        callOpenAiViaConvex(message) ?: callOpenAiViaSupabase(message)
+                    val convexResult = withTimeoutOrNull(aiChatEdgeTotalTimeoutMs) {
+                        callOpenAiViaConvex(message)
+                    }
+                    convexResult ?: withTimeoutOrNull(aiChatEdgeTotalTimeoutMs) {
+                        callOpenAiViaSupabase(message)
                     }
                 } else null
                 if (edgeResponse != null) {
@@ -5389,77 +5398,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
     }
     
-    /**
-     * Call OpenAI API directly for ChatGPT-like responses
-     */
-    private fun callOpenAiDirectly(message: String): String? {
-        try {
-            val url = java.net.URL("https://api.openai.com/v1/chat/completions")
-            val connection = url.openConnection() as java.net.HttpURLConnection
-            
-            connection.requestMethod = "POST"
-            connection.setRequestProperty("Content-Type", "application/json")
-            // Note: For production, store API key securely
-            connection.setRequestProperty("Authorization", "Bearer ${getOpenAiApiKey()}")
-            OutboundHttpPolicy.applyTo(connection)
-            connection.connectTimeout = aiChatConnectTimeoutMs
-            connection.readTimeout = aiChatReadTimeoutMs
-            connection.doOutput = true
-            
-            // Build messages array with conversation history
-            val messagesJson = StringBuilder("[")
-            messagesJson.append("""{"role":"system","content":"You are a helpful, friendly AI assistant. Be concise but informative. Use emojis occasionally to be friendly. Respond in the same language the user writes in. If asked to write something, provide complete and helpful content."}""")
-            
-            aiConversationHistory.takeLast(8).forEach { msg ->
-                val role = msg["role"] ?: "user"
-                val content = (msg["content"] ?: "")
-                    .replace("\\", "\\\\")
-                    .replace("\"", "\\\"")
-                    .replace("\n", "\\n")
-                    .replace("\r", "")
-                    .replace("\t", " ")
-                messagesJson.append(""",{"role":"$role","content":"$content"}""")
-            }
-            messagesJson.append("]")
-            
-            val requestBody = """{"model":"gpt-4o-mini","messages":$messagesJson,"max_tokens":1000,"temperature":0.7}"""
-            
-            android.util.Log.d("DeltaVoice", "Calling OpenAI API directly...")
-            
-            java.io.OutputStreamWriter(connection.outputStream).use { writer ->
-                writer.write(requestBody)
-                writer.flush()
-            }
-            
-            val responseCode = connection.responseCode
-            android.util.Log.d("DeltaVoice", "OpenAI response code: $responseCode")
-            
-            if (responseCode == 200) {
-                val responseText = connection.inputStream.bufferedReader().use { it.readText() }
-                android.util.Log.d("DeltaVoice", "OpenAI response received: ${responseText.take(200)}")
-                connection.disconnect()
-                return parseAiChatResponse(responseText)
-            } else {
-                val errorText = connection.errorStream?.bufferedReader()?.use { it.readText() } ?: "Unknown error"
-                android.util.Log.e("DeltaVoice", "OpenAI API error: $responseCode - $errorText")
-            }
-            connection.disconnect()
-            
-        } catch (e: Exception) {
-            android.util.Log.e("DeltaVoice", "OpenAI direct call failed: ${e.message}")
-        }
-        
-        return null
-    }
-    
-    /**
-     * Get OpenAI API key from user preferences (optional).
-     * When set, bypasses Supabase and calls OpenAI directly — useful when Supabase is unreachable.
-     */
-    private fun getOpenAiApiKey(): String {
-        return getSharedPreferences("deltavoice_prefs", MODE_PRIVATE)
-            .getString("openai_api_key", "") ?: ""
-    }
+    /** Check if user has configured a direct AI provider key. */
+    private fun hasDirectAiKey(): Boolean =
+        com.deltavoice.config.AiProviderConfig.hasDirectKey(this)
     
     /**
      * Call OpenAI via Convex HTTP endpoint (no auth needed, uses Convex env OPENAI_API_KEY)
@@ -5555,7 +5496,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 val msg = e.message ?: ""
                 if (msg.contains("Unable to resolve host", ignoreCase = true) || msg.contains("No address", ignoreCase = true)) {
                     Handler(android.os.Looper.getMainLooper()).post {
-                        val hint = if (getOpenAiApiKey().isNotBlank()) "" else "\n\nTip: Add your OpenAI API key in AI Assistant settings to use when server is unreachable."
+                        val hint = if (hasDirectAiKey()) "" else "\n\nTip: Add your API key in AI Assistant settings to use when server is unreachable."
                         Toast.makeText(this@MainKeyboardService, getString(R.string.cant_reach_server_with_hint, hint), Toast.LENGTH_LONG).show()
                     }
                 }
@@ -7074,9 +7015,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * [KeyboardLayouts] rows are authored left-to-right (Gboard-style Arabic).
      * Arabic locale is RTL, which mirrors horizontal rows and reverses keys; IME rows stay visually LTR.
      */
-    private fun layoutDirectionForKeyboardKeyRows(code: String): Int =
-        if (code.equals("ar", ignoreCase = true)) View.LAYOUT_DIRECTION_LTR
+    private val rtlKeyRowsOverrideLtr = setOf("ar", "fa", "ur", "he", "iw")
+
+    private fun layoutDirectionForKeyboardKeyRows(code: String): Int {
+        val lc = code.trim().lowercase()
+        return if (lc in rtlKeyRowsOverrideLtr) View.LAYOUT_DIRECTION_LTR
         else layoutDirectionForKeyboardLanguageCode(code)
+    }
 
     private fun keyboardKeyRowsLayoutDirection(): Int =
         layoutDirectionForKeyboardKeyRows(currentKeyboardLanguage)
@@ -7145,6 +7090,110 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             R.id.ai_chat_mini_keyboard_bottom_row
         ).forEach { id ->
             view.findViewById<LinearLayout>(id)?.layoutDirection = dir
+        }
+    }
+
+    // ── Theme palette helpers ────────────────────────────────────────────
+
+    private fun makeThemedKeyDrawable(color: Int, radiusDp: Float = 8f): android.graphics.drawable.Drawable {
+        val radius = radiusDp * resources.displayMetrics.density
+        val shape = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = radius
+            setColor(color)
+        }
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            val mask = GradientDrawable().apply {
+                this.shape = GradientDrawable.RECTANGLE
+                cornerRadius = radius
+                setColor(Color.WHITE)
+            }
+            RippleDrawable(ColorStateList.valueOf(androidx.core.graphics.ColorUtils.setAlphaComponent(Color.WHITE, 0x22)), shape, mask)
+        } else {
+            shape
+        }
+    }
+
+    private fun makeThemedPanelDrawable(color: Int, radiusDp: Float, strokeColor: Int = 0): GradientDrawable {
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = radiusDp * resources.displayMetrics.density
+            setColor(color)
+            if (strokeColor != 0) {
+                setStroke((1 * resources.displayMetrics.density).toInt(), strokeColor)
+            }
+        }
+    }
+
+    /**
+     * Re-read the theme palette from SharedPreferences and apply colors to all existing views.
+     * Safe to call at any time (before or after inflate).
+     */
+    private fun applyThemePalette() {
+        currentPalette = com.deltavoice.theme.KeyboardThemeStore.loadPalette(this)
+        val view = rootView ?: return
+        val pal = currentPalette
+
+        // Root background: gradient tinted to palette
+        val rootBg = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            orientation = GradientDrawable.Orientation.TL_BR
+            colors = intArrayOf(
+                androidx.core.graphics.ColorUtils.setAlphaComponent(pal.background, 0xCC),
+                androidx.core.graphics.ColorUtils.setAlphaComponent(
+                    androidx.core.graphics.ColorUtils.blendARGB(pal.background, pal.accent, 0.15f), 0xCC
+                )
+            )
+        }
+        view.background = rootBg
+
+        // Top bar panel
+        view.findViewById<FrameLayout>(R.id.top_bar_container)?.background = makeThemedPanelDrawable(
+            color = androidx.core.graphics.ColorUtils.setAlphaComponent(pal.background, 0xDD),
+            radiusDp = 24f,
+            strokeColor = androidx.core.graphics.ColorUtils.setAlphaComponent(Color.WHITE, 0x26)
+        )
+
+        // Keyboard panel frame
+        view.findViewById<FrameLayout>(R.id.keyboard_panel_frame)?.background = makeThemedPanelDrawable(
+            color = androidx.core.graphics.ColorUtils.setAlphaComponent(pal.background, 0xDD),
+            radiusDp = 28f,
+            strokeColor = androidx.core.graphics.ColorUtils.setAlphaComponent(Color.WHITE, 0x26)
+        )
+
+        // Top bar icon buttons
+        val topBarIcons = listOf(
+            R.id.btn_more, R.id.btn_camera, R.id.btn_list,
+            R.id.btn_text_t, R.id.btn_kb_plus, R.id.btn_voice, R.id.btn_app_grid
+        )
+        for (iconId in topBarIcons) {
+            val ib = view.findViewById<ImageButton>(iconId) ?: continue
+            ib.setColorFilter(pal.iconTint, android.graphics.PorterDuff.Mode.SRC_IN)
+            val circBg = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(androidx.core.graphics.ColorUtils.setAlphaComponent(pal.accent, 0x33))
+                setSize((48 * resources.displayMetrics.density).toInt(), (48 * resources.displayMetrics.density).toInt())
+            }
+            ib.background = circBg
+        }
+
+        // Key rows: re-tint every button
+        val keyRowIds = listOf(R.id.row_numbers, R.id.row_qwerty, R.id.row_asdf, R.id.row_zxcv, R.id.row_bottom)
+        for (rowId in keyRowIds) {
+            val row = view.findViewById<LinearLayout>(rowId) ?: continue
+            for (i in 0 until row.childCount) {
+                val child = row.getChildAt(i) as? Button ?: continue
+                val tag = child.tag as? String
+                val isSpecial = tag != null && tag in setOf("BACKSPACE", "SHIFT", "NUMBERS", "LANGUAGE", "EMOJI", "ENTER")
+                val isEnter = tag == "ENTER"
+                val keyColor = when {
+                    isEnter -> androidx.core.graphics.ColorUtils.setAlphaComponent(pal.accent, 0x55)
+                    isSpecial -> pal.surface
+                    else -> androidx.core.graphics.ColorUtils.blendARGB(pal.background, Color.WHITE, 0.08f)
+                }
+                child.background = makeThemedKeyDrawable(keyColor)
+                child.setTextColor(pal.keyText)
+            }
         }
     }
 
@@ -7234,16 +7283,16 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 label.length > 1 -> if (isLandscapeKey) 10f else 12f
                 else -> if (isLandscapeKey) 13f else 16f
             }
-            setTextColor(Color.parseColor("#F2F2F2"))
+            setTextColor(currentPalette.keyText)
             gravity = Gravity.CENTER
             isAllCaps = false
             setIncludeFontPadding(true)
             val keyVertPad = if (isLandscapeKey) 4 else 8
             setPadding(6, keyVertPad, 6, keyVertPad)
             minHeight = getKeyHeightDp().dpToPx()
-            background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.glass_key_background)
+            val keyColor = androidx.core.graphics.ColorUtils.blendARGB(currentPalette.background, Color.WHITE, 0.08f)
+            background = makeThemedKeyDrawable(keyColor)
             
-            // Gboard-style: minimal gaps for larger touch area, edge-to-edge feel
             val keyMargin = if (isLandscapeKey) 1 else 1
             val layoutParams = LinearLayout.LayoutParams(
                 0,
@@ -7257,7 +7306,6 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             }
             this.layoutParams = layoutParams
             
-            // Prevent focus
             isFocusable = false
             isFocusableInTouchMode = false
 
@@ -7281,7 +7329,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             val isLandscapeKey = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
             text = "$number\n$letterDisplay"
             textSize = if (isLandscapeKey) 10f else 12f
-            setTextColor(Color.parseColor("#333333"))
+            setTextColor(currentPalette.keyTextMuted)
             gravity = Gravity.CENTER
             isAllCaps = false
             setIncludeFontPadding(true)
@@ -7289,7 +7337,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             val vertPad = if (isLandscapeKey) 4 else 8
             setPadding(6, vertPad, 6, if (isLandscapeKey) 4 else 10)
             minHeight = (getKeyHeightDp() + if (isLandscapeKey) 0 else 4).dpToPx()
-            background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.glass_key_background)
+            val keyColor = androidx.core.graphics.ColorUtils.blendARGB(currentPalette.background, Color.WHITE, 0.08f)
+            background = makeThemedKeyDrawable(keyColor)
             
             val keyMargin = 1
             val layoutParams = LinearLayout.LayoutParams(
@@ -7321,19 +7370,24 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * @param isEnterKey use glass_key_enter_background for return/enter key
      */
     private fun createSpecialKeyButton(label: String, value: String, weight: Float = 1f, isEnterKey: Boolean = false): Button {
-        val drawableRes = if (isEnterKey) R.drawable.glass_key_enter_background else R.drawable.glass_key_special_background
         val isLandscapeKey = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         val button = Button(this).apply {
+            tag = value
             text = label
             textSize = if (isLandscapeKey) 11f else 14f
-            setTextColor(Color.parseColor("#F2F2F2"))
+            setTextColor(currentPalette.keyText)
             gravity = Gravity.CENTER
             isAllCaps = false
             setIncludeFontPadding(true)
             val keyVertPad = if (isLandscapeKey) 4 else 8
             setPadding(6, keyVertPad, 6, keyVertPad)
             minHeight = getKeyHeightDp().dpToPx()
-            background = ContextCompat.getDrawable(this@MainKeyboardService, drawableRes)
+            val keyColor = if (isEnterKey) {
+                androidx.core.graphics.ColorUtils.setAlphaComponent(currentPalette.accent, 0x55)
+            } else {
+                currentPalette.surface
+            }
+            background = makeThemedKeyDrawable(keyColor)
             
             val keyMargin = 1
             val layoutParams = LinearLayout.LayoutParams(
@@ -7361,18 +7415,22 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 setOnTouchListener { touchedView, event ->
                     when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
-                            touchedView.animate().scaleX(0.94f).scaleY(0.94f)
-                                .setDuration(KEY_PRESS_ANIM_DURATION_MS)
-                                .setInterpolator(LinearInterpolator()).start()
+                            touchedView.isPressed = true
+                            touchedView.animate().scaleX(KEY_PRESS_SCALE).scaleY(KEY_PRESS_SCALE)
+                                .alpha(0.85f)
+                                .setDuration(KEY_PRESS_DOWN_MS)
+                                .setInterpolator(DecelerateInterpolator()).start()
                             startBackspaceRepeat(touchedView)
                             true
                         }
                         MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                             stopBackspaceRepeat(applyPredictionUpdate = true)
                             playKeyFeedback(touchedView)
+                            touchedView.isPressed = false
                             touchedView.animate().scaleX(1f).scaleY(1f)
-                                .setDuration(KEY_PRESS_ANIM_DURATION_MS)
-                                .setInterpolator(LinearInterpolator()).start()
+                                .alpha(1f)
+                                .setDuration(KEY_PRESS_UP_MS)
+                                .setInterpolator(OvershootInterpolator(1.2f)).start()
                             true
                         }
                         else -> false
@@ -7385,11 +7443,78 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         return button
     }
 
+    // ── Key Preview Popup ────────────────────────────────────────────
+
+    private val skipPreviewValues = setOf(
+        "SHIFT", "BACKSPACE", "NUMBERS", "LANGUAGE", "EMOJI",
+        "ENTER", "TOGGLE_SYMBOLS", " "
+    )
+
+    private fun showKeyPreview(anchor: View, keyValue: String) {
+        if (keyValue.isBlank() || keyValue in skipPreviewValues) return
+        dismissKeyPreview()
+
+        val density = resources.displayMetrics.density
+        val tv = (keyPreviewTextView ?: TextView(this).also { keyPreviewTextView = it }).apply {
+            text = if (keyValue.length == 1 && isShiftPressed) keyValue.uppercase() else keyValue
+            textSize = 28f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+            val padH = (14 * density).toInt()
+            val padV = (8 * density).toInt()
+            setPadding(padH, padV, padH, padV)
+            background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.key_preview_background)
+        }
+
+        val wSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        tv.measure(wSpec, wSpec)
+        val pw = tv.measuredWidth.coerceAtLeast((48 * density).toInt())
+        val ph = tv.measuredHeight.coerceAtLeast((48 * density).toInt())
+
+        val popup = (keyPreviewPopup ?: android.widget.PopupWindow(this).also { keyPreviewPopup = it }).apply {
+            contentView = tv
+            width = pw
+            height = ph
+            setBackgroundDrawable(null)
+            isOutsideTouchable = false
+            isFocusable = false
+            isTouchable = false
+            inputMethodMode = android.widget.PopupWindow.INPUT_METHOD_NOT_NEEDED
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) elevation = 16 * density
+        }
+
+        val loc = IntArray(2)
+        anchor.getLocationInWindow(loc)
+        val x = loc[0] + anchor.width / 2 - pw / 2
+        val y = loc[1] - ph - (8 * density).toInt()
+        val screenW = resources.displayMetrics.widthPixels
+        val clampedX = x.coerceIn(4, screenW - pw - 4)
+
+        rootView?.let { rv ->
+            popup.showAtLocation(rv, Gravity.NO_GRAVITY, clampedX, y.coerceAtLeast(0))
+        }
+
+        tv.scaleX = 0.6f
+        tv.scaleY = 0.6f
+        tv.alpha = 0f
+        tv.animate()
+            .scaleX(1f).scaleY(1f).alpha(1f)
+            .setDuration(60)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
+    }
+
+    private fun dismissKeyPreview() {
+        try { keyPreviewPopup?.dismiss() } catch (_: Exception) {}
+    }
+
     /**
      * Show Gboard-style accent popup above the anchor key.
      * Dark gray panel with blue selection highlight; grid layout, ~6 chars per row.
      */
     private fun showAccentPopup(anchor: View, chars: List<String>) {
+        dismissKeyPreview()
         dismissAccentPopup()
         if (chars.isEmpty()) return
 
@@ -7477,6 +7602,14 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
         accentPopup = popup
 
+        container.scaleY = 0.8f
+        container.alpha = 0f
+        container.animate()
+            .scaleY(1f).alpha(1f)
+            .setDuration(100)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
+
         accentPopupSelectedIndex = 0
         updateAccentPopupHighlight(0)
 
@@ -7535,7 +7668,18 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
 
     private fun dismissAccentPopup() {
-        accentPopup?.dismiss()
+        val popup = accentPopup
+        if (popup != null) {
+            val cv = popup.contentView
+            cv.animate()
+                .alpha(0f)
+                .setDuration(60)
+                .setInterpolator(DecelerateInterpolator())
+                .withEndAction {
+                    try { popup.dismiss() } catch (_: Exception) {}
+                }
+                .start()
+        }
         accentPopup = null
         accentPopupChars = emptyList()
         accentPopupViews = emptyList()
@@ -7546,11 +7690,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         longPressRunnable = null
     }
 
-    /** Returns lowercase + uppercase variants for letters; symbol variants for numbers/symbols. */
-    private fun getAccentsForKey(value: String): List<String> {
-        val key = if (value.length == 1) value.lowercase() else value
-        return ACCENT_MAP[key] ?: emptyList()
-    }
+    private fun getAccentsForKey(value: String): List<String> =
+        KeyboardAccentMaps.forKey(value, currentKeyboardLanguage)
 
     /**
      * Apply lightweight scale animation and execute action. Fires on ACTION_DOWN for immediate
@@ -7573,15 +7714,19 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 MotionEvent.ACTION_DOWN -> {
                     action()
                     Handler(Looper.getMainLooper()).post { playKeyFeedback(v) }
-                    v.animate().scaleX(0.94f).scaleY(0.94f)
-                        .setDuration(KEY_PRESS_ANIM_DURATION_MS)
-                        .setInterpolator(LinearInterpolator()).start()
+                    v.isPressed = true
+                    v.animate().scaleX(KEY_PRESS_SCALE).scaleY(KEY_PRESS_SCALE)
+                        .alpha(0.85f)
+                        .setDuration(KEY_PRESS_DOWN_MS)
+                        .setInterpolator(DecelerateInterpolator()).start()
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    v.isPressed = false
                     v.animate().scaleX(1f).scaleY(1f)
-                        .setDuration(KEY_PRESS_ANIM_DURATION_MS)
-                        .setInterpolator(LinearInterpolator()).start()
+                        .alpha(1f)
+                        .setDuration(KEY_PRESS_UP_MS)
+                        .setInterpolator(OvershootInterpolator(1.2f)).start()
                     true
                 }
                 else -> false
@@ -7608,9 +7753,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                         action()
                     }
                     Handler(Looper.getMainLooper()).post { playKeyFeedback(v) }
-                    v.animate().scaleX(0.94f).scaleY(0.94f)
-                        .setDuration(KEY_PRESS_ANIM_DURATION_MS)
-                        .setInterpolator(LinearInterpolator()).start()
+                    v.isPressed = true
+                    v.animate().scaleX(KEY_PRESS_SCALE).scaleY(KEY_PRESS_SCALE)
+                        .alpha(0.85f)
+                        .setDuration(KEY_PRESS_DOWN_MS)
+                        .setInterpolator(DecelerateInterpolator()).start()
+
+                    showKeyPreview(v, keyValue)
 
                     if (hasAccents) {
                         longPressRunnable?.let { longPressHandler.removeCallbacks(it) }
@@ -7640,9 +7789,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                             action()
                         }
                     }
+                    v.isPressed = false
+                    dismissKeyPreview()
                     v.animate().scaleX(1f).scaleY(1f)
-                        .setDuration(KEY_PRESS_ANIM_DURATION_MS)
-                        .setInterpolator(LinearInterpolator()).start()
+                        .alpha(1f)
+                        .setDuration(KEY_PRESS_UP_MS)
+                        .setInterpolator(OvershootInterpolator(1.2f)).start()
                     true
                 }
                 else -> false
@@ -8125,12 +8277,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             val chip = Button(this).apply {
                 text = word
                 textSize = if (isAutoCorrect) 15f else 14f
-                setTextColor(if (isAutoCorrect) Color.WHITE else Color.parseColor("#EDEFF4"))
+                setTextColor(if (isAutoCorrect) currentPalette.keyText else currentPalette.keyText)
                 if (isAutoCorrect) {
                     setTypeface(typeface, android.graphics.Typeface.BOLD)
                 }
                 setPadding(16.dpToPx(), 8.dpToPx(), 16.dpToPx(), 8.dpToPx())
-                background = ContextCompat.getDrawable(this@MainKeyboardService, R.drawable.glass_key_background)
+                background = makeThemedKeyDrawable(if (isAutoCorrect) currentPalette.surface else currentPalette.surface)
                 layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
@@ -8261,16 +8413,17 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         shiftButton?.let { button ->
             when {
                 isCapsLocked -> {
-                    // Stronger highlight for caps lock
-                    button.setBackgroundColor(Color.parseColor("#99FFFFFF"))
+                    button.background = makeThemedKeyDrawable(
+                        androidx.core.graphics.ColorUtils.setAlphaComponent(currentPalette.accent, 0x99)
+                    )
                 }
                 isShiftPressed -> {
-                    // Lighter highlight for single-shift
-                    button.setBackgroundColor(Color.parseColor("#33FFFFFF"))
+                    button.background = makeThemedKeyDrawable(
+                        androidx.core.graphics.ColorUtils.setAlphaComponent(currentPalette.accent, 0x44)
+                    )
                 }
                 else -> {
-                    // Default background when shift is off
-                    button.background = ContextCompat.getDrawable(this, R.drawable.glass_key_special_background)
+                    button.background = makeThemedKeyDrawable(currentPalette.surface)
                 }
             }
         }
@@ -9935,6 +10088,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     override fun onDestroy() {
         if (standaloneOverlayInstance === this) standaloneOverlayInstance = null
         serviceInstance = null
+        themePrefsListener?.let {
+            com.deltavoice.theme.KeyboardThemeStore.prefs(this).unregisterOnSharedPreferenceChangeListener(it)
+        }
+        themePrefsListener = null
         videoUploadReceiver?.let { unregisterReceiver(it) }
         videoUploadReceiver = null
         audioUploadReceiver?.let { unregisterReceiver(it) }

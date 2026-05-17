@@ -8,8 +8,8 @@
 
 // Get configuration (loaded from config.js)
 const config = window.DeltaVoiceConfig || {
-    SUPABASE_URL: 'https://yvizvsojpwgvaisoahda.supabase.co',
-    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2aXp2c29qcHdndmFpc29haGRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3NDMyNDEsImV4cCI6MjA2NTMxOTI0MX0.EUdnCzjgKD9fTKopQlDIkPSrDd7cke1OtW2IlXraJek',
+    SUPABASE_URL: 'https://rkfveqzktfmgegtsoxlf.supabase.co',
+    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrZnZlcXprdGZtZ2VndHNveGxmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NzAyMDYsImV4cCI6MjA5MjM0NjIwNn0.dOmPCxz5Dq5ZtnX3LU7LTNjyHFcxWbJ5XLNrWPUF0NM',
     FUNCTIONS: { COMPLETE_VOICE_WORKFLOW: 'complete-voice-workflow', WRITING_TOOL: 'writing-tool', AI_CHAT: 'ai-chat' }
 };
 

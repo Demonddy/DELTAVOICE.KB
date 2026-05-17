@@ -9,10 +9,12 @@ import android.text.InputType
 import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -20,6 +22,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import com.deltavoice.ui.ShimmerView
 import android.graphics.Color
+import com.deltavoice.config.AiProvider
+import com.deltavoice.config.AiProviderConfig
 import com.deltavoice.config.ConvexConfig
 import com.deltavoice.config.SupabaseConfig
 import com.deltavoice.util.NetworkUtils
@@ -140,14 +144,19 @@ class AIChatConfigActivity : AppCompatActivity() {
         val message = chatInput.text.toString().trim()
         if (message.isBlank()) return
 
-        if (!NetworkUtils.isConnected(this)) {
-            showInternetRequiredSnackbar(R.string.internet_required_ai_chat)
-        }
-
         chatInput.setText("")
         addMessage(message, true)
         conversationHistory.add("user" to message)
         btnSend.isEnabled = false
+
+        if (!NetworkUtils.isConnected(this) && getAiApiKey().isBlank()) {
+            showInternetRequiredSnackbar(R.string.internet_required_ai_chat)
+            val reply = getFallbackResponse(message)
+            addMessage(reply, false)
+            conversationHistory.add("assistant" to reply)
+            btnSend.isEnabled = true
+            return
+        }
 
         addLoadingMessage()
 
@@ -212,10 +221,7 @@ class AIChatConfigActivity : AppCompatActivity() {
         }
     }
 
-    private fun getOpenAiApiKey(): String {
-        return getSharedPreferences("deltavoice_prefs", Context.MODE_PRIVATE)
-            .getString("openai_api_key", "") ?: ""
-    }
+    private fun getAiApiKey(): String = AiProviderConfig.getApiKey(this)
 
     // #region agent log
     private fun aidLog(hypothesisId: String, location: String, message: String, data: Map<String, Any?>) {
@@ -237,17 +243,22 @@ class AIChatConfigActivity : AppCompatActivity() {
     // #endregion
 
     private fun callAiApi(userMessage: String): String? {
-        // Try direct OpenAI first when user has API key
-        val openAiKey = getOpenAiApiKey()
-        if (openAiKey.isNotBlank()) {
-            val directResponse = callOpenAiDirectly()
-            aidLog("H3", "callAiApi", "direct_openai", mapOf("hadKey" to true, "nonNull" to (directResponse != null)))
-            if (directResponse != null) return directResponse
-        } else {
-            aidLog("H3", "callAiApi", "direct_openai_skipped", mapOf("hadKey" to false))
+        // Build history in the format AiProviderConfig expects
+        val historyMaps = conversationHistory.map { (role, content) ->
+            mapOf("role" to role, "content" to content)
         }
 
-        // Convex first (DeepSeek on server); Supabase second — avoids total failure when Supabase host does not resolve (DNS).
+        // Try user-selected provider first when an API key is configured
+        if (AiProviderConfig.hasDirectKey(this)) {
+            val directResponse = AiProviderConfig.callProvider(this, historyMaps)
+            val provider = AiProviderConfig.getProvider(this)
+            aidLog("H3", "callAiApi", "direct_provider", mapOf("provider" to provider.name, "nonNull" to (directResponse != null)))
+            if (directResponse != null) return directResponse
+        } else {
+            aidLog("H3", "callAiApi", "direct_provider_skipped", mapOf("hadKey" to false))
+        }
+
+        // Convex first (DeepSeek on server); Supabase second
         return try {
             val c = callOpenAiViaConvex()
             if (c != null) {
@@ -261,7 +272,8 @@ class AIChatConfigActivity : AppCompatActivity() {
             aidLog("H4", "callAiApi", "exception", mapOf("type" to e.javaClass.simpleName, "msg" to (e.message?.take(120) ?: "")))
             if (e.message?.contains("Unable to resolve host", ignoreCase = true) == true) {
                 mainHandler.post {
-                    val hint = if (openAiKey.isNotBlank()) "" else "\n\nTip: Tap the ⚙ icon to add your OpenAI API key for when the server is unreachable."
+                    val hasKey = AiProviderConfig.hasDirectKey(this)
+                    val hint = if (hasKey) "" else "\n\nTip: Tap the settings icon to add your API key for when the server is unreachable."
                     Toast.makeText(this, getString(R.string.cant_reach_server_with_hint, hint), Toast.LENGTH_LONG).show()
                 }
             }
@@ -372,46 +384,10 @@ class AIChatConfigActivity : AppCompatActivity() {
                 )
             )
             connection.disconnect()
-            parsed
+            if (code in 200..299) parsed else null
         } catch (e: Exception) {
             aidLog("H1", "callOpenAiViaConvex", "exception", mapOf("msg" to (e.message?.take(120) ?: "")))
             android.util.Log.e("AIChatConfig", "Convex AI call failed: ${e.message}")
-            null
-        }
-    }
-
-    private fun callOpenAiDirectly(): String? {
-        val apiKey = getOpenAiApiKey()
-        if (apiKey.isBlank()) return null
-        return try {
-            val url = URL("https://api.openai.com/v1/chat/completions")
-            val connection = url.openConnection() as HttpURLConnection
-            connection.requestMethod = "POST"
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.setRequestProperty("Authorization", "Bearer $apiKey")
-            connection.connectTimeout = 30000
-            connection.readTimeout = 60000
-            connection.doOutput = true
-
-            val messagesJson = StringBuilder("[")
-            messagesJson.append("""{"role":"system","content":"You are a helpful, friendly AI assistant. Be concise. Use emojis occasionally. Respond in the same language the user writes in."}""")
-            conversationHistory.takeLast(8).forEach { (role, content) ->
-                val escaped = content.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
-                messagesJson.append(""",{"role":"$role","content":"$escaped"}""")
-            }
-            messagesJson.append("]")
-            val requestBody = """{"model":"gpt-4o-mini","messages":$messagesJson,"max_tokens":1000,"temperature":0.7}"""
-
-            connection.outputStream.use { it.write(requestBody.toByteArray()) }
-
-            if (connection.responseCode == 200) {
-                val responseText = connection.inputStream.bufferedReader().readText()
-                parseAiResponse(responseText)?.let { return it }
-            }
-            connection.disconnect()
-            null
-        } catch (e: Exception) {
-            android.util.Log.e("AIChatConfig", "OpenAI direct call failed: ${e.message}")
             null
         }
     }
@@ -451,25 +427,143 @@ class AIChatConfigActivity : AppCompatActivity() {
     }
 
     private fun showApiKeyDialog() {
-        val prefs = getSharedPreferences("deltavoice_prefs", Context.MODE_PRIVATE)
-        val currentKey = prefs.getString("openai_api_key", "") ?: ""
+        val currentProvider = AiProviderConfig.getProvider(this)
+        val currentKey = AiProviderConfig.getApiKey(this)
+        val currentModel = AiProviderConfig.getModel(this)
+        val currentEndpoint = AiProviderConfig.getEndpoint(this)
 
-        val input = EditText(this).apply {
+        val providers = AiProvider.entries.toTypedArray()
+        val dp = resources.displayMetrics.density
+
+        val scrollWrapper = ScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((24 * dp).toInt(), (16 * dp).toInt(), (24 * dp).toInt(), (8 * dp).toInt())
+        }
+        scrollWrapper.addView(container)
+
+        // Provider label
+        container.addView(TextView(this).apply {
+            text = getString(R.string.ai_chat_provider_label)
+            setTextColor(Color.parseColor("#9CA3AF"))
+            textSize = 13f
+            setPadding(0, 0, 0, (4 * dp).toInt())
+        })
+
+        val spinner = Spinner(this).apply {
+            adapter = ArrayAdapter(
+                this@AIChatConfigActivity,
+                android.R.layout.simple_spinner_dropdown_item,
+                providers.map { it.displayName }
+            )
+            setSelection(providers.indexOf(currentProvider).coerceAtLeast(0))
+        }
+        container.addView(spinner)
+
+        // Endpoint URL label + input (only for CUSTOM)
+        val endpointLabel = TextView(this).apply {
+            text = getString(R.string.ai_chat_endpoint_label)
+            setTextColor(Color.parseColor("#9CA3AF"))
+            textSize = 13f
+            setPadding(0, (12 * dp).toInt(), 0, (4 * dp).toInt())
+        }
+        container.addView(endpointLabel)
+
+        val endpointInput = EditText(this).apply {
+            setText(currentEndpoint)
+            hint = getString(R.string.ai_chat_endpoint_hint)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+            setTextColor(Color.parseColor("#E5E7EB"))
+            setHintTextColor(Color.parseColor("#6B7280"))
+            setBackgroundColor(Color.parseColor("#1F2937"))
+            setPadding((12 * dp).toInt(), (10 * dp).toInt(), (12 * dp).toInt(), (10 * dp).toInt())
+        }
+        container.addView(endpointInput)
+
+        // API key label
+        val keyLabel = TextView(this).apply {
+            text = getString(R.string.ai_chat_api_key_label)
+            setTextColor(Color.parseColor("#9CA3AF"))
+            textSize = 13f
+            setPadding(0, (12 * dp).toInt(), 0, (4 * dp).toInt())
+        }
+        container.addView(keyLabel)
+
+        val keyInput = EditText(this).apply {
             setText(currentKey)
-            hint = getString(R.string.ai_chat_api_key_hint)
-            setPadding(48, 32, 48, 32)
+            hint = currentProvider.hint
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             setTextColor(Color.parseColor("#E5E7EB"))
             setHintTextColor(Color.parseColor("#6B7280"))
+            setBackgroundColor(Color.parseColor("#1F2937"))
+            setPadding((12 * dp).toInt(), (10 * dp).toInt(), (12 * dp).toInt(), (10 * dp).toInt())
+        }
+        container.addView(keyInput)
+
+        // Model label
+        val modelLabel = TextView(this).apply {
+            text = getString(R.string.ai_chat_model_label)
+            setTextColor(Color.parseColor("#9CA3AF"))
+            textSize = 13f
+            setPadding(0, (12 * dp).toInt(), 0, (4 * dp).toInt())
+        }
+        container.addView(modelLabel)
+
+        val modelInput = EditText(this).apply {
+            setText(currentModel)
+            hint = getString(R.string.ai_chat_model_hint)
+            inputType = InputType.TYPE_CLASS_TEXT
+            setTextColor(Color.parseColor("#E5E7EB"))
+            setHintTextColor(Color.parseColor("#6B7280"))
+            setBackgroundColor(Color.parseColor("#1F2937"))
+            setPadding((12 * dp).toInt(), (10 * dp).toInt(), (12 * dp).toInt(), (10 * dp).toInt())
+        }
+        container.addView(modelInput)
+
+        fun updateFieldVisibility(provider: AiProvider) {
+            val keyVis = if (provider.requiresKey) View.VISIBLE else View.GONE
+            keyLabel.visibility = keyVis
+            keyInput.visibility = keyVis
+            modelLabel.visibility = keyVis
+            modelInput.visibility = keyVis
+
+            val endpointVis = if (provider.requiresEndpoint) View.VISIBLE else View.GONE
+            endpointLabel.visibility = endpointVis
+            endpointInput.visibility = endpointVis
+
+            if (provider.requiresKey) {
+                keyInput.hint = provider.hint
+                if (modelInput.text.isNullOrBlank() || providers.any { it.defaultModel == modelInput.text.toString() }) {
+                    modelInput.setText(provider.defaultModel)
+                }
+            }
+        }
+        updateFieldVisibility(currentProvider)
+
+        spinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, pos: Int, id: Long) {
+                updateFieldVisibility(providers[pos])
+            }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
         }
 
         AlertDialog.Builder(this, R.style.Theme_DeltaVoice_Dialog)
             .setTitle(R.string.ai_chat_api_key_title)
-            .setView(input)
+            .setView(scrollWrapper)
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                val key = input.text.toString().trim()
-                prefs.edit().putString("openai_api_key", key).apply()
-                Toast.makeText(this, if (key.isNotBlank()) R.string.ai_chat_api_key_saved else R.string.ai_chat_api_key_removed, Toast.LENGTH_SHORT).show()
+                val selected = providers[spinner.selectedItemPosition]
+                val key = keyInput.text.toString().trim()
+                val model = modelInput.text.toString().trim()
+                val endpoint = endpointInput.text.toString().trim()
+                AiProviderConfig.save(this, selected, key, model, endpoint)
+                val msgRes = if (selected == AiProvider.BUILT_IN) R.string.ai_chat_api_key_removed else R.string.ai_chat_api_key_saved
+                Toast.makeText(this, msgRes, Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()

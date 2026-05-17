@@ -78,10 +78,16 @@
     <string name="ai_chat_title">AI Assistant</string>
     <string name="ai_chat_welcome">Hi! I\'m your AI assistant. Ask me anything — I can help with writing, questions, translations, and more!</string>
     <string name="ai_chat_hint">Type your message…</string>
-    <string name="ai_chat_api_key_title">OpenAI API Key (optional)</string>
-    <string name="ai_chat_api_key_hint">Add your key to use AI when server is unreachable</string>
-    <string name="ai_chat_api_key_saved">API key saved. AI will use it when server is down.</string>
-    <string name="ai_chat_api_key_removed">API key removed.</string>
+    <string name="ai_chat_api_key_title">AI Provider Settings</string>
+    <string name="ai_chat_api_key_hint">Paste your API key here</string>
+    <string name="ai_chat_api_key_saved">AI provider saved.</string>
+    <string name="ai_chat_api_key_removed">Switched to built-in AI.</string>
+    <string name="ai_chat_provider_label">AI Provider</string>
+    <string name="ai_chat_api_key_label">API Key</string>
+    <string name="ai_chat_model_label">Model (optional)</string>
+    <string name="ai_chat_model_hint">Leave blank for default</string>
+    <string name="ai_chat_endpoint_label">Endpoint URL</string>
+    <string name="ai_chat_endpoint_hint">https://api.example.com/v1/chat/completions</string>
 
     <!-- Bottom navigation -->
     <string name="nav_home">Home</string>
