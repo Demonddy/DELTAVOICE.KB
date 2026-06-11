@@ -1,15 +1,14 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders, secureEdgeRequest } from "../_shared/security.ts";
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const auth = await secureEdgeRequest(req, "ai-chat");
+  if (auth instanceof Response) return auth;
 
   try {
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY77') || Deno.env.get('OPENAI_API_KEY');
@@ -44,7 +43,6 @@ serve(async (req) => {
     console.log('🤖 AI Chat request - messages count:', messages.length);
     console.log('🤖 Last message:', messages[messages.length - 1]?.content?.substring(0, 100));
 
-    // Ensure system message is present
     const systemMessage = {
       role: "system",
       content: `You are a helpful, friendly AI assistant integrated into a mobile keyboard app. 
@@ -56,11 +54,11 @@ For translations, provide the translation directly without extra explanation.
 Be helpful, accurate, and conversational like ChatGPT.`
     };
 
-    // Prepare messages for OpenAI
-    let apiMessages = messages;
-    if (!messages[0] || messages[0].role !== 'system') {
-      apiMessages = [systemMessage, ...messages];
-    }
+    const MAX_MESSAGES = 50;
+    const sanitizedMessages = messages
+      .filter((m: { role?: string }) => m.role === "user" || m.role === "assistant")
+      .slice(-MAX_MESSAGES);
+    const apiMessages = [systemMessage, ...sanitizedMessages];
 
     // Call OpenAI API
     const response = await fetch('https://api.openai.com/v1/chat/completions', {

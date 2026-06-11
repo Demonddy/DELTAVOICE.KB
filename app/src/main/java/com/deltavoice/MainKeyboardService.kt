@@ -489,7 +489,14 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private var dictNumbersMode = false
     private var dictSymbolsPage2 = false
     private var dictKeyModeButton: Button? = null
-    
+
+    private var dictMiniKeyboardLetterArea: View? = null
+    private var dictInlineEmojiPanel: View? = null
+    private var dictInlineEmojiGrid: GridLayout? = null
+    private var isDictInlineEmojiVisible = false
+    private var currentDictInlineEmojiCategory = EmojiData.Category.SMILEYS
+    private val dictInlineEmojiTabViews = mutableMapOf<EmojiData.Category, ImageButton>()
+
     // AI Chat
     private lateinit var aiChatContainer: View
     private var isAiChatVisible = false
@@ -2406,6 +2413,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 updateAiChatInputDisplay()
             }
         }
+        view.findViewById<View>(R.id.ai_chat_inline_emoji_top_back_to_keys)?.setOnClickListener {
+            hideAiChatInlineEmojiPicker()
+        }
     }
 
     private fun loadAiChatInlineEmojiCategory(category: EmojiData.Category) {
@@ -2438,7 +2448,68 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun toggleAiChatInlineEmojiPicker() {
         if (isAiChatInlineEmojiVisible) hideAiChatInlineEmojiPicker() else showAiChatInlineEmojiPicker()
     }
-    
+
+    // ── Dictionary inline emoji panel ──────────────────────
+
+    private fun setupDictInlineEmojiPanel(view: View) {
+        dictMiniKeyboardLetterArea = view.findViewById(R.id.dict_mini_keyboard_letter_area)
+        dictInlineEmojiPanel = view.findViewById(R.id.dict_inline_emoji_panel)
+        dictInlineEmojiGrid = view.findViewById(R.id.dict_inline_emoji_grid)
+        dictInlineEmojiTabViews.clear()
+        val tabMappings = listOf(
+            R.id.dict_inline_emoji_tab_recent to EmojiData.Category.RECENT,
+            R.id.dict_inline_emoji_tab_smileys to EmojiData.Category.SMILEYS,
+            R.id.dict_inline_emoji_tab_people to EmojiData.Category.PEOPLE,
+            R.id.dict_inline_emoji_tab_animals to EmojiData.Category.ANIMALS,
+            R.id.dict_inline_emoji_tab_food to EmojiData.Category.FOOD,
+            R.id.dict_inline_emoji_tab_symbols to EmojiData.Category.SYMBOLS,
+            R.id.dict_inline_emoji_tab_flags to EmojiData.Category.FLAGS,
+        )
+        tabMappings.forEach { (id, category) ->
+            val tab = view.findViewById<ImageButton>(id)
+            dictInlineEmojiTabViews[category] = tab
+            tab?.setOnClickListener {
+                loadDictInlineEmojiCategory(category)
+            }
+        }
+        view.findViewById<View>(R.id.dict_inline_emoji_backspace)?.setOnClickListener {
+            if (dictSearchText.isNotEmpty()) {
+                dictSearchText.deleteCharAt(dictSearchText.length - 1)
+                updateDictSearchDisplay()
+            }
+        }
+        view.findViewById<View>(R.id.dict_inline_emoji_top_back_to_keys)?.setOnClickListener {
+            hideDictInlineEmojiPicker()
+        }
+    }
+
+    private fun loadDictInlineEmojiCategory(category: EmojiData.Category) {
+        currentDictInlineEmojiCategory = category
+        fillEmojiGrid(dictInlineEmojiGrid, category)
+        dictInlineEmojiTabViews.forEach { (cat, tab) ->
+            val tint = if (cat == category) Color.parseColor("#4A9EFF") else Color.parseColor("#888888")
+            tab?.setColorFilter(tint)
+        }
+    }
+
+    private fun showDictInlineEmojiPicker() {
+        hideEmojiPicker()
+        dictMiniKeyboardLetterArea?.visibility = View.GONE
+        dictInlineEmojiPanel?.visibility = View.VISIBLE
+        isDictInlineEmojiVisible = true
+        loadDictInlineEmojiCategory(currentDictInlineEmojiCategory)
+    }
+
+    private fun hideDictInlineEmojiPicker() {
+        dictMiniKeyboardLetterArea?.visibility = View.VISIBLE
+        dictInlineEmojiPanel?.visibility = View.GONE
+        isDictInlineEmojiVisible = false
+    }
+
+    private fun toggleDictInlineEmojiPicker() {
+        if (isDictInlineEmojiVisible) hideDictInlineEmojiPicker() else showDictInlineEmojiPicker()
+    }
+
     /**
      * Add emoji to recent list
      */
@@ -3136,12 +3207,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             val result = withContext(Dispatchers.IO) {
                 try {
                     val endpoint = com.deltavoice.config.SupabaseConfig.WRITING_TOOL_ENDPOINT
-                    val anonKey = com.deltavoice.config.SupabaseConfig.WRITING_TOOL_ANON_KEY
                     val conn = java.net.URL(endpoint).openConnection() as java.net.HttpURLConnection
                     conn.requestMethod = "POST"
                     conn.setRequestProperty("Content-Type", "application/json")
-                    conn.setRequestProperty("Authorization", "Bearer $anonKey")
-                    conn.setRequestProperty("apikey", anonKey)
+                    com.deltavoice.auth.ApiAuth.applyTo(conn)
                     OutboundHttpPolicy.applyTo(conn)
                     conn.connectTimeout = 30000
                     conn.readTimeout = 60000
@@ -3342,7 +3411,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         
         // Setup mini keyboard
         setupDictMiniKeyboard(view)
-        
+        setupDictInlineEmojiPanel(view)
+
         dictKeyModeButton = view.findViewById(R.id.dict_key_mode)
         updateDictKeyModeButtonText()
         view.findViewById<Button>(R.id.dict_key_mode)?.let {
@@ -3365,7 +3435,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
         
         view.findViewById<Button>(R.id.dict_key_emoji)?.let {
-            setKeyPressWithAnimation(it) { showEmojiPicker() }
+            setKeyPressWithAnimation(it) { toggleDictInlineEmojiPicker() }
         }
         
         view.findViewById<Button>(R.id.dict_key_dot)?.let {
@@ -3616,7 +3686,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun rebuildDictMiniKeyboard(view: View? = dictContentRoot()) {
         view ?: return
-        
+        hideDictInlineEmojiPicker()
+
         val row0 = view.findViewById<LinearLayout>(R.id.dict_row0)
         val row1 = view.findViewById<LinearLayout>(R.id.dict_row1)
         val row2 = view.findViewById<LinearLayout>(R.id.dict_row2)
@@ -4030,7 +4101,6 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private suspend fun fetchSingleTranslation(word: String, sourceLang: String, targetLang: String): String? {
         return withContext(Dispatchers.IO) {
             try {
-                val apiKey = com.deltavoice.config.SupabaseConfig.SUPABASE_ANON_KEY
                 val supabaseUrl = com.deltavoice.config.SupabaseConfig.SUPABASE_URL
                 
                 val url = java.net.URL("$supabaseUrl/functions/v1/free-translate-text")
@@ -4038,8 +4108,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 
                 connection.requestMethod = "POST"
                 connection.setRequestProperty("Content-Type", "application/json")
-                connection.setRequestProperty("Authorization", "Bearer $apiKey")
-                connection.setRequestProperty("apikey", apiKey)
+                com.deltavoice.auth.ApiAuth.applyTo(connection)
                 OutboundHttpPolicy.applyTo(connection)
                 connection.connectTimeout = 15000
                 connection.readTimeout = 15000
@@ -4658,6 +4727,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Hide the dictionary
      */
     private fun hideDictionary() {
+        hideDictInlineEmojiPicker()
         if (overlayDictionaryRoot != null) {
             val cb = overlayDictionaryClose
             overlayDictionaryRoot = null
@@ -5415,6 +5485,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json")
+            com.deltavoice.auth.ApiAuth.applyToBlocking(connection)
             OutboundHttpPolicy.applyTo(connection)
             connection.connectTimeout = aiChatConnectTimeoutMs
             connection.readTimeout = aiChatReadTimeoutMs
@@ -5452,7 +5523,6 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun callOpenAiViaSupabase(message: String): String? {
         try {
-            val apiKey = com.deltavoice.config.SupabaseConfig.SUPABASE_ANON_KEY
             val supabaseUrl = com.deltavoice.config.SupabaseConfig.SUPABASE_URL
 
             val url = java.net.URL("$supabaseUrl/functions/v1/ai-chat")
@@ -5460,8 +5530,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json")
-            connection.setRequestProperty("Authorization", "Bearer $apiKey")
-            connection.setRequestProperty("apikey", apiKey)
+            com.deltavoice.auth.ApiAuth.applyToBlocking(connection)
             OutboundHttpPolicy.applyTo(connection)
             connection.connectTimeout = aiChatConnectTimeoutMs
             connection.readTimeout = aiChatReadTimeoutMs

@@ -283,15 +283,13 @@ class AIChatConfigActivity : AppCompatActivity() {
 
     private fun callOpenAiViaSupabase(): String? {
         return try {
-            val apiKey = SupabaseConfig.SUPABASE_ANON_KEY
             val supabaseUrl = SupabaseConfig.SUPABASE_URL
             val url = URL("$supabaseUrl/functions/v1/ai-chat")
             val connection = url.openConnection() as HttpURLConnection
 
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json")
-            connection.setRequestProperty("Authorization", "Bearer $apiKey")
-            connection.setRequestProperty("apikey", apiKey)
+            com.deltavoice.auth.ApiAuth.applyToBlocking(connection)
             connection.connectTimeout = 30000
             connection.readTimeout = 60000
             connection.doOutput = true
@@ -351,6 +349,7 @@ class AIChatConfigActivity : AppCompatActivity() {
             val connection = url.openConnection() as HttpURLConnection
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json")
+            com.deltavoice.auth.ApiAuth.applyToBlocking(connection)
             connection.connectTimeout = 30000
             connection.readTimeout = 60000
             connection.doOutput = true

@@ -91,3 +91,6 @@ lint/tmp/
 .env.local
 .env*.local
 node_modules
+
+# Web env config with secrets (injected at build/deploy time)
+web/env.js

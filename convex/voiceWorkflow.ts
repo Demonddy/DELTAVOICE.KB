@@ -4,8 +4,19 @@
  * Only handles workflowType: 'complete' | 'voice-only'
  */
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
+const ALLOWED_ORIGINS_RAW = process.env.ALLOWED_ORIGINS || "*";
+const ALLOWED_ORIGINS_LIST = ALLOWED_ORIGINS_RAW === "*"
+  ? null
+  : ALLOWED_ORIGINS_RAW.split(",").map((s: string) => s.trim()).filter(Boolean);
+
+function getCorsOrigin(request?: Request): string {
+  if (!ALLOWED_ORIGINS_LIST) return "*";
+  const origin = request?.headers.get("origin") || "";
+  return ALLOWED_ORIGINS_LIST.includes(origin) ? origin : ALLOWED_ORIGINS_LIST[0] || "";
+}
+
+const CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": ALLOWED_ORIGINS_LIST ? "" : "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };

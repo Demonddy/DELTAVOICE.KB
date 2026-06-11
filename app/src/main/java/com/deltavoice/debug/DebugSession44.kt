@@ -2,14 +2,12 @@ package com.deltavoice.debug
 
 import android.content.Context
 import android.util.Log
+import com.deltavoice.BuildConfig
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
-/**
- * NDJSON debug logging for session 44ebda (theme preview vs IME).
- */
 object DebugSession44 {
 
     private const val SESSION = "44ebda"
@@ -21,6 +19,8 @@ object DebugSession44 {
         message: String,
         data: Map<String, String> = emptyMap()
     ) {
+        if (!BuildConfig.DEBUG) return
+
         try {
             val json = JSONObject()
             json.put("sessionId", SESSION)

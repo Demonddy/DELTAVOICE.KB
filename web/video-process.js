@@ -327,9 +327,11 @@
     }
 
     try {
+      await window.DeltaVoiceAuth.ensureSignedIn();
+      const authHeaders = window.DeltaVoiceAuth.authHeaders();
       const res = await fetch(baseUrl() + "/video-workflow", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           videoBase64,
           targetLanguage: lang,

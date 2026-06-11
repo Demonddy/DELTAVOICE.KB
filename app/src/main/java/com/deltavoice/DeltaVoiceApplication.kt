@@ -23,6 +23,7 @@ class DeltaVoiceApplication : Application() {
     override fun onCreate() {
         applyAppTheme()
         super.onCreate()
+        com.deltavoice.auth.AuthManager.init(this)
         PredictiveWordList.initializePredictiveWordAssets(applicationContext)
     }
 

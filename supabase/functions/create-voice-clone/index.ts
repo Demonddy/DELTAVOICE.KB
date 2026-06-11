@@ -1,11 +1,7 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders, secureEdgeRequest } from "../_shared/security.ts";
 
 const audioMimeMap: Record<string, string> = {
   m4a: 'audio/mp4',
@@ -34,6 +30,9 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const auth = await secureEdgeRequest(req, "create-voice-clone");
+  if (auth instanceof Response) return auth;
 
   try {
     const { name, audioBase64, description, format } = await req.json();

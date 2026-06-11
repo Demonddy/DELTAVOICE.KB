@@ -261,7 +261,7 @@ async function main() {
       continue;
     }
 
-    await sleep(600);
+    await sleep(600)
   }
 
   console.log('Done.');

@@ -8,8 +8,8 @@
 -keep class com.deltavoice.PermissionsActivity { *; }
 -keep class com.deltavoice.VideoRecordingActivity { *; }
 
-# --- Config (keep for BuildConfig / runtime access) ---
--keep class com.deltavoice.config.** { *; }
+# --- Config ---
+-keep class com.deltavoice.BuildConfig { *; }
 
 # --- Kotlin Serialization (Supabase, API models) ---
 -keepattributes *Annotation*, InnerClasses

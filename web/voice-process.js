@@ -321,9 +321,11 @@
     el("statusText").textContent = "Processing…";
 
     try {
+      await window.DeltaVoiceAuth.ensureSignedIn();
+      const authHeaders = window.DeltaVoiceAuth.authHeaders();
       const res = await fetch(baseUrl() + "/complete-voice-workflow", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           audioBase64: base64,
           targetLanguage: lang,

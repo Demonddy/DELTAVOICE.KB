@@ -8,8 +8,8 @@
 
 // Get configuration (loaded from config.js)
 const config = window.DeltaVoiceConfig || {
-    SUPABASE_URL: 'https://rkfveqzktfmgegtsoxlf.supabase.co',
-    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrZnZlcXprdGZtZ2VndHNveGxmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NzAyMDYsImV4cCI6MjA5MjM0NjIwNn0.dOmPCxz5Dq5ZtnX3LU7LTNjyHFcxWbJ5XLNrWPUF0NM',
+    SUPABASE_URL: '',
+    SUPABASE_ANON_KEY: '',
     FUNCTIONS: { COMPLETE_VOICE_WORKFLOW: 'complete-voice-workflow', WRITING_TOOL: 'writing-tool', AI_CHAT: 'ai-chat' }
 };
 
@@ -386,18 +386,16 @@ class DeltaVoiceApp {
                 audioBase64: `[${audioBase64.length} chars]`
             });
             
-            // Call Supabase Edge Function
+            // Call Supabase Edge Function (authenticated user JWT required)
+            await window.DeltaVoiceAuth.ensureSignedIn();
             const functionUrl = config.getFunctionUrl 
                 ? config.getFunctionUrl(config.FUNCTIONS.COMPLETE_VOICE_WORKFLOW)
                 : `${config.SUPABASE_URL}/functions/v1/${config.FUNCTIONS.COMPLETE_VOICE_WORKFLOW}`;
                 
-            const headers = config.getHeaders 
-                ? config.getHeaders()
-                : {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${config.SUPABASE_ANON_KEY}`,
-                    'apikey': config.SUPABASE_ANON_KEY
-                };
+            const headers = {
+                'Content-Type': 'application/json',
+                ...window.DeltaVoiceAuth.authHeaders(),
+            };
             
             const response = await fetch(functionUrl, {
                 method: 'POST',

@@ -1,10 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders, secureEdgeRequest } from "../_shared/security.ts";
 
 const audioMimeMap: Record<string, string> = {
   m4a: 'audio/mp4',
@@ -361,6 +357,9 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const auth = await secureEdgeRequest(req, "complete-voice-workflow");
+  if (auth instanceof Response) return auth;
+
   let originalText = '';
   let translatedText = '';
   let convertedAudioBase64 = '';
@@ -369,6 +368,19 @@ serve(async (req) => {
   let voiceStyle = '';
 
   try {
+    // Peek at workflowType to enforce premium for voice-only (creates ElevenLabs clones)
+    const clonedReq = req.clone();
+    const peekBody = await clonedReq.json().catch(() => ({}));
+    if (peekBody.workflowType === "voice-only" && !auth.isPremium) {
+      return new Response(
+        JSON.stringify({
+          error: "Premium subscription required for voice cloning.",
+          code: "PREMIUM_REQUIRED",
+        }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Check API keys first (support OPENAI_API_KEY77 for OpenAI)
     const openAIApiKey = getOpenAIApiKey();
     const elevenLabsApiKey = Deno.env.get('ELEVENLABS_API_KEY77') || Deno.env.get('ELEVENLABS_API_KEY');
@@ -416,13 +428,17 @@ serve(async (req) => {
     });
 
     if (!audioBase64) {
-      console.error('🚀 ERROR: No audio data provided');
       return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: 'Audio data is required' 
-        }),
+        JSON.stringify({ success: false, error: 'Audio data is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const MAX_AUDIO_BASE64_LENGTH = 14_000_000; // ~10 MB decoded
+    if (audioBase64.length > MAX_AUDIO_BASE64_LENGTH) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Audio file too large. Maximum size is 10 MB.' }),
+        { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

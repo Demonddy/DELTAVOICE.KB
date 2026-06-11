@@ -1,11 +1,7 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders, secureEdgeRequest } from "../_shared/security.ts";
 
 const audioMimeMap: Record<string, string> = {
   m4a: 'audio/mp4',
@@ -61,6 +57,9 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const auth = await secureEdgeRequest(req, "free-voice-translate");
+  if (auth instanceof Response) return auth;
+
   try {
     const { audio, targetLanguage, format } = await req.json();
 
@@ -109,12 +108,12 @@ serve(async (req) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...corsHeaders,
+          "Authorization": req.headers.get("Authorization") || "",
+          "apikey": req.headers.get("apikey") || "",
         },
         body: JSON.stringify({
           text: transcribedText,
           targetLanguage,
-          model: 'gpt-4o-mini'
         }),
       }
     );

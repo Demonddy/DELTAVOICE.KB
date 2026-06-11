@@ -2,6 +2,8 @@ package com.deltavoice.api
 
 import com.deltavoice.config.ConvexConfig
 import com.deltavoice.config.SupabaseConfig
+import com.deltavoice.auth.ApiAuth
+import com.deltavoice.auth.AuthManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -19,6 +21,17 @@ import java.net.URL
  */
 class CompleteVoiceWorkflowService {
     private val json = Json { ignoreUnknownKeys = true }
+
+    class HttpStatusException(val statusCode: Int, message: String) : Exception(message)
+
+    private fun throwForHttpStatus(code: Int, body: String) {
+        when (code) {
+            401 -> throw HttpStatusException(401, "Session expired. Please sign in again.")
+            403 -> throw HttpStatusException(403, "Premium subscription required for this feature.")
+            429 -> throw HttpStatusException(429, "Rate limit reached. Please wait a moment and try again.")
+            413 -> throw HttpStatusException(413, "File too large. Please use a shorter recording.")
+        }
+    }
 
     @Serializable
     data class WorkflowRequest(
@@ -48,6 +61,12 @@ class CompleteVoiceWorkflowService {
         workflowType: String = "complete"
     ): Result<WorkflowResponse> = withContext(Dispatchers.IO) {
         android.util.Log.d("DeltaVoice", "WorkflowService: Starting workflow - type=$workflowType, lang=$targetLanguage, voice=$voiceStyle")
+
+        try {
+            AuthManager.requireAccessToken()
+        } catch (e: AuthManager.AuthRequiredException) {
+            return@withContext Result.failure(e)
+        }
         
         // Validate file
         if (!audioFile.exists() || audioFile.length() == 0L) {
@@ -134,7 +153,17 @@ class CompleteVoiceWorkflowService {
             }
         }
         
-        // All attempts failed
+        // All attempts failed - propagate HTTP status exceptions directly
+        if (lastException is HttpStatusException) {
+            return@withContext Result.failure(lastException!!)
+        }
+        if (lastException is AuthManager.AuthRequiredException) {
+            return@withContext Result.failure(lastException!!)
+        }
+        if (lastException is AuthManager.PremiumRequiredException) {
+            return@withContext Result.failure(lastException!!)
+        }
+
         val errorMsg = when {
             lastException?.message?.contains("timeout", ignoreCase = true) == true -> 
                 "Connection timeout. Please check your internet and try again."
@@ -145,29 +174,19 @@ class CompleteVoiceWorkflowService {
                 "Network error. Please check your internet connection."
             lastException?.message?.contains("socket", ignoreCase = true) == true ->
                 "Connection lost. Please try again."
-            lastException?.message?.contains("403", ignoreCase = true) == true ||
-            lastException?.message?.contains("401", ignoreCase = true) == true ->
-                "Voice service is temporarily unavailable. Please try again later."
-            lastException?.message?.contains("500", ignoreCase = true) == true ||
-            lastException?.message?.contains("502", ignoreCase = true) == true ||
-            lastException?.message?.contains("503", ignoreCase = true) == true ->
-                "Server temporarily unavailable. Please try again later."
             else -> lastException?.message ?: "Processing failed. Please try again."
         }
         android.util.Log.e("DeltaVoice", "WorkflowService: All attempts failed: $errorMsg")
         Result.failure(Exception(errorMsg))
     }
     
-    /**
-     * Call Convex HTTP action for complete, voice-only, and text-only workflows.
-     * Uses 60s connect / 120s read timeout for long-running voice processing.
-     */
-    private fun callConvex(request: WorkflowRequest): WorkflowResponse? {
+    private suspend fun callConvex(request: WorkflowRequest): WorkflowResponse? {
         return try {
             val url = URL(ConvexConfig.VOICE_WORKFLOW_URL)
             val connection = url.openConnection() as HttpURLConnection
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json")
+            ApiAuth.applyTo(connection)
             connection.connectTimeout = 60000
             connection.readTimeout = 120000
             connection.doOutput = true
@@ -186,15 +205,14 @@ class CompleteVoiceWorkflowService {
             }
             connection.disconnect()
 
+            throwForHttpStatus(responseCode, responseText)
+
             val result = json.decodeFromString<WorkflowResponse>(responseText)
-            android.util.Log.d(
-                "DeltaVoice",
-                "WorkflowService: Convex HTTP $responseCode — success=${result.success}, ttsFallback=${result.ttsFallback}, " +
-                    "audioB64Len=${result.convertedAudioBase64?.length ?: 0}"
-            )
             if (result.success || !result.originalText.isNullOrBlank() || !result.translatedText.isNullOrBlank()) {
                 result
             } else null
+        } catch (e: HttpStatusException) {
+            throw e
         } catch (e: Exception) {
             android.util.Log.e("DeltaVoice", "WorkflowService: Convex call failed: ${e.message}")
             null
@@ -204,15 +222,14 @@ class CompleteVoiceWorkflowService {
     /**
      * Direct HTTP call as fallback when Supabase SDK fails
      */
-    private fun callWithDirectHttp(request: WorkflowRequest): WorkflowResponse? {
+    private suspend fun callWithDirectHttp(request: WorkflowRequest): WorkflowResponse? {
         val url = URL("${SupabaseConfig.SUPABASE_URL}/functions/v1/${SupabaseConfig.FUNCTION_COMPLETE_VOICE_WORKFLOW}")
         val connection = url.openConnection() as HttpURLConnection
         
         try {
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json")
-            connection.setRequestProperty("Authorization", "Bearer ${SupabaseConfig.SUPABASE_ANON_KEY}")
-            connection.setRequestProperty("apikey", SupabaseConfig.SUPABASE_ANON_KEY)
+            ApiAuth.applyTo(connection)
             connection.connectTimeout = 60000 // 60 seconds
             connection.readTimeout = 120000 // 120 seconds for processing
             connection.doOutput = true
@@ -237,14 +254,13 @@ class CompleteVoiceWorkflowService {
             }
             android.util.Log.d("DeltaVoice", "WorkflowService: Direct HTTP - response code: $responseCode, length: ${responseText.length}")
 
+            throwForHttpStatus(responseCode, responseText)
+
             if (responseCode == HttpURLConnection.HTTP_OK && responseText.isNotBlank()) {
                 val result = json.decodeFromString<WorkflowResponse>(responseText)
                 if (result.success || !result.originalText.isNullOrBlank() || !result.translatedText.isNullOrBlank()) {
-                    android.util.Log.d("DeltaVoice", "WorkflowService: Direct HTTP successful! ttsFallback=${result.ttsFallback}")
                     return result
                 }
-            } else if (responseCode >= 400 && responseText.isNotBlank()) {
-                android.util.Log.e("DeltaVoice", "WorkflowService: Direct HTTP error: $responseCode - $responseText")
             }
             
             return null

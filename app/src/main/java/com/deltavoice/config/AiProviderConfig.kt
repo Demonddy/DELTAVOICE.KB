@@ -1,6 +1,9 @@
 package com.deltavoice.config
 
 import android.content.Context
+import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKeys
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -31,12 +34,27 @@ enum class AiProvider(
 object AiProviderConfig {
 
     private const val PREFS = "deltavoice_prefs"
+    private const val SECURE_PREFS = "deltavoice_secure_prefs"
     private const val KEY_PROVIDER = "ai_provider"
     private const val KEY_API_KEY = "ai_api_key"
     private const val KEY_MODEL = "ai_model"
     private const val KEY_ENDPOINT = "ai_endpoint"
-    // Legacy key kept for migration
     private const val KEY_LEGACY_OPENAI = "openai_api_key"
+
+    private fun securePrefs(ctx: Context): SharedPreferences {
+        return try {
+            val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+            EncryptedSharedPreferences.create(
+                SECURE_PREFS,
+                masterKeyAlias,
+                ctx.applicationContext,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+            )
+        } catch (_: Exception) {
+            ctx.getSharedPreferences(SECURE_PREFS, Context.MODE_PRIVATE)
+        }
+    }
 
     fun getProvider(ctx: Context): AiProvider {
         val prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -44,14 +62,14 @@ object AiProviderConfig {
         if (name != null) {
             return try { AiProvider.valueOf(name) } catch (_: Exception) { AiProvider.BUILT_IN }
         }
-        // Migrate: if legacy openai_api_key exists, treat as OPENAI provider
         val legacy = prefs.getString(KEY_LEGACY_OPENAI, "") ?: ""
         if (legacy.isNotBlank()) {
+            securePrefs(ctx).edit().putString(KEY_API_KEY, legacy).apply()
             prefs.edit()
                 .putString(KEY_PROVIDER, AiProvider.OPENAI.name)
-                .putString(KEY_API_KEY, legacy)
                 .putString(KEY_MODEL, AiProvider.OPENAI.defaultModel)
                 .remove(KEY_LEGACY_OPENAI)
+                .remove(KEY_API_KEY)
                 .apply()
             return AiProvider.OPENAI
         }
@@ -59,10 +77,16 @@ object AiProviderConfig {
     }
 
     fun getApiKey(ctx: Context): String {
+        val secure = securePrefs(ctx).getString(KEY_API_KEY, "") ?: ""
+        if (secure.isNotBlank()) return secure
         val prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        return prefs.getString(KEY_API_KEY, "")
-            ?: prefs.getString(KEY_LEGACY_OPENAI, "")
-            ?: ""
+        val plain = prefs.getString(KEY_API_KEY, "") ?: ""
+        if (plain.isNotBlank()) {
+            securePrefs(ctx).edit().putString(KEY_API_KEY, plain).apply()
+            prefs.edit().remove(KEY_API_KEY).apply()
+            return plain
+        }
+        return ""
     }
 
     fun getModel(ctx: Context): String {
@@ -78,9 +102,10 @@ object AiProviderConfig {
     }
 
     fun save(ctx: Context, provider: AiProvider, apiKey: String, model: String, endpoint: String = "") {
+        securePrefs(ctx).edit().putString(KEY_API_KEY, apiKey).apply()
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putString(KEY_PROVIDER, provider.name)
-            .putString(KEY_API_KEY, apiKey)
+            .remove(KEY_API_KEY)
             .putString(KEY_MODEL, model.ifBlank { provider.defaultModel })
             .putString(KEY_ENDPOINT, endpoint)
             .remove(KEY_LEGACY_OPENAI)

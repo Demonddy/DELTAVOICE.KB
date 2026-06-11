@@ -1,34 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Network Security Configuration — DeltaVoice
-  See SECURE_CONFIG_GUIDANCE.md for certificate pinning setup.
--->
 <network-security-config>
-    <!-- Disable cleartext (HTTP) for all connections -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
-            <certificates src="user" />
         </trust-anchors>
     </base-config>
 
-    <!--
-    Certificate pinning: Uncomment and add pins after obtaining from your API hosts.
-    Get pins: openssl s_client -servername DOMAIN -connect DOMAIN:443 2>/dev/null | \
-      openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | \
-      openssl dgst -sha256 -binary | openssl enc -base64
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
 
-    Domains: rkfveqzktfmgegtsoxlf.supabase.co, kindred-curlew-363.eu-west-1.convex.site,
-             api.openai.com, api.anthropic.com, generativelanguage.googleapis.com,
-             api.deepseek.com, api.dictionaryapi.dev
-    -->
     <!--
+    Certificate pinning for production API hosts.
+    Uncomment and replace pins before production release.
+
+    Generate pins with:
+      openssl s_client -servername DOMAIN -connect DOMAIN:443 2>/dev/null | \
+        openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | \
+        openssl dgst -sha256 -binary | openssl enc -base64
+
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">rkfveqzktfmgegtsoxlf.supabase.co</domain>
         <domain includeSubdomains="true">kindred-curlew-363.eu-west-1.convex.site</domain>
         <pin-set expiration="2027-01-01">
-            <pin digest="SHA-256">REPLACE_WITH_ACTUAL_PIN</pin>
-            <pin digest="SHA-256">REPLACE_WITH_BACKUP_PIN</pin>
+            <pin digest="SHA-256">YOUR_BASE64_PIN_HERE=</pin>
+            <pin digest="SHA-256">YOUR_BACKUP_PIN_HERE=</pin>
         </pin-set>
     </domain-config>
     -->

@@ -1,20 +1,19 @@
 package com.deltavoice.debug
 
 import android.util.Log
+import com.deltavoice.BuildConfig
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-/**
- * Session debug NDJSON → ingest (debug mode). Falls back to Logcat if HTTP fails.
- */
 object AgentDebugLog {
 
     private const val SESSION = "e0761c"
     private const val TAG = "AGENT_DEBUG"
 
-    // #region agent log
     fun log(hypothesisId: String, location: String, message: String, data: Map<String, Any?> = emptyMap()) {
+        if (!BuildConfig.DEBUG) return
+
         val body = JSONObject().apply {
             put("sessionId", SESSION)
             put("hypothesisId", hypothesisId)
@@ -65,5 +64,4 @@ object AgentDebugLog {
         }
         Log.w(TAG, "AGENT_LOG:$body")
     }
-    // #endregion
 }

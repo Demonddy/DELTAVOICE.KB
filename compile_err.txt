@@ -1,0 +1,79 @@
+﻿Starting a Gradle Daemon, 1 busy and 1 stopped Daemons could not be reused, use --status for details
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:extractDebugSupportedLocales UP-TO-DATE
+> Task :app:generateDebugLocaleConfig UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:compileDebugKotlin
+.\gradlew.bat : e: 
+file:///C:/Users/rrr/Desktop/keyboard/app/src/main/java/com/deltavoice/MainKeyboardService.kt:829:39 Unresolved 
+reference: KeyboardVideoUploadActivity
+At C:\Users\rrr\AppData\Local\Temp\ps-script-df8c2db6-27cc-4548-95e5-97f3aa7a5c1e.ps1:7 char:47
++ ... \keyboard"; .\gradlew.bat :app:compileDebugKotlin --console=plain 2>& ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (e: file:///C:/U...oUploadActivity:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+e: file:///C:/Users/rrr/Desktop/keyboard/app/src/main/java/com/deltavoice/MainKeyboardService.kt:830:50 Unresolved 
+reference: KeyboardVideoUploadActivity
+e: file:///C:/Users/rrr/Desktop/keyboard/app/src/main/java/com/deltavoice/MainKeyboardService.kt:831:44 Unresolved 
+reference: KeyboardVideoUploadActivity
+e: file:///C:/Users/rrr/Desktop/keyboard/app/src/main/java/com/deltavoice/MainKeyboardService.kt:832:37 Unresolved 
+reference: KeyboardVideoUploadActivity
+e: file:///C:/Users/rrr/Desktop/keyboard/app/src/main/java/com/deltavoice/MainKeyboardService.kt:847:39 Unresolved 
+reference: KeyboardAudioUploadActivity
+e: file:///C:/Users/rrr/Desktop/keyboard/app/src/main/java/com/deltavoice/MainKeyboardService.kt:848:50 Unresolved 
+reference: KeyboardAudioUploadActivity
+e: file:///C:/Users/rrr/Desktop/keyboard/app/src/main/java/com/deltavoice/MainKeyboardService.kt:849:44 Unresolved 
+reference: KeyboardAudioUploadActivity
+e: file:///C:/Users/rrr/Desktop/keyboard/app/src/main/java/com/deltavoice/MainKeyboardService.kt:850:37 Unresolved 
+reference: KeyboardAudioUploadActivity
+e: file:///C:/Users/rrr/Desktop/keyboard/app/src/main/java/com/deltavoice/MainKeyboardService.kt:863:40 Unresolved 
+reference: KeyboardVideoUploadActivity
+e: file:///C:/Users/rrr/Desktop/keyboard/app/src/main/java/com/deltavoice/MainKeyboardService.kt:864:40 Unresolved 
+reference: KeyboardAudioUploadActivity
+e: file:///C:/Users/rrr/Desktop/keyboard/app/src/main/java/com/deltavoice/MainKeyboardService.kt:1469:35 Unresolved 
+reference: KeyboardAudioUploadActivity
+e: file:///C:/Users/rrr/Desktop/keyboard/app/src/main/java/com/deltavoice/MainKeyboardService.kt:2401:38 Unresolved 
+reference: ai_chat_inline_emoji_back_to_keys
+e: file:///C:/Users/rrr/Desktop/keyboard/app/src/main/java/com/deltavoice/MainKeyboardService.kt:5966:35 Unresolved 
+reference: KeyboardVideoUploadActivity
+
+> Task :app:compileDebugKotlin FAILED
+
+[Incubating] Problems report is available at: file:///C:/Users/rrr/Desktop/keyboard/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing 
+org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.13/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 3m 2s
+16 actionable tasks: 1 executed, 15 up-to-date

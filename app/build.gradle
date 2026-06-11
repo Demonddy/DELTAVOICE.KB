@@ -12,17 +12,26 @@ android {
         generateLocaleConfig true
     }
 
+    buildFeatures {
+        buildConfig true
+    }
+
     defaultConfig {
         applicationId "com.deltavoice"
         minSdk 21
         targetSdk 34
         versionCode 1
         versionName "1.0"
+
+        buildConfigField "String", "SUPABASE_URL", "\"${project.findProperty('SUPABASE_URL') ?: 'https://rkfveqzktfmgegtsoxlf.supabase.co'}\""
+        buildConfigField "String", "SUPABASE_ANON_KEY", "\"${project.findProperty('SUPABASE_ANON_KEY') ?: ''}\""
+        buildConfigField "String", "CONVEX_SITE_URL", "\"${project.findProperty('CONVEX_SITE_URL') ?: 'https://kindred-curlew-363.eu-west-1.convex.site'}\""
     }
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -48,6 +57,7 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
     implementation("io.github.jan-tennert.supabase:functions-kt")
     implementation("io.github.jan-tennert.supabase:realtime-kt")
+    implementation("io.github.jan-tennert.supabase:gotrue-kt")
     
     // HTTP client for Supabase
     implementation("io.ktor:ktor-client-android:2.3.5")
@@ -60,5 +70,8 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+
+    // Encrypted storage for sensitive data
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 }
 

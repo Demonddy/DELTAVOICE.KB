@@ -10,6 +10,7 @@ import {
   type WorkflowRequest,
 } from "./voiceWorkflow";
 import { runVideoPipeline } from "./videoPipeline";
+import { secureConvexRequest } from "./auth";
 
 const http = httpRouter();
 
@@ -33,6 +34,12 @@ http.route({
       ...CORS_HEADERS,
       "Content-Type": "application/json",
     };
+
+    const auth = await secureConvexRequest(request, "ai-chat");
+    if (auth instanceof Response) {
+      const body = await auth.text();
+      return new Response(body, { status: auth.status, headers: jsonHeaders });
+    }
 
     try {
       const deepSeekApiKey =
@@ -65,8 +72,10 @@ http.route({
         role: "system",
         content: `You are a helpful, friendly AI assistant integrated into a mobile keyboard app. Be concise but informative (2-4 sentences typically). Use emojis occasionally. Respond in the same language the user writes in. If asked to write something, provide complete, ready-to-use content.`,
       };
-      const apiMessages =
-        messages[0]?.role === "system" ? messages : [systemMessage, ...messages];
+      const sanitizedMessages = messages
+        .filter((m) => m.role === "user" || m.role === "assistant")
+        .slice(-50);
+      const apiMessages = [systemMessage, ...sanitizedMessages];
 
       const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
         method: "POST",
@@ -147,6 +156,12 @@ http.route({
       "Content-Type": "application/json",
     };
 
+    const auth = await secureConvexRequest(request, "complete-voice-workflow");
+    if (auth instanceof Response) {
+      const body = await auth.text();
+      return new Response(body, { status: auth.status, headers: jsonHeaders });
+    }
+
     try {
       const openAIApiKey =
         process.env.OPENAI_API_KEY77 || process.env.OPENAI_API_KEY;
@@ -179,6 +194,14 @@ http.route({
         return new Response(
           JSON.stringify({ success: false, error: "Audio data is required" }),
           { status: 400, headers: jsonHeaders }
+        );
+      }
+
+      const MAX_AUDIO_BASE64 = 14_000_000;
+      if (audioBase64.length > MAX_AUDIO_BASE64) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Audio file too large. Maximum size is 10 MB." }),
+          { status: 413, headers: jsonHeaders }
         );
       }
 
@@ -305,6 +328,12 @@ http.route({
       "Content-Type": "application/json",
     };
 
+    const auth = await secureConvexRequest(request, "video-workflow");
+    if (auth instanceof Response) {
+      const body = await auth.text();
+      return new Response(body, { status: auth.status, headers: jsonHeaders });
+    }
+
     try {
       const body = (await request.json()) as {
         videoBase64?: string;
@@ -317,6 +346,14 @@ http.route({
         return new Response(
           JSON.stringify({ success: false, error: "videoBase64 is required" }),
           { status: 400, headers: jsonHeaders }
+        );
+      }
+
+      const MAX_VIDEO_BASE64 = 140_000_000;
+      if (body.videoBase64.length > MAX_VIDEO_BASE64) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Video file too large. Maximum size is 100 MB." }),
+          { status: 413, headers: jsonHeaders }
         );
       }
 

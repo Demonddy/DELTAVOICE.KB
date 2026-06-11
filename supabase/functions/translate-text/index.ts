@@ -1,11 +1,7 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders, secureEdgeRequest } from "../_shared/security.ts";
 
 const languageNames: { [key: string]: string } = {
   'es': 'Spanish',
@@ -27,9 +23,15 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const auth = await secureEdgeRequest(req, "translate-text");
+  if (auth instanceof Response) return auth;
+
   try {
     console.log('Translate-text function called');
-    const { text, targetLanguage, model = 'gpt-4o-mini' } = await req.json();
+    const reqBody = await req.json();
+    const { text, targetLanguage } = reqBody;
+    const ALLOWED_MODELS = ["gpt-4o-mini", "gpt-3.5-turbo"];
+    const model = ALLOWED_MODELS.includes(reqBody.model) ? reqBody.model : "gpt-4o-mini";
 
     if (!text || !targetLanguage) {
       console.error('Missing required parameters:', { text: !!text, targetLanguage: !!targetLanguage });
