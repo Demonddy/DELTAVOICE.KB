@@ -10,6 +10,36 @@
         <item>George</item>
         <item>Liam</item>
     </string-array>
+    <string-array name="default_voice_codes" translatable="false">
+        <item>aria</item>
+        <item>adam</item>
+        <item>roger</item>
+        <item>sarah</item>
+        <item>laura</item>
+        <item>charlie</item>
+        <item>george</item>
+        <item>liam</item>
+    </string-array>
+    <string-array name="video_voice_options">
+        <item>Adam</item>
+        <item>Aria</item>
+        <item>Sarah</item>
+        <item>Liam</item>
+        <item>Charlotte</item>
+        <item>Alice</item>
+        <item>Roger</item>
+        <item>Laura</item>
+    </string-array>
+    <string-array name="video_voice_codes" translatable="false">
+        <item>adam</item>
+        <item>aria</item>
+        <item>sarah</item>
+        <item>liam</item>
+        <item>charlotte</item>
+        <item>alice</item>
+        <item>roger</item>
+        <item>laura</item>
+    </string-array>
     <string-array name="default_language_options">
         <item>English</item>
         <item>Spanish</item>
@@ -23,6 +53,21 @@
         <item>Chinese</item>
         <item>Arabic</item>
         <item>Hindi</item>
+    </string-array>
+    <!-- ISO codes; same order as default_language_options. -->
+    <string-array name="default_language_codes" translatable="false">
+        <item>en</item>
+        <item>es</item>
+        <item>fr</item>
+        <item>de</item>
+        <item>it</item>
+        <item>pt</item>
+        <item>ru</item>
+        <item>ja</item>
+        <item>ko</item>
+        <item>zh</item>
+        <item>ar</item>
+        <item>hi</item>
     </string-array>
     <!-- Stored in prefs; same order as default_language_options. Not overridden per locale. -->
     <string-array name="default_language_canonical" translatable="false">

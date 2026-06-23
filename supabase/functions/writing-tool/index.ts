@@ -1,6 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, secureEdgeRequest } from "../_shared/security.ts";
+import { corsHeadersForRequest, handleServerError, jsonResponse, logger, secureEdgeRequest } from "../_shared/security.ts";
 
 const TASK_SYSTEM_PROMPTS: Record<string, (option?: string) => string> = {
   grammar: () =>
@@ -31,7 +31,7 @@ const TASK_SYSTEM_PROMPTS: Record<string, (option?: string) => string> = {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: { ...corsHeadersForRequest(req), 'Content-Type': 'application/json' } });
   }
 
   const auth = await secureEdgeRequest(req, "writing-tool");
@@ -42,7 +42,7 @@ serve(async (req) => {
     if (!openAIApiKey) {
       return new Response(
         JSON.stringify({ success: false, error: 'OpenAI API key not configured', content: '' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeadersForRequest(req), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -54,7 +54,7 @@ serve(async (req) => {
     if (!text) {
       return new Response(
         JSON.stringify({ success: false, error: 'Text is required', content: '' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeadersForRequest(req), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -62,7 +62,7 @@ serve(async (req) => {
     if (!getPrompt) {
       return new Response(
         JSON.stringify({ success: false, error: `Unknown task: ${task}`, content: '' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeadersForRequest(req), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -86,10 +86,10 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error('OpenAI error:', response.status, errText);
+      logger.error("writing-tool", `OpenAI error: ${response.status}`, errText.slice(0, 400));
       return new Response(
         JSON.stringify({ success: false, error: 'AI service error', content: '' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeadersForRequest(req), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -98,13 +98,14 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: true, content, response: content, message: content }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeadersForRequest(req), 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('writing-tool error:', error);
-    return new Response(
-      JSON.stringify({ success: false, error: String(error), content: '' }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    return handleServerError(
+      "writing-tool",
+      error,
+      req,
+      "Writing tool encountered an error. Please try again.",
     );
   }
 });

@@ -14,8 +14,11 @@ object ConvexConfig {
     val VOICE_WORKFLOW_URL: String
         get() = "$CONVEX_SITE_URL$VOICE_WORKFLOW_PATH"
 
+    /** Dedicated Convex site for AI chat (prod deployment with OpenAI keys). Falls back to [CONVEX_SITE_URL]. */
+    val AI_CHAT_CONVEX_SITE: String = BuildConfig.AI_CHAT_CONVEX_SITE.ifBlank { CONVEX_SITE_URL }
+
     val AI_CHAT_URL: String
-        get() = "$CONVEX_SITE_URL$AI_CHAT_PATH"
+        get() = "$AI_CHAT_CONVEX_SITE$AI_CHAT_PATH"
 
     val VIDEO_WORKFLOW_URL: String
         get() = "$CONVEX_SITE_URL$VIDEO_WORKFLOW_PATH"

@@ -1,7 +1,7 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, secureEdgeRequest } from "../_shared/security.ts";
+import { corsHeadersForRequest, handleServerError, jsonResponse, logger, secureEdgeRequest } from "../_shared/security.ts";
 
 const languageNames: { [key: string]: string } = {
   'es': 'Spanish',
@@ -20,34 +20,31 @@ const languageNames: { [key: string]: string } = {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: { ...corsHeadersForRequest(req), 'Content-Type': 'application/json' } });
   }
 
   const auth = await secureEdgeRequest(req, "translate-text");
   if (auth instanceof Response) return auth;
 
   try {
-    console.log('Translate-text function called');
     const reqBody = await req.json();
     const { text, targetLanguage } = reqBody;
     const ALLOWED_MODELS = ["gpt-4o-mini", "gpt-3.5-turbo"];
     const model = ALLOWED_MODELS.includes(reqBody.model) ? reqBody.model : "gpt-4o-mini";
 
     if (!text || !targetLanguage) {
-      console.error('Missing required parameters:', { text: !!text, targetLanguage: !!targetLanguage });
-      throw new Error('Text and target language are required');
+      logger.error("translate-text", "Missing required parameters");
+      return jsonResponse({ error: "Text and target language are required." }, 400, req);
     }
 
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openAIApiKey) {
-      console.error('OpenAI API key not found');
-      throw new Error('OpenAI API key not configured');
+      logger.error("translate-text", "OpenAI API key not configured");
+      return jsonResponse({ error: "Translation service temporarily unavailable." }, 503, req);
     }
 
     const languageName = languageNames[targetLanguage] || targetLanguage;
-    console.log(`Translating to ${languageName}:`, text.substring(0, 100));
 
-    // Retry logic for API calls
     let response;
     let attempts = 0;
     const maxAttempts = 3;
@@ -62,9 +59,9 @@ serve(async (req) => {
         body: JSON.stringify({
           model,
           messages: [
-            { 
-              role: 'system', 
-              content: `You are a professional translator. Translate the given text accurately into ${languageName}. Preserve the tone, meaning, and context. Only return the translated text, nothing else.` 
+            {
+              role: 'system',
+              content: `You are a professional translator. Translate the given text accurately into ${languageName}. Preserve the tone, meaning, and context. Only return the translated text, nothing else.`
             },
             { role: 'user', content: text }
           ],
@@ -79,56 +76,33 @@ serve(async (req) => {
 
       attempts++;
       const errorText = await response.text();
-      console.error(`OpenAI API error (attempt ${attempts}):`, response.status, errorText);
+      logger.error("translate-text", `OpenAI API error (attempt ${attempts}): ${response.status}`, errorText.slice(0, 400));
 
-      // Handle specific error cases
       if (response.status === 429) {
-        return new Response(JSON.stringify({ 
-          error: 'OpenAI API quota exceeded. Please check your OpenAI billing and usage limits.',
-          details: 'Your OpenAI account has reached its usage quota. Please add credits or upgrade your plan.',
-          status: response.status
-        }), {
-          status: 429,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return jsonResponse({ error: "Translation service is busy. Please try again later." }, 429, req);
       }
 
       if (response.status === 401) {
-        return new Response(JSON.stringify({ 
-          error: 'Invalid OpenAI API key. Please check your API key configuration.',
-          details: 'The provided OpenAI API key is invalid or has been revoked.',
-          status: response.status
-        }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return jsonResponse({ error: "Translation service temporarily unavailable." }, 503, req);
       }
 
       if (attempts >= maxAttempts) {
-        const error = JSON.parse(errorText);
-        throw new Error(error.error?.message || `Translation failed after ${maxAttempts} attempts`);
+        throw new Error(`Translation failed after ${maxAttempts} attempts`);
       }
 
-      // Wait before retry (exponential backoff)
       await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempts) * 1000));
     }
 
-    const data = await response.json();
+    const data = await response!.json();
     const translatedText = data.choices[0].message.content;
-    console.log('Translation successful:', translatedText.substring(0, 100));
 
-    return new Response(JSON.stringify({ translatedText }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ translatedText }, 200, req);
   } catch (error) {
-    console.error('Error in translate-text function:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      details: 'Check the function logs for more information. If this is a quota issue, please check your OpenAI billing.',
-      timestamp: new Date().toISOString()
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return handleServerError(
+      "translate-text",
+      error,
+      req,
+      "Translation failed. Please try again.",
+    );
   }
 });

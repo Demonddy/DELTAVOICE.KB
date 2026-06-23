@@ -23,9 +23,10 @@ android {
         versionCode 1
         versionName "1.0"
 
-        buildConfigField "String", "SUPABASE_URL", "\"${project.findProperty('SUPABASE_URL') ?: 'https://rkfveqzktfmgegtsoxlf.supabase.co'}\""
+        buildConfigField "String", "SUPABASE_URL", "\"${project.findProperty('SUPABASE_URL') ?: 'https://yvizvsojpwgvaisoahda.supabase.co'}\""
         buildConfigField "String", "SUPABASE_ANON_KEY", "\"${project.findProperty('SUPABASE_ANON_KEY') ?: ''}\""
         buildConfigField "String", "CONVEX_SITE_URL", "\"${project.findProperty('CONVEX_SITE_URL') ?: 'https://kindred-curlew-363.eu-west-1.convex.site'}\""
+        buildConfigField "String", "AI_CHAT_CONVEX_SITE", "\"${project.findProperty('AI_CHAT_CONVEX_SITE') ?: 'https://spotted-guanaco-278.eu-west-1.convex.site'}\""
     }
 
     buildTypes {

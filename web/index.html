@@ -8,40 +8,38 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/png" href="icon-192.png">
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
     <title>DeltaVoice</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <link rel="icon" type="image/svg+xml" href="icon.svg">
 </head>
 <body>
     <div id="app">
         <!-- Header -->
         <header class="header" style="flex-wrap:wrap;gap:8px">
             <div class="logo">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 2L2 7v10l10 5 10-5V7L12 2z" stroke="#8B5CF6" stroke-width="2" fill="none"/>
-                    <path d="M12 6l6 3v6l-6 3-6-3V9l6-3z" fill="#8B5CF6"/>
-                </svg>
+                <img src="logo.png" alt="DeltaVoice" width="36" height="36" style="border-radius:8px">
                 <span>DeltaVoice</span>
             </div>
             <nav class="header-nav" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-left:auto">
-                <a href="voice-process.html" style="color:var(--text-secondary);font-size:0.8125rem;text-decoration:none">Voice</a>
-                <a href="video-process.html" style="color:var(--text-secondary);font-size:0.8125rem;text-decoration:none">Video</a>
-                <a href="landing.html" style="color:var(--text-secondary);font-size:0.8125rem;text-decoration:none">Home</a>
+                <a href="voice-process.html" style="color:var(--text-secondary);font-size:0.8125rem;text-decoration:none" data-i18n="nav.voice">Voice</a>
+                <a href="video-process.html" style="color:var(--text-secondary);font-size:0.8125rem;text-decoration:none" data-i18n="nav.video">Video</a>
+                <a href="landing.html" style="color:var(--text-secondary);font-size:0.8125rem;text-decoration:none" data-i18n="nav.home">Home</a>
+                <div id="langPickerMount"></div>
             </nav>
-            <div class="status" id="status">Ready</div>
+            <div class="status" id="status" data-i18n="status.ready">Ready</div>
         </header>
 
         <!-- Main Content -->
         <main class="main">
             <!-- Recording Section -->
             <section class="record-section" id="recordSection">
-                <h2>Step 1: Record Your Voice</h2>
-                <p class="subtitle">Tap the microphone to start recording</p>
+                <h2 data-i18n="index.recordTitle">Step 1: Record Your Voice</h2>
+                <p class="subtitle" data-i18n="index.recordSubtitle">Tap the microphone to start recording</p>
                 
                 <div class="recorder">
                     <div class="ring ring-outer"></div>
@@ -55,12 +53,12 @@
                 </div>
                 
                 <div class="timer" id="timer">0:00</div>
-                <p class="hint" id="recordHint">Tap to record</p>
+                <p class="hint" id="recordHint" data-i18n="index.recordHint">Tap to record</p>
             </section>
 
             <!-- Processing Section (Hidden by default) -->
             <section class="process-section hidden" id="processSection">
-                <h2>Step 2: Process Your Voice</h2>
+                <h2 data-i18n="index.processTitle">Step 2: Process Your Voice</h2>
                 
                 <!-- Audio Player -->
                 <div class="audio-player" id="audioPlayer">
@@ -77,7 +75,7 @@
                 </div>
 
                 <!-- Mode Selection -->
-                <p class="mode-label">Choose processing mode:</p>
+                <p class="mode-label" data-i18n="index.modeLabel">Choose processing mode:</p>
                 <div class="mode-cards">
                     <button class="mode-card selected" data-mode="complete" id="modeComplete">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -109,7 +107,7 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
                         </svg>
-                        <select id="languageSelect">
+                        <select id="languageSelect" data-i18n-options="languages">
                             <option value="en">English</option>
                             <option value="es">Spanish</option>
                             <option value="fr">French</option>
@@ -185,6 +183,12 @@
 
     <script src="config.js"></script>
     <script src="auth.js"></script>
+    <script src="i18n.js"></script>
     <script src="app.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        DeltaVoiceI18n.init({ languagePicker: '#langPickerMount' });
+      });
+    </script>
 </body>
 </html>

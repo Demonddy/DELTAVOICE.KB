@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DeltaVoice - Speak. Change voice. Translate. Share.</title>
     <meta name="description" content="Real-time voice translation, video dubbing, and AI chat in 12+ languages. Works in any app: Telegram, Instagram, WhatsApp.">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <meta property="og:image" content="logo.png">
+    <meta property="og:title" content="DeltaVoice - Speak. Change voice. Translate. Share.">
+    <meta property="og:description" content="Real-time voice translation, video dubbing, and AI chat in 12+ languages.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
@@ -143,9 +149,7 @@
 <!-- Header -->
 <header class="sticky top-0 z-50 flex items-center justify-between p-4 md:px-8 bg-background-dark/60 backdrop-blur-xl border-b border-white/5">
     <a href="#" class="flex items-center gap-2.5 cursor-pointer">
-        <div class="flex items-center justify-center size-10 rounded-lg bg-primary/10 text-primary border border-primary/20">
-            <span class="material-symbols-outlined text-[24px]">mic_double</span>
-        </div>
+        <img src="logo.png" alt="DeltaVoice" width="40" height="40" class="rounded-lg">
         <h2 class="text-xl font-bold tracking-tight text-slate-100">DeltaVoice</h2>
     </a>
     <div class="md:hidden relative">
@@ -168,6 +172,7 @@
         <a class="hover:text-primary transition-colors" href="#pricing">Pricing</a>
     </nav>
     <div class="hidden md:flex items-center gap-4">
+        <div id="langPickerMount"></div>
         <a class="text-sm font-medium text-slate-300 hover:text-white transition-colors" href="#">Log In</a>
         <a href="#pricing" class="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-semibold transition-colors">Get Started</a>
     </div>
@@ -509,9 +514,7 @@
 <footer class="border-t border-white/5 py-12 px-6 md:px-12 lg:px-24">
     <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
         <div class="flex items-center gap-2">
-            <div class="flex items-center justify-center size-8 rounded-lg bg-primary/10 text-primary border border-primary/20">
-                <span class="material-symbols-outlined text-lg">mic_double</span>
-            </div>
+            <img src="logo.png" alt="DeltaVoice" width="32" height="32" class="rounded-lg">
             <span class="font-bold text-slate-100">DeltaVoice</span>
         </div>
         <nav class="flex items-center gap-6 text-sm text-slate-400">
@@ -524,7 +527,11 @@
 
 </div>
 
+<script src="i18n.js"></script>
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        DeltaVoiceI18n.init({ languagePicker: '#langPickerMount' });
+    });
     document.getElementById('mobile-menu-btn')?.addEventListener('click', function() {
         const menu = document.getElementById('mobile-menu');
         const expanded = this.getAttribute('aria-expanded') === 'true';

@@ -6,22 +6,89 @@ import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import {
   runVoiceWorkflow,
-  CORS_HEADERS,
+  corsHeadersForRequest,
+  rejectDisallowedOrigin,
   type WorkflowRequest,
 } from "./voiceWorkflow";
 import { runVideoPipeline } from "./videoPipeline";
 import { secureConvexRequest } from "./auth";
+import { logger } from "./logger";
 
 const http = httpRouter();
+
+type ChatMessage = { role: string; content: string };
+
+async function callChatCompletions(
+  apiMessages: ChatMessage[],
+): Promise<{ ok: true; text: string } | { ok: false; status: number; detail: string }> {
+  const deepSeekApiKey = process.env.DEEPSEEK_API || process.env.DEEPSEEKA;
+  const openAIApiKey =
+    process.env.OPENAI_API_KEY77 || process.env.OPENAI_API_KEY;
+
+  const attempts: Array<{ url: string; key: string; model: string }> = [];
+  if (deepSeekApiKey) {
+    attempts.push({
+      url: "https://api.deepseek.com/v1/chat/completions",
+      key: deepSeekApiKey,
+      model: "deepseek-chat",
+    });
+  }
+  if (openAIApiKey) {
+    attempts.push({
+      url: "https://api.openai.com/v1/chat/completions",
+      key: openAIApiKey,
+      model: "gpt-4o-mini",
+    });
+  }
+
+  if (attempts.length === 0) {
+    return { ok: false, status: 503, detail: "No AI API key configured" };
+  }
+
+  let lastStatus = 503;
+  let lastDetail = "AI service temporarily unavailable";
+
+  for (const attempt of attempts) {
+    const response = await fetch(attempt.url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${attempt.key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: attempt.model,
+        messages: apiMessages,
+        max_tokens: 1000,
+        temperature: 0.7,
+      }),
+    });
+
+    if (response.ok) {
+      const result = (await response.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      const text =
+        result.choices?.[0]?.message?.content ||
+        "I couldn't generate a response. Please try again.";
+      return { ok: true, text };
+    }
+
+    lastStatus = response.status;
+    lastDetail = await response.text();
+    logger.error("ai-chat", `AI chat ${attempt.model} error`, { status: lastStatus, detail: lastDetail.slice(0, 400) });
+  }
+
+  return { ok: false, status: lastStatus, detail: lastDetail };
+}
 
 // --- AI Chat endpoint (alternative to Supabase when unreachable) ---
 http.route({
   path: "/ai-chat",
   method: "OPTIONS",
-  handler: httpAction(async () => {
+  handler: httpAction(async (_ctx, request) => {
     return new Response(null, {
       status: 204,
-      headers: CORS_HEADERS,
+      headers: corsHeadersForRequest(request),
     });
   }),
 });
@@ -30,8 +97,11 @@ http.route({
   path: "/ai-chat",
   method: "POST",
   handler: httpAction(async (_ctx, request) => {
+    const originDenied = rejectDisallowedOrigin(request);
+    if (originDenied) return originDenied;
+
     const jsonHeaders = {
-      ...CORS_HEADERS,
+      ...corsHeadersForRequest(request),
       "Content-Type": "application/json",
     };
 
@@ -42,19 +112,6 @@ http.route({
     }
 
     try {
-      const deepSeekApiKey =
-        process.env.DEEPSEEK_API || process.env.DEEPSEEKA;
-      if (!deepSeekApiKey) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: "DeepSeek API key not configured",
-            content: "I'm having trouble connecting. Please try again later.",
-          }),
-          { status: 200, headers: jsonHeaders }
-        );
-      }
-
       const body = (await request.json()) as { messages?: Array<{ role: string; content: string }> };
       const messages = body.messages;
       if (!messages || !Array.isArray(messages)) {
@@ -77,55 +134,33 @@ http.route({
         .slice(-50);
       const apiMessages = [systemMessage, ...sanitizedMessages];
 
-      const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${deepSeekApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "deepseek-chat",
-          messages: apiMessages,
-          max_tokens: 1000,
-          temperature: 0.7,
-        }),
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error("DeepSeek AI chat error:", response.status, errText);
+      const result = await callChatCompletions(apiMessages);
+      if (result.ok) {
         return new Response(
           JSON.stringify({
-            success: false,
-            error: "AI service temporarily unavailable",
-            content: "I'm experiencing some issues. Please try again in a moment. 🔄",
+            success: true,
+            content: result.text,
+            response: result.text,
           }),
           { status: 200, headers: jsonHeaders }
         );
       }
 
-      const result = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-      };
-      const aiResponse =
-        result.choices?.[0]?.message?.content ||
-        "I couldn't generate a response. Please try again.";
-
       return new Response(
         JSON.stringify({
-          success: true,
-          content: aiResponse,
-          response: aiResponse,
+          success: false,
+          error: "AI service temporarily unavailable",
+          content: "I'm experiencing some issues. Please try again in a moment. 🔄",
         }),
         { status: 200, headers: jsonHeaders }
       );
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      console.error("AI chat error:", err);
+      logger.error("ai-chat", "AI chat error", err);
       return new Response(
         JSON.stringify({
           success: false,
-          error: err.message,
+          error: "An unexpected error occurred. Please try again.",
           content: "Sorry, I encountered an error. Please try again. 🔄",
         }),
         { status: 200, headers: jsonHeaders }
@@ -139,10 +174,10 @@ http.route({
 http.route({
   path: "/complete-voice-workflow",
   method: "OPTIONS",
-  handler: httpAction(async () => {
+  handler: httpAction(async (_ctx, request) => {
     return new Response(null, {
       status: 204,
-      headers: CORS_HEADERS,
+      headers: corsHeadersForRequest(request),
     });
   }),
 });
@@ -151,8 +186,11 @@ http.route({
   path: "/complete-voice-workflow",
   method: "POST",
   handler: httpAction(async (_ctx, request) => {
+    const originDenied = rejectDisallowedOrigin(request);
+    if (originDenied) return originDenied;
+
     const jsonHeaders = {
-      ...CORS_HEADERS,
+      ...corsHeadersForRequest(request),
       "Content-Type": "application/json",
     };
 
@@ -169,11 +207,11 @@ http.route({
         process.env.ELEVENLABS_API_KEY77 || process.env.ELEVENLABS_API_KEY;
 
       if (!openAIApiKey) {
+        logger.error("complete-voice-workflow", "OpenAI API key not configured");
         return new Response(
           JSON.stringify({
-            error:
-              "OpenAI API key not configured. Please add your OpenAI API key in Convex environment variables.",
-            code: "MISSING_OPENAI_KEY",
+            error: "Voice processing is temporarily unavailable. Please try again later.",
+            code: "SERVICE_UNAVAILABLE",
           }),
           { status: 500, headers: jsonHeaders }
         );
@@ -221,11 +259,11 @@ http.route({
       }
 
       if (wfType !== "text-only" && !elevenLabsApiKey) {
+        logger.error("complete-voice-workflow", "ElevenLabs API key not configured");
         return new Response(
           JSON.stringify({
-            error:
-              "ElevenLabs API key not configured. Please add your ElevenLabs API key in Convex environment variables.",
-            code: "MISSING_ELEVENLABS_KEY",
+            error: "Voice processing is temporarily unavailable. Please try again later.",
+            code: "SERVICE_UNAVAILABLE",
           }),
           { status: 500, headers: jsonHeaders }
         );
@@ -265,8 +303,7 @@ http.route({
         return new Response(
           JSON.stringify({
             success: false,
-            error: err.message,
-            details: err.message,
+            error: "Voice conversion failed. Please try again.",
             timestamp: new Date().toISOString(),
           }),
           { status: 500, headers: jsonHeaders }
@@ -274,13 +311,7 @@ http.route({
       }
 
       let userFriendlyMessage = "Voice processing failed. Please try again.";
-      if (err.message.includes("OpenAI API key not configured")) {
-        userFriendlyMessage =
-          "OpenAI API key not configured. Please add your OpenAI API key to continue.";
-      } else if (err.message.includes("ElevenLabs API key not configured")) {
-        userFriendlyMessage =
-          "ElevenLabs API key not configured. Please add your ElevenLabs API key to continue.";
-      } else if (err.message.includes("No speech detected")) {
+      if (err.message.includes("No speech detected")) {
         userFriendlyMessage = err.message;
       } else if (err.message.includes("Transcription failed")) {
         userFriendlyMessage =
@@ -293,11 +324,12 @@ http.route({
           "Voice conversion failed. Please try again or select a different voice.";
       }
 
+      logger.error("complete-voice-workflow", userFriendlyMessage, err);
+
       return new Response(
         JSON.stringify({
           success: false,
           error: userFriendlyMessage,
-          details: err.message,
           timestamp: new Date().toISOString(),
         }),
         { status: 500, headers: jsonHeaders }
@@ -311,10 +343,10 @@ http.route({
 http.route({
   path: "/video-workflow",
   method: "OPTIONS",
-  handler: httpAction(async () => {
+  handler: httpAction(async (_ctx, request) => {
     return new Response(null, {
       status: 204,
-      headers: CORS_HEADERS,
+      headers: corsHeadersForRequest(request),
     });
   }),
 });
@@ -323,8 +355,11 @@ http.route({
   path: "/video-workflow",
   method: "POST",
   handler: httpAction(async (_ctx, request) => {
+    const originDenied = rejectDisallowedOrigin(request);
+    if (originDenied) return originDenied;
+
     const jsonHeaders = {
-      ...CORS_HEADERS,
+      ...corsHeadersForRequest(request),
       "Content-Type": "application/json",
     };
 
@@ -363,19 +398,21 @@ http.route({
         process.env.ELEVENLABS_API_KEY77 || process.env.ELEVENLABS_API_KEY;
 
       if (!openAIApiKey) {
+        logger.error("video-workflow", "OpenAI API key not configured");
         return new Response(
           JSON.stringify({
-            error: "OpenAI API key not configured",
-            code: "MISSING_OPENAI_KEY",
+            error: "Video processing is temporarily unavailable. Please try again later.",
+            code: "SERVICE_UNAVAILABLE",
           }),
           { status: 500, headers: jsonHeaders }
         );
       }
       if (!elevenLabsApiKey) {
+        logger.error("video-workflow", "ElevenLabs API key not configured");
         return new Response(
           JSON.stringify({
-            error: "ElevenLabs API key not configured",
-            code: "MISSING_ELEVENLABS_KEY",
+            error: "Video processing is temporarily unavailable. Please try again later.",
+            code: "SERVICE_UNAVAILABLE",
           }),
           { status: 500, headers: jsonHeaders }
         );
@@ -403,11 +440,11 @@ http.route({
       });
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
+      logger.error("video-workflow", "Video workflow error", err);
       return new Response(
         JSON.stringify({
           success: false,
-          error: err.message,
-          details: err.message,
+          error: "Video processing failed. Please try again.",
           timestamp: new Date().toISOString(),
         }),
         { status: 500, headers: jsonHeaders }

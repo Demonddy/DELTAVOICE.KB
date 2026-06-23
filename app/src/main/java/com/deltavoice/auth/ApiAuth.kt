@@ -22,6 +22,17 @@ object ApiAuth {
         }
     }
 
+    /** Returns false when no user session exists (secured endpoints reject anon tokens). */
+    fun tryApplyToBlocking(connection: HttpURLConnection): Boolean {
+        return kotlinx.coroutines.runBlocking {
+            val token = AuthManager.getAccessToken()
+            if (token.isNullOrBlank()) return@runBlocking false
+            connection.setRequestProperty("Authorization", "Bearer $token")
+            connection.setRequestProperty("apikey", SupabaseConfig.SUPABASE_ANON_KEY)
+            true
+        }
+    }
+
     /** For legacy synchronous HTTP helpers running on a background thread. */
     fun applyToBlocking(connection: HttpURLConnection) {
         kotlinx.coroutines.runBlocking { applyTo(connection) }

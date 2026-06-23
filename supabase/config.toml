@@ -1,1 +1,10 @@
 project_id = "rkfveqzktfmgegtsoxlf"
+
+[auth]
+# JWT access token lifetime: 7 days (604800 seconds)
+jwt_expiry = 604800
+# Rotate refresh tokens on each use to prevent token reuse attacks
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+site_url = "https://deltavoice.com"
+additional_redirect_urls = ["https://deltavoice.com/**", "https://www.deltavoice.com/**"]

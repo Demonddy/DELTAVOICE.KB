@@ -1,47 +1,52 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, secureEdgeRequest } from "../_shared/security.ts";
+import {
+  corsHeadersForRequest,
+  handleServerError,
+  jsonResponse,
+  logger,
+  secureEdgeRequest,
+} from "../_shared/security.ts";
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeadersForRequest(req) });
   }
 
   const auth = await secureEdgeRequest(req, "ai-chat");
   if (auth instanceof Response) return auth;
 
   try {
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY77') || Deno.env.get('OPENAI_API_KEY');
-    
+    const openAIApiKey = Deno.env.get("OPENAI_API_KEY77") || Deno.env.get("OPENAI_API_KEY");
+
     if (!openAIApiKey) {
-      console.error('OpenAI API key not configured');
-      return new Response(
-        JSON.stringify({ 
+      logger.error("ai-chat", "OpenAI API key not configured");
+      return jsonResponse(
+        {
           success: false,
-          error: 'OpenAI API key not configured',
+          error: "Service temporarily unavailable",
           content: "I'm having trouble connecting. Please try again later.",
-          response: "I'm having trouble connecting. Please try again later."
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          response: "I'm having trouble connecting. Please try again later.",
+        },
+        200,
+        req,
       );
     }
 
     const { messages } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
-      return new Response(
-        JSON.stringify({ 
+      return jsonResponse(
+        {
           success: false,
-          error: 'Messages array is required',
+          error: "Messages array is required",
           content: "Please send a message to start chatting!",
-          response: "Please send a message to start chatting!"
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          response: "Please send a message to start chatting!",
+        },
+        200,
+        req,
       );
     }
-
-    console.log('🤖 AI Chat request - messages count:', messages.length);
-    console.log('🤖 Last message:', messages[messages.length - 1]?.content?.substring(0, 100));
 
     const systemMessage = {
       role: "system",
@@ -51,7 +56,7 @@ Use emojis occasionally to be friendly 😊.
 Respond in the same language the user writes in.
 If asked to write something (email, message, etc.), provide complete, ready-to-use content.
 For translations, provide the translation directly without extra explanation.
-Be helpful, accurate, and conversational like ChatGPT.`
+Be helpful, accurate, and conversational like ChatGPT.`,
     };
 
     const MAX_MESSAGES = 50;
@@ -60,15 +65,14 @@ Be helpful, accurate, and conversational like ChatGPT.`
       .slice(-MAX_MESSAGES);
     const apiMessages = [systemMessage, ...sanitizedMessages];
 
-    // Call OpenAI API
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${openAIApiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: "gpt-4o-mini",
         messages: apiMessages,
         max_tokens: 1000,
         temperature: 0.7,
@@ -79,45 +83,40 @@ Be helpful, accurate, and conversational like ChatGPT.`
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('🤖 OpenAI API error:', response.status, errorText);
-      
-      return new Response(
-        JSON.stringify({ 
+      logger.error("ai-chat", `OpenAI API error: ${response.status}`, errorText.slice(0, 400));
+
+      return jsonResponse(
+        {
           success: false,
-          error: 'AI service temporarily unavailable',
+          error: "AI service temporarily unavailable",
           content: "I'm experiencing some issues. Please try again in a moment. 🔄",
-          response: "I'm experiencing some issues. Please try again in a moment. 🔄"
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          response: "I'm experiencing some issues. Please try again in a moment. 🔄",
+        },
+        200,
+        req,
       );
     }
 
     const result = await response.json();
-    const aiResponse = result.choices[0]?.message?.content || "I couldn't generate a response. Please try again.";
+    const aiResponse = result.choices[0]?.message?.content ||
+      "I couldn't generate a response. Please try again.";
 
-    console.log('🤖 AI response generated successfully:', aiResponse.substring(0, 100));
-
-    return new Response(
-      JSON.stringify({ 
+    return jsonResponse(
+      {
         success: true,
         content: aiResponse,
         response: aiResponse,
-        message: aiResponse
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        message: aiResponse,
+      },
+      200,
+      req,
     );
-
   } catch (error) {
-    console.error('🤖 AI Chat error:', error);
-    
-    return new Response(
-      JSON.stringify({ 
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-        content: "Sorry, I encountered an error. Please try again. 🔄",
-        response: "Sorry, I encountered an error. Please try again. 🔄"
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    return handleServerError(
+      "ai-chat",
+      error,
+      req,
+      "Sorry, I encountered an error. Please try again. 🔄",
     );
   }
 });

@@ -1,7 +1,7 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, secureEdgeRequest } from "../_shared/security.ts";
+import { corsHeadersForRequest, handleServerError, jsonResponse, logger, secureEdgeRequest } from "../_shared/security.ts";
 
 const audioMimeMap: Record<string, string> = {
   m4a: 'audio/mp4',
@@ -26,7 +26,6 @@ function resolveAudioMeta(format?: string) {
   }
 }
 
-// IMPORTANT: Replace with your actual Replit backend URL!
 const WHISPER_BACKEND_URL = "https://your-repl-name.replit.dev";
 
 function processBase64Chunks(base64String: string, chunkSize = 32768) {
@@ -54,7 +53,7 @@ function processBase64Chunks(base64String: string, chunkSize = 32768) {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: { ...corsHeadersForRequest(req), 'Content-Type': 'application/json' } });
   }
 
   const auth = await secureEdgeRequest(req, "free-voice-translate");
@@ -64,20 +63,15 @@ serve(async (req) => {
     const { audio, targetLanguage, format } = await req.json();
 
     if (!audio || !targetLanguage) {
-      return new Response(
-        JSON.stringify({ error: "Missing audio or target language" }),
-        { status: 400, headers: corsHeaders }
-      );
+      return jsonResponse({ error: "Audio and target language are required." }, 400, req);
     }
 
-    // Convert base64 to binary audio
     const binaryAudio = processBase64Chunks(audio);
     const formData = new FormData();
     const audioMeta = resolveAudioMeta(format);
     const audioBlob = new Blob([binaryAudio], { type: audioMeta.mimeType });
     formData.append('file', audioBlob, audioMeta.fileName);
 
-    // Call self-hosted Whisper backend for transcription
     const whisperRes = await fetch(`${WHISPER_BACKEND_URL}/transcribe`, {
       method: 'POST',
       body: formData,
@@ -85,23 +79,17 @@ serve(async (req) => {
 
     if (!whisperRes.ok) {
       const errorText = await whisperRes.text();
-      return new Response(
-        JSON.stringify({ error: "Transcription failed", details: errorText }),
-        { status: 500, headers: corsHeaders }
-      );
+      logger.error("free-voice-translate", "Transcription failed", errorText.slice(0, 400));
+      return jsonResponse({ error: "Transcription failed. Please try again." }, 500, req);
     }
 
     const whisperData = await whisperRes.json();
     const transcribedText = whisperData.text;
 
     if (!transcribedText || transcribedText.trim().length === 0) {
-      return new Response(
-        JSON.stringify({ error: "No speech detected in audio." }),
-        { status: 400, headers: corsHeaders }
-      );
+      return jsonResponse({ error: "No speech detected in audio." }, 400, req);
     }
 
-    // Translate the transcribed text via the existing translate-text function
     const translationRes = await fetch(
       `${req.url.split("/functions/v1/")[0]}/functions/v1/translate-text`,
       {
@@ -119,30 +107,23 @@ serve(async (req) => {
     );
 
     if (!translationRes.ok) {
-      const errorText = await translationRes.text();
-      return new Response(
-        JSON.stringify({ error: "Translation failed", details: errorText }),
-        { status: 500, headers: corsHeaders }
-      );
+      logger.error("free-voice-translate", `Translation step failed: ${translationRes.status}`);
+      return jsonResponse({ error: "Translation failed. Please try again." }, 500, req);
     }
 
     const translationData = await translationRes.json();
 
-    return new Response(
-      JSON.stringify({
-        originalText: transcribedText,
-        translatedText: translationData.translatedText,
-        detectedLanguage: "en", // Whisper doesn't detect language (yet)
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({
+      originalText: transcribedText,
+      translatedText: translationData.translatedText,
+      detectedLanguage: "en",
+    }, 200, req);
   } catch (error) {
-    return new Response(
-      JSON.stringify({
-        error: error.message || "Unknown error in free-voice-translate function",
-        timestamp: new Date().toISOString()
-      }),
-      { status: 500, headers: corsHeaders }
+    return handleServerError(
+      "free-voice-translate",
+      error,
+      req,
+      "Voice translation failed. Please try again.",
     );
   }
 });

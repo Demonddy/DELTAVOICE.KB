@@ -38,9 +38,9 @@ object FeatureGate {
                 403 -> context.getString(R.string.upgrade_premium_unlock_theme)
                 429 -> "Rate limit reached. Please wait a moment and try again."
                 413 -> "File too large. Please use a shorter recording."
-                else -> error.message ?: "Something went wrong. Please try again."
+                else -> "Something went wrong. Please try again."
             }
-            else -> error.message ?: "Something went wrong. Please try again."
+            else -> "Something went wrong. Please try again."
         }
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }

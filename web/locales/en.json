@@ -1,0 +1,101 @@
+{
+  "settings": {
+    "language": "Language"
+  },
+  "nav": {
+    "voice": "Voice",
+    "video": "Video",
+    "home": "Home",
+    "back": "← Back"
+  },
+  "status": {
+    "ready": "Ready"
+  },
+  "index": {
+    "title": "DeltaVoice",
+    "recordTitle": "Step 1: Record Your Voice",
+    "recordSubtitle": "Tap the microphone to start recording",
+    "recordHint": "Tap to record",
+    "processTitle": "Step 2: Process Your Voice",
+    "modeLabel": "Choose processing mode:",
+    "modeComplete": "Change Language & Voice",
+    "modeCompleteDesc": "Full conversion",
+    "modeVoice": "Translate My Same Voice",
+    "modeVoiceDesc": "Voice cloning",
+    "modeText": "Transcript & Translate",
+    "modeTextDesc": "Text output",
+    "targetLanguage": "Target language",
+    "voiceStyle": "Voice style",
+    "processBtn": "Process",
+    "sendBtn": "Send"
+  },
+  "voice": {
+    "title": "Process voice",
+    "subtitle": "Translate or clone your voice",
+    "sectionMode": "Processing mode",
+    "cardFull": "Change Language & Voice",
+    "cardFullDesc": "Full conversion",
+    "cardVoice": "Translate My Same Voice",
+    "cardVoiceDesc": "Voice cloning",
+    "cardText": "Transcript & Translate",
+    "cardTextDesc": "Text output",
+    "options": "Options",
+    "targetLanguage": "Target language",
+    "voice": "Voice",
+    "hint": "Record or upload audio, then choose options below.",
+    "upload": "Upload voice",
+    "record": "Record",
+    "statusReady": "Recording ready",
+    "process": "Process",
+    "transcriptPlaceholder": "Transcript will appear here",
+    "results": "Processed voices",
+    "tipTitle": "Tip",
+    "tipBody": "Speak clearly and reduce background noise for best results."
+  },
+  "video": {
+    "title": "Process video",
+    "subtitle": "Translate and dub your recording",
+    "upload": "Upload Video",
+    "record": "Record Video",
+    "options": "Processing options",
+    "targetLanguage": "Target language",
+    "voiceStyle": "Voice style",
+    "hint": "Record or upload a video, then choose language and voice.",
+    "preview": "Preview",
+    "previewHint": "Live camera while recording; play your clip after you stop",
+    "statusReady": "Video ready for processing",
+    "process": "Process video",
+    "results": "Processed videos",
+    "tipTitle": "Tip",
+    "tipBody": "Good lighting and clear speech improve translation quality."
+  },
+  "languages": {
+    "en": "English",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "ru": "Russian",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "zh": "Chinese",
+    "ar": "Arabic",
+    "hi": "Hindi"
+  },
+  "voices": {
+    "adam": "Adam",
+    "aria": "Aria",
+    "sarah": "Sarah",
+    "liam": "Liam",
+    "charlotte": "Charlotte",
+    "alice": "Alice",
+    "roger": "Roger",
+    "laura": "Laura"
+  },
+  "landing": {
+    "title": "DeltaVoice — AI Voice Keyboard",
+    "tryApp": "Try web app",
+    "features": "Features"
+  }
+}

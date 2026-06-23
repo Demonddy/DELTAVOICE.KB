@@ -79,8 +79,10 @@ object AuthManager {
         runCatching { client().auth.currentSessionOrNull()?.accessToken }.getOrNull()
     }
 
-    suspend fun requireAccessToken(): String =
-        getAccessToken() ?: throw AuthRequiredException()
+    suspend fun requireAccessToken(): String {
+        refreshSessionIfNeeded()
+        return getAccessToken() ?: throw AuthRequiredException()
+    }
 
     fun isLoggedIn(): Boolean =
         prefs().getBoolean(KEY_IS_LOGGED_IN, false)
@@ -97,7 +99,9 @@ object AuthManager {
 
     suspend fun refreshSessionIfNeeded() = withContext(Dispatchers.IO) {
         runCatching {
-            client().auth.currentSessionOrNull() ?: return@runCatching
+            val session = client().auth.currentSessionOrNull() ?: return@runCatching
+            // Rotate refresh token per Supabase auth config (7-day JWT + rotation)
+            client().auth.refreshCurrentSession()
             syncAccountPrefs()
         }
     }

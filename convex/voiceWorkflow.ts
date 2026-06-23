@@ -1,22 +1,60 @@
-/**
+﻿/**
  * Voice Workflow Logic - Complete (Change Language & Voice) and Voice-only (Translate My Same Voice)
  * Transferred from Supabase Edge Functions for Convex real-time functionality.
  * Only handles workflowType: 'complete' | 'voice-only'
  */
 
-const ALLOWED_ORIGINS_RAW = process.env.ALLOWED_ORIGINS || "*";
-const ALLOWED_ORIGINS_LIST = ALLOWED_ORIGINS_RAW === "*"
-  ? null
-  : ALLOWED_ORIGINS_RAW.split(",").map((s: string) => s.trim()).filter(Boolean);
+import { logger } from "./logger";
+
+const DEFAULT_ALLOWED_ORIGINS = [
+  "https://deltavoice.com",
+  "https://www.deltavoice.com",
+];
+const ALLOWED_ORIGINS_RAW =
+  process.env.ALLOWED_ORIGINS || DEFAULT_ALLOWED_ORIGINS.join(",");
+const parsedOrigins = ALLOWED_ORIGINS_RAW.split(",")
+  .map((s: string) => s.trim())
+  .filter(Boolean);
+const ALLOWED_ORIGINS =
+  ALLOWED_ORIGINS_RAW === "*" || parsedOrigins.length === 0
+    ? DEFAULT_ALLOWED_ORIGINS
+    : parsedOrigins;
 
 function getCorsOrigin(request?: Request): string {
-  if (!ALLOWED_ORIGINS_LIST) return "*";
   const origin = request?.headers.get("origin") || "";
-  return ALLOWED_ORIGINS_LIST.includes(origin) ? origin : ALLOWED_ORIGINS_LIST[0] || "";
+  if (!origin) return "";
+  return ALLOWED_ORIGINS.includes(origin) ? origin : "";
+}
+
+/** Native clients omit Origin; only reject when a disallowed Origin is present. */
+export function rejectDisallowedOrigin(request: Request): Response | null {
+  const origin = request.headers.get("origin");
+  if (!origin) return null;
+  if (!ALLOWED_ORIGINS.includes(origin)) {
+    return new Response(
+      JSON.stringify({ error: "Origin not allowed.", code: "ORIGIN_NOT_ALLOWED" }),
+      {
+        status: 403,
+        headers: {
+          ...corsHeadersForRequest(request),
+          "Content-Type": "application/json",
+        },
+      },
+    );
+  }
+  return null;
+}
+
+export function corsHeadersForRequest(request: Request): Record<string, string> {
+  return {
+    "Access-Control-Allow-Origin": getCorsOrigin(request),
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+  };
 }
 
 const CORS_HEADERS: Record<string, string> = {
-  "Access-Control-Allow-Origin": ALLOWED_ORIGINS_LIST ? "" : "*",
+  "Access-Control-Allow-Origin": "",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
@@ -352,7 +390,6 @@ async function convertTextToSpeech(
         ttsBody.language_code = langCode;
       }
 
-      console.log(`ElevenLabs TTS attempt: model=${modelId}, voice=${voiceId}, langCode=${includeLanguageCode ? langCode : 'omitted'}, textLen=${text.length}`);
       res = await fetch(ttsUrl, {
         method: "POST",
         headers: {
@@ -363,11 +400,10 @@ async function convertTextToSpeech(
         body: JSON.stringify(ttsBody),
       });
       if (res.ok) {
-        console.log(`ElevenLabs TTS SUCCESS: model=${modelId}, status=${res.status}`);
         return res;
       }
       lastError = await res.text();
-      console.error(`ElevenLabs TTS FAILED: model=${modelId}, status=${res.status}, error=${lastError.substring(0, 300)}`);
+      logger.error("voiceWorkflow", `ElevenLabs TTS failed: model=${modelId}, status=${res.status}`, lastError.substring(0, 300));
     }
     return null;
   }
@@ -495,7 +531,7 @@ export async function runVoiceWorkflow(
     const err =
       ttsError instanceof Error ? ttsError : new Error(String(ttsError));
     const msg = err.message || "";
-    console.error("TTS ERROR:", msg);
+    logger.error("voiceWorkflow", "TTS error", msg);
     const isTtsError =
       msg.includes("Voice conversion failed") ||
       msg.includes("Voice clone creation failed") ||
@@ -533,4 +569,4 @@ export async function runVoiceWorkflow(
   };
 }
 
-export { CORS_HEADERS };
+export { CORS_HEADERS, corsHeadersForRequest };

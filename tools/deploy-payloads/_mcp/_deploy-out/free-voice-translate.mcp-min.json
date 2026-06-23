@@ -1,0 +1,1 @@
+{"name":"free-voice-translate","entrypoint_path":"index.ts","verify_jwt":true,"file_names":["index.ts","../_shared/security.ts"],"payload_bytes":20420}

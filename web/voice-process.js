@@ -1,29 +1,22 @@
-/* global DELTAVOICE_CONVEX_URL */
+/* global DELTAVOICE_CONVEX_URL, DeltaVoiceI18n */
 (function () {
-  const LANGUAGES = [
-    ["English", "en"],
-    ["Spanish", "es"],
-    ["French", "fr"],
-    ["German", "de"],
-    ["Italian", "it"],
-    ["Portuguese", "pt"],
-    ["Russian", "ru"],
-    ["Japanese", "ja"],
-    ["Korean", "ko"],
-    ["Chinese", "zh"],
-    ["Arabic", "ar"],
-    ["Hindi", "hi"],
-  ];
-  const VOICES = [
-    ["Adam", "adam"],
-    ["Aria", "aria"],
-    ["Sarah", "sarah"],
-    ["Liam", "liam"],
-    ["Charlotte", "charlotte"],
-    ["Alice", "alice"],
-    ["Roger", "roger"],
-    ["Laura", "laura"],
-  ];
+  const VOICE_CODES = ["adam", "aria", "sarah", "liam", "charlotte", "alice", "roger", "laura"];
+
+  function languageList() {
+    if (typeof DeltaVoiceI18n !== "undefined") return DeltaVoiceI18n.languageOptions();
+    return [
+      ["English", "en"], ["Spanish", "es"], ["French", "fr"], ["German", "de"],
+      ["Italian", "it"], ["Portuguese", "pt"], ["Russian", "ru"], ["Japanese", "ja"],
+      ["Korean", "ko"], ["Chinese", "zh"], ["Arabic", "ar"], ["Hindi", "hi"],
+    ];
+  }
+
+  function voiceList() {
+    if (typeof DeltaVoiceI18n !== "undefined") {
+      return VOICE_CODES.map((code) => [DeltaVoiceI18n.t(`voices.${code}`), code]);
+    }
+    return VOICE_CODES.map((c) => [c.charAt(0).toUpperCase() + c.slice(1), c]);
+  }
 
   const el = (id) => document.getElementById(id);
   const baseUrl = () =>
@@ -355,7 +348,7 @@
           const arr = new Uint8Array(bin.length);
           for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
           const mp3 = new Blob([arr], { type: "audio/mpeg" });
-          const label = VOICES.find((v) => v[1] === voice)?.[0] + " #" + (processedItems.length + 1);
+          const label = voiceList().find((v) => v[1] === voice)?.[0] + " #" + (processedItems.length + 1);
           processedItems.push({ type: "audio", label, blob: mp3 });
           renderResults();
           el("statusText").textContent = "Ready! Download or share below.";
@@ -482,8 +475,8 @@
   }
 
   function init() {
-    fillSelect(el("langSelect"), LANGUAGES);
-    fillSelect(el("voiceSelect"), VOICES);
+    fillSelect(el("langSelect"), languageList());
+    fillSelect(el("voiceSelect"), voiceList());
 
     document.querySelectorAll(".vp-card").forEach((c) => {
       c.addEventListener("click", () => setMode(c.dataset.mode));
@@ -509,8 +502,19 @@
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener("DOMContentLoaded", boot);
   } else {
+    boot();
+  }
+
+  async function boot() {
+    if (typeof DeltaVoiceI18n !== "undefined") {
+      await DeltaVoiceI18n.init({ languagePicker: "#langPickerMount" });
+      document.addEventListener("deltavoice:locale", () => {
+        fillSelect(el("langSelect"), languageList());
+        fillSelect(el("voiceSelect"), voiceList());
+      });
+    }
     init();
   }
 })();

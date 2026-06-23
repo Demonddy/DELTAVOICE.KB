@@ -8,7 +8,7 @@
     <color name="glass_key_pressed">#40FFFFFF</color>
 
     <!-- App Primary Colors -->
-    <color name="ic_launcher_background">#7C52FF</color>
+    <color name="ic_launcher_background">#0A0E1A</color>
     <color name="primary">#7C52FF</color>
     <color name="primary_dark">#7C3AED</color>
     <color name="primary_light">#A78BFA</color>

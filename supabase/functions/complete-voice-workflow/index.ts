@@ -1,6 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, secureEdgeRequest } from "../_shared/security.ts";
+import { corsHeadersForRequest, handleServerError, jsonResponse, logger, secureEdgeRequest } from "../_shared/security.ts";
 
 const audioMimeMap: Record<string, string> = {
   m4a: 'audio/mp4',
@@ -58,8 +58,6 @@ async function transcribeAudio(audioBase64: string, format?: string): Promise<st
     throw new Error('OpenAI API key not configured');
   }
 
-  console.log('Starting audio transcription with OpenAI Whisper');
-  console.log('Audio data size:', audioBase64.length, 'bytes');
   
   // Convert base64 to binary with chunked processing for large files
   const chunkSize = 32768; // 32KB chunks
@@ -88,7 +86,6 @@ async function transcribeAudio(audioBase64: string, format?: string): Promise<st
     offset += chunk.length;
   }
   
-  console.log('Processed audio size:', binaryAudio.length, 'bytes');
   
   // Prepare form data
   const formData = new FormData();
@@ -116,17 +113,16 @@ async function transcribeAudio(audioBase64: string, format?: string): Promise<st
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI Whisper API error:', response.status, errorText);
-      throw new Error(`Transcription failed: ${response.status} - ${errorText}`);
+      logger.error("complete-voice-workflow", `Whisper API error: ${response.status}`, errorText);
+      throw new Error("TRANSCRIPTION_FAILED");
     }
 
     const result = await response.json();
-    console.log('Transcription successful:', result.text);
     return result.text;
   } catch (error) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
-      throw new Error('Transcription timeout - video too long or processing too slow');
+      throw new Error('TRANSCRIPTION_TIMEOUT');
     }
     throw error;
   }
@@ -139,7 +135,6 @@ async function translateText(text: string, targetLanguage: string): Promise<stri
     throw new Error('OpenAI API key not configured');
   }
 
-  console.log('Translating text to:', targetLanguage);
 
   const languageNames: { [key: string]: string } = {
     'en': 'English',
@@ -178,13 +173,12 @@ async function translateText(text: string, targetLanguage: string): Promise<stri
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('OpenAI Translation API error:', response.status, errorText);
-    throw new Error(`Translation failed: ${response.status} - ${errorText}`);
+    logger.error("complete-voice-workflow", `Translation API error: ${response.status}`, errorText);
+    throw new Error("TRANSLATION_FAILED");
   }
 
   const result = await response.json();
   const translatedText = result.choices[0].message.content.trim();
-  console.log('Translation successful:', translatedText);
   return translatedText;
 }
 
@@ -195,34 +189,27 @@ function getElevenLabsApiKey(): string {
 
 // Helper function to create voice clone from audio using ElevenLabs
 async function createVoiceCloneFromAudio(audioBase64: string, name: string, format?: string): Promise<string> {
-  console.log('🎭 STARTING VOICE CLONE CREATION:', name);
-  console.log('🎭 Audio data size:', audioBase64.length);
   
   const elevenLabsApiKey = getElevenLabsApiKey();
   if (!elevenLabsApiKey) {
-    console.error('🎭 ElevenLabs API key not found!');
+    logger.error("complete-voice-workflow", "ElevenLabs API key not configured");
     throw new Error('ElevenLabs API key not configured');
   }
 
-  console.log('🎭 ElevenLabs API key found, proceeding...');
 
   try {
     // Convert base64 to blob for ElevenLabs
-    console.log('🎭 Converting base64 to blob...');
     const audioBuffer = Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0));
     const audioMeta = resolveAudioMeta(format);
     const audioBlob = new Blob([audioBuffer], { type: audioMeta.mimeType });
-    console.log('🎭 Audio blob size:', audioBlob.size);
 
     // Create FormData for ElevenLabs API
     const formData = new FormData();
     formData.append('name', name);
     formData.append('description', `Auto-generated voice clone: ${name}`);
     formData.append('files', audioBlob, audioMeta.fileName);
-    console.log('🎭 FormData prepared for ElevenLabs');
 
     // Create voice clone with ElevenLabs
-    console.log('🎭 Calling ElevenLabs API...');
     const response = await fetch('https://api.elevenlabs.io/v1/voices/add', {
       method: 'POST',
       headers: {
@@ -231,20 +218,18 @@ async function createVoiceCloneFromAudio(audioBase64: string, name: string, form
       body: formData,
     });
 
-    console.log('🎭 ElevenLabs API response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('🎭 ElevenLabs voice clone creation error:', response.status, errorText);
-      throw new Error(`Voice clone creation failed: ${response.status} - ${errorText}`);
+      logger.error("complete-voice-workflow", `Voice clone creation error: ${response.status}`, errorText);
+      throw new Error("VOICE_CLONE_FAILED");
     }
 
     const result = await response.json();
-    console.log('🎭 VOICE CLONE CREATED SUCCESSFULLY! Voice ID:', result.voice_id);
     return result.voice_id;
   } catch (error) {
-    console.error('🎭 ERROR in voice clone creation:', error);
-    throw error;
+    logger.error("complete-voice-workflow", "Voice clone creation failed", error);
+    throw new Error("VOICE_CLONE_FAILED");
   }
 }
 
@@ -273,8 +258,6 @@ async function convertTextToSpeech(
   // Handle MyVoiceClone by retrieving from database or creating automatically
   let voiceId: string;
   if (voiceStyle === 'myvoiceclone') {
-    console.log('🎭 MYVOICECLONE REQUESTED - strict fresh clone from current recording');
-    console.log('🎭 Audio data available:', !!audioBase64, 'Size:', audioBase64 ? audioBase64.length : 0);
 
     if (!audioBase64 || audioBase64.length < 2000) {
       throw new Error('Voice clone requires a valid recording. Please record a longer voice sample and try again.');
@@ -284,14 +267,12 @@ async function convertTextToSpeech(
       // Always build clone from THIS recording so output matches the latest speaker sample.
       const cloneName = `Live Voice Clone ${Date.now()}`;
       voiceId = await createVoiceCloneFromAudio(audioBase64, cloneName, audioFormat);
-      console.log('🎭 Fresh voice clone created for current request:', voiceId);
     } catch (error) {
-      console.error('🎭 Fresh voice clone creation failed:', error);
-      throw new Error(`Voice clone creation failed for current recording: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error("complete-voice-workflow", "Fresh voice clone creation failed", error);
+      throw new Error("VOICE_CLONE_FAILED");
     }
   } else if (voiceStyle.startsWith('clone_')) {
     // For existing voice clones, get the actual ElevenLabs voice ID
-    console.log('Using voice clone:', voiceStyle);
     voiceId = '9BWtsMINqrJLrRacOk9x'; // Default to Aria for now
     
     // TODO: In production, you would:
@@ -299,23 +280,13 @@ async function convertTextToSpeech(
     // 2. Look up the actual ElevenLabs voice ID here
     // 3. Use that voice ID for TTS
   } else {
-    console.log('🎤 VOICE SELECTION - Standard voice requested:', voiceStyle);
     voiceId = elevenLabsVoiceMap[voiceStyle] || '9BWtsMINqrJLrRacOk9x';
-    console.log('🎤 VOICE SELECTION - Mapped to voice ID:', voiceId);
     
     if (!elevenLabsVoiceMap[voiceStyle]) {
-      console.warn('⚠️ VOICE SELECTION - Voice style not found in mapping, defaulting to Aria:', voiceStyle);
-      console.log('🎤 Available voice styles:', Object.keys(elevenLabsVoiceMap));
+      logger.warn("complete-voice-workflow", `Voice style not found, defaulting to Aria: ${voiceStyle}`);
     } else {
-      console.log('✅ VOICE SELECTION - Voice style found and mapped successfully');
     }
   }
-
-  console.log('🎵 FINAL VOICE SELECTION:', {
-    requestedStyle: voiceStyle,
-    selectedVoiceId: voiceId,
-    text: text.substring(0, 50) + '...'
-  });
 
   // For cloned voices, prioritize quality/fidelity over speed.
   const isClonedVoice = voiceStyle === 'myvoiceclone' || voiceStyle.startsWith('clone_');
@@ -339,22 +310,21 @@ async function convertTextToSpeech(
     });
     if (response.ok) break;
     lastError = await response.text();
-    console.warn(`ElevenLabs ${modelId} failed:`, response.status, lastError);
+    logger.warn("complete-voice-workflow", `ElevenLabs ${modelId} failed: ${response.status}`, lastError);
   }
   if (!response || !response.ok) {
-    console.error('ElevenLabs API error:', response?.status, lastError);
-    throw new Error(`Voice conversion failed: ${response?.status || 'unknown'} - ${lastError}`);
+    logger.error("complete-voice-workflow", `ElevenLabs API error: ${response?.status}`, lastError);
+    throw new Error("VOICE_CONVERSION_FAILED");
   }
 
   const audioBuffer = await response.arrayBuffer();
   const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
-  console.log('Voice conversion successful');
   return base64Audio;
 }
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: { ...corsHeadersForRequest(req), 'Content-Type': 'application/json' } });
   }
 
   const auth = await secureEdgeRequest(req, "complete-voice-workflow");
@@ -377,41 +347,36 @@ serve(async (req) => {
           error: "Premium subscription required for voice cloning.",
           code: "PREMIUM_REQUIRED",
         }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { status: 403, headers: { ...corsHeadersForRequest(req), "Content-Type": "application/json" } },
       );
     }
 
     // Check API keys first (support OPENAI_API_KEY77 for OpenAI)
     const openAIApiKey = getOpenAIApiKey();
     const elevenLabsApiKey = Deno.env.get('ELEVENLABS_API_KEY77') || Deno.env.get('ELEVENLABS_API_KEY');
-    
-    console.log('🔍 API Keys Check:', {
-      openAI: !!openAIApiKey,
-      elevenLabs: !!elevenLabsApiKey
-    });
 
     if (!openAIApiKey) {
+      logger.error("complete-voice-workflow", "OpenAI API key not configured");
       return new Response(
         JSON.stringify({ 
-          error: 'OpenAI API key not configured. Please add your OpenAI API key in Supabase secrets.',
-          code: 'MISSING_OPENAI_KEY'
+          error: 'Voice processing is temporarily unavailable. Please try again later.',
+          code: 'SERVICE_UNAVAILABLE'
         }),
-        { status: 500, headers: corsHeaders }
+        { status: 500, headers: { ...corsHeadersForRequest(req), 'Content-Type': 'application/json' } }
       );
     }
 
     if (!elevenLabsApiKey) {
+      logger.error("complete-voice-workflow", "ElevenLabs API key not configured");
       return new Response(
         JSON.stringify({ 
-          error: 'ElevenLabs API key not configured. Please add your ElevenLabs API key in Supabase secrets.',
-          code: 'MISSING_ELEVENLABS_KEY'
+          error: 'Voice processing is temporarily unavailable. Please try again later.',
+          code: 'SERVICE_UNAVAILABLE'
         }),
-        { status: 500, headers: corsHeaders }
+        { status: 500, headers: { ...corsHeadersForRequest(req), 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('🚀 Edge function started - complete-voice-workflow');
-    console.log('🚀 Request method:', req.method);
     
     const reqBody = await req.json();
     const { audioBase64, format } = reqBody;
@@ -419,18 +384,10 @@ serve(async (req) => {
     voiceStyle = (typeof reqBody.voiceStyle === 'string' && reqBody.voiceStyle.trim()) ? reqBody.voiceStyle.trim().toLowerCase() : 'aria';
     workflowType = reqBody.workflowType || 'complete';
 
-    console.log('🚀 Request payload received:', { 
-      audioSize: audioBase64?.length || 0,
-      targetLanguage, 
-      voiceStyle, 
-      workflowType,
-      format
-    });
-
     if (!audioBase64) {
       return new Response(
         JSON.stringify({ success: false, error: 'Audio data is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeadersForRequest(req), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -438,12 +395,11 @@ serve(async (req) => {
     if (audioBase64.length > MAX_AUDIO_BASE64_LENGTH) {
       return new Response(
         JSON.stringify({ success: false, error: 'Audio file too large. Maximum size is 10 MB.' }),
-        { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 413, headers: { ...corsHeadersForRequest(req), 'Content-Type': 'application/json' } }
       );
     }
 
     // Step 1: Transcribe the audio to text (shared by all modes)
-    console.log('Step 1: Transcribing audio...');
     originalText = await transcribeAudio(audioBase64, format);
 
     if (!originalText || originalText.trim().length === 0) {
@@ -457,21 +413,18 @@ serve(async (req) => {
       case 'complete': {
         // Change Language & Voice: Preset voice (Adam, Aria, etc.) + optional translation + TTS
         translatedText = shouldTranslate ? await translateText(originalText, targetLanguage) : originalText;
-        console.log('Step 2 [complete]: Translation done. Step 3: TTS with preset voice:', voiceStyle);
         convertedAudioBase64 = await convertTextToSpeech(translatedText, voiceStyle, req, undefined, format, targetLanguage);
         break;
       }
       case 'voice-only': {
         // Translate My Same Voice: Clone user's voice from recording + optional translation + TTS with clone
         translatedText = shouldTranslate ? await translateText(originalText, targetLanguage) : originalText;
-        console.log('Step 2 [voice-only]: Translation done. Step 3: TTS with voice clone from recording');
         convertedAudioBase64 = await convertTextToSpeech(translatedText, 'myvoiceclone', req, audioBase64, format, targetLanguage);
         break;
       }
       case 'text-only': {
         // Transcript & Translate: Translation only, no TTS
         translatedText = shouldTranslate ? await translateText(originalText, targetLanguage) : originalText;
-        console.log('Step 2 [text-only]: Translation done. Step 3: Skipped (text output only)');
         break;
       }
       default: {
@@ -492,35 +445,24 @@ serve(async (req) => {
       workflowType
     };
 
-    console.log('Workflow completed:', {
-      originalText: originalText.substring(0, 50) + '...',
-      translatedText: translatedText.substring(0, 50) + '...',
-      targetLanguage,
-      voiceStyle,
-      workflowType,
-      hasAudio: !!convertedAudioBase64
-    });
-
     return new Response(
       JSON.stringify(result),
       { 
         headers: { 
-          ...corsHeaders, 
+          ...corsHeadersForRequest(req), 
           'Content-Type': 'application/json' 
         } 
       }
     );
 
   } catch (error) {
-    console.error('Voice workflow error:', error);
+    logger.error("complete-voice-workflow", "Voice workflow error", error);
     const errMsg = error instanceof Error ? error.message : String(error);
 
     // When TTS fails but we have transcription + translation, return partial success for device fallback
-    const isTtsError = errMsg.includes('Voice conversion failed') ||
-      errMsg.includes('Voice clone creation failed');
+    const isTtsError = errMsg === "VOICE_CONVERSION_FAILED" || errMsg === "VOICE_CLONE_FAILED";
     const hasText = (originalText && originalText.trim()) || (translatedText && translatedText.trim());
     if (isTtsError && hasText && (workflowType === 'complete' || workflowType === 'voice-only')) {
-      console.log('TTS failed - returning text for device TTS fallback');
       return new Response(JSON.stringify({
         success: true,
         originalText: originalText || '',
@@ -532,37 +474,34 @@ serve(async (req) => {
         ttsFallback: true
       }), {
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeadersForRequest(req), 'Content-Type': 'application/json' }
       });
     }
 
-    // Provide specific error messages based on the error type
+    // Provide user-safe error messages; log details server-side only
     let userFriendlyMessage = 'Voice processing failed. Please try again.';
     
-    if (errMsg.includes('OpenAI API key not configured')) {
-      userFriendlyMessage = 'OpenAI API key not configured. Please add your OpenAI API key to continue.';
-    } else if (errMsg.includes('ElevenLabs API key not configured')) {
-      userFriendlyMessage = 'ElevenLabs API key not configured. Please add your ElevenLabs API key to continue.';
-    } else if (errMsg.includes('No speech detected')) {
+    if (errMsg.includes('No speech detected')) {
       userFriendlyMessage = errMsg;
-    } else if (errMsg.includes('Transcription failed')) {
+    } else if (errMsg === "TRANSCRIPTION_FAILED" || errMsg === "TRANSCRIPTION_TIMEOUT") {
       userFriendlyMessage = 'Failed to transcribe audio. Please ensure good audio quality and try again.';
-    } else if (errMsg.includes('Translation failed')) {
+    } else if (errMsg === "TRANSLATION_FAILED") {
       userFriendlyMessage = 'Translation failed. Please check your settings and try again.';
-    } else if (errMsg.includes('Voice conversion failed')) {
+    } else if (errMsg === "VOICE_CONVERSION_FAILED") {
       userFriendlyMessage = 'Voice conversion failed. Please try again or select a different voice.';
+    } else if (errMsg === "VOICE_CLONE_FAILED") {
+      userFriendlyMessage = 'Voice clone creation failed. Please record a longer sample and try again.';
     }
 
+    logger.error('complete-voice-workflow', userFriendlyMessage, error);
     return new Response(
       JSON.stringify({ 
         success: false,
         error: userFriendlyMessage,
-        details: errMsg,
-        timestamp: new Date().toISOString()
       }),
       { 
         status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeadersForRequest(req), 'Content-Type': 'application/json' }
       }
     );
   }

@@ -5,40 +5,45 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#0F0F10" />
   <meta name="description" content="Process video — translate and dub with DeltaVoice" />
-  <title>Process video · DeltaVoice</title>
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <title data-i18n="video.title">Process video · DeltaVoice</title>
   <link rel="stylesheet" href="video-process.css" />
 </head>
 <body class="voice-process-page">
   <div class="vp-wrap">
-    <a class="vp-back" href="landing.html">← Back</a>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+      <a class="vp-back" href="landing.html" data-i18n="nav.back">← Back</a>
+      <div id="langPickerMount"></div>
+    </div>
 
-    <h1 class="vp-title">Process video</h1>
-    <p class="vp-sub">Translate and dub your recording</p>
+    <h1 class="vp-title" data-i18n="video.title">Process video</h1>
+    <p class="vp-sub" data-i18n="video.subtitle">Translate and dub your recording</p>
 
     <div class="vp-actions" style="margin-bottom: 20px">
-      <button type="button" class="vp-btn vp-btn-secondary" id="uploadBtn">Upload Video</button>
-      <button type="button" class="vp-btn vp-btn-primary" id="recordBtn">Record Video</button>
+      <button type="button" class="vp-btn vp-btn-secondary" id="uploadBtn" data-i18n="video.upload">Upload Video</button>
+      <button type="button" class="vp-btn vp-btn-primary" id="recordBtn" data-i18n="video.record">Record Video</button>
     </div>
     <input type="file" id="fileInput" class="vp-hidden" accept="video/*,.mp4,.webm,.mov,.mkv" />
     <input type="file" id="cameraInput" class="vp-hidden" accept="video/*" capture="environment" />
 
     <div class="vp-surface">
-      <h2>🎨 Processing options</h2>
-      <p class="vp-label">Target language</p>
+      <h2 data-i18n="video.options">🎨 Processing options</h2>
+      <p class="vp-label" data-i18n="video.targetLanguage">Target language</p>
       <div class="vp-select-wrap">
         <span>🌐</span>
-        <select id="langSelect" aria-label="Target language"></select>
+        <select id="langSelect" data-i18n-aria="video.targetLanguage" aria-label="Target language"></select>
       </div>
-      <p class="vp-label">Voice style</p>
+      <p class="vp-label" data-i18n="video.voiceStyle">Voice style</p>
       <div class="vp-select-wrap">
         <span>🔊</span>
-        <select id="voiceSelect" aria-label="Voice style"></select>
+        <select id="voiceSelect" data-i18n-aria="video.voiceStyle" aria-label="Voice style"></select>
       </div>
-      <p class="vp-hint">Record or upload a video, then choose language and voice.</p>
+      <p class="vp-hint" data-i18n="video.hint">Record or upload a video, then choose language and voice.</p>
 
       <div id="previewWrap" class="vd-preview-wrap">
-        <p class="vd-preview-title">Preview</p>
-        <p class="vd-preview-hint">Live camera while recording; play your clip after you stop</p>
+        <p class="vd-preview-title" data-i18n="video.preview">Preview</p>
+        <p class="vd-preview-hint" data-i18n="video.previewHint">Live camera while recording; play your clip after you stop</p>
         <div class="vd-video-box">
           <video id="videoPreview" controls playsinline></video>
         </div>
@@ -46,15 +51,15 @@
 
       <div id="recordingSection" class="vp-recording-section">
         <div class="vp-recording-bar">
-          <span class="vp-status-text" id="videoStatus">Video ready for processing</span>
+          <span class="vp-status-text" id="videoStatus" data-i18n="video.statusReady">Video ready for processing</span>
         </div>
-        <button type="button" class="vp-btn vp-btn-primary vp-process-btn" id="processBtn" disabled>
+        <button type="button" class="vp-btn vp-btn-primary vp-process-btn" id="processBtn" disabled data-i18n="video.process">
           Process video
         </button>
       </div>
 
       <div id="resultsSection" class="vp-results vp-hidden">
-        <h3>Processed videos</h3>
+        <h3 data-i18n="video.results">Processed videos</h3>
         <div id="resultsList"></div>
       </div>
     </div>
@@ -62,14 +67,15 @@
     <div class="vd-tip-video">
       <span style="font-size: 22px">⚡</span>
       <div>
-        <strong>Tip</strong>
-        <p>Good lighting and clear speech improve translation quality.</p>
+        <strong data-i18n="video.tipTitle">Tip</strong>
+        <p data-i18n="video.tipBody">Good lighting and clear speech improve translation quality.</p>
       </div>
     </div>
   </div>
 
   <script src="config.js"></script>
   <script src="auth.js"></script>
+  <script src="i18n.js"></script>
   <script src="video-process.js"></script>
 </body>
 </html>

@@ -17,6 +17,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.deltavoice.api.CompleteVoiceWorkflowService
+import com.deltavoice.auth.FeatureGate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -50,29 +51,8 @@ class VoiceProcessModeActivity : AppCompatActivity() {
     private val completeVoiceWorkflowService = CompleteVoiceWorkflowService()
     private val activityScope = CoroutineScope(Dispatchers.Main)
 
-    private val languages = listOf(
-        "English" to "en",
-        "Spanish" to "es",
-        "French" to "fr",
-        "German" to "de",
-        "Italian" to "it",
-        "Portuguese" to "pt",
-        "Russian" to "ru",
-        "Japanese" to "ja",
-        "Korean" to "ko",
-        "Chinese" to "zh",
-        "Arabic" to "ar",
-        "Hindi" to "hi"
-    )
-
-    private val voiceStyles = listOf(
-        "Aria" to "aria",
-        "Adam" to "adam",
-        "Sarah" to "sarah",
-        "Liam" to "liam",
-        "Charlotte" to "charlotte",
-        "Alice" to "alice"
-    )
+    private lateinit var languages: List<Pair<String, String>>
+    private lateinit var voiceStyles: List<Pair<String, String>>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,6 +69,9 @@ class VoiceProcessModeActivity : AppCompatActivity() {
 
         // Get audio file path from intent
         audioFilePath = intent.getStringExtra(VoiceProcessIntent.EXTRA_AUDIO_FILE_PATH)
+
+        languages = KeyboardData.languageOptions(this)
+        voiceStyles = KeyboardData.videoVoiceOptions(this)
 
         setupSpinners()
         setupAudioPlayer()
@@ -206,13 +189,13 @@ class VoiceProcessModeActivity : AppCompatActivity() {
                 result.onSuccess { response ->
                     handleWorkflowResponse(workflowType, voiceStyle, response)
                 }.onFailure { error ->
-                    Toast.makeText(this@VoiceProcessModeActivity,
-                        getString(R.string.processing_failed_msg, error.message ?: ""), Toast.LENGTH_LONG).show()
+                    FeatureGate.showAuthError(this@VoiceProcessModeActivity, error)
                     buttonFullProcess.isEnabled = true
                 }
             } catch (e: Exception) {
+                android.util.Log.e("VoiceProcessMode", "Workflow failed", e)
                 Toast.makeText(this@VoiceProcessModeActivity,
-                    getString(R.string.error_message, e.message ?: ""), Toast.LENGTH_LONG).show()
+                    getString(R.string.processing_failed_msg, ""), Toast.LENGTH_LONG).show()
                 buttonFullProcess.isEnabled = true
             } finally {
                 isProcessing = false

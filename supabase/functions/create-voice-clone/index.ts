@@ -1,7 +1,7 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, secureEdgeRequest } from "../_shared/security.ts";
+import { corsHeadersForRequest, handleServerError, jsonResponse, logger, secureEdgeRequest } from "../_shared/security.ts";
 
 const audioMimeMap: Record<string, string> = {
   m4a: 'audio/mp4',
@@ -28,7 +28,7 @@ function resolveAudioMeta(format?: string) {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: { ...corsHeadersForRequest(req), 'Content-Type': 'application/json' } });
   }
 
   const auth = await secureEdgeRequest(req, "create-voice-clone");
@@ -38,10 +38,7 @@ serve(async (req) => {
     const { name, audioBase64, description, format } = await req.json();
 
     if (!name || !audioBase64) {
-      return new Response(
-        JSON.stringify({ error: 'Name and audio data are required' }),
-        { status: 400, headers: corsHeaders }
-      );
+      return jsonResponse({ error: 'Name and audio data are required.' }, 400, req);
     }
 
     const elevenLabsApiKey = Deno.env.get('ELEVENLABS_API_KEY');
@@ -49,20 +46,15 @@ serve(async (req) => {
       throw new Error('ElevenLabs API key not configured');
     }
 
-    console.log('Creating voice clone:', name);
-
-    // Convert base64 to blob for ElevenLabs
     const audioBuffer = Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0));
     const audioMeta = resolveAudioMeta(format);
     const audioBlob = new Blob([audioBuffer], { type: audioMeta.mimeType });
 
-    // Create FormData for ElevenLabs API
     const formData = new FormData();
     formData.append('name', name);
     formData.append('description', description || `Voice clone: ${name}`);
     formData.append('files', audioBlob, audioMeta.fileName);
 
-    // Create voice clone with ElevenLabs
     const response = await fetch('https://api.elevenlabs.io/v1/voices/add', {
       method: 'POST',
       headers: {
@@ -73,31 +65,25 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('ElevenLabs API error:', response.status, errorText);
-      throw new Error(`ElevenLabs API error: ${response.status} - ${errorText}`);
+      logger.error("create-voice-clone", `ElevenLabs API error: ${response.status}`, errorText.slice(0, 400));
+      throw new Error(`ElevenLabs API error: ${response.status}`);
     }
 
     const result = await response.json();
-    console.log('Voice clone created successfully:', result.voice_id);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        voiceId: result.voice_id,
-        name: name,
-        message: 'Voice clone created successfully'
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({
+      success: true,
+      voiceId: result.voice_id,
+      name: name,
+      message: 'Voice clone created successfully'
+    }, 200, req);
 
   } catch (error) {
-    console.error('Voice clone creation error:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Voice clone creation failed',
-        timestamp: new Date().toISOString()
-      }),
-      { status: 500, headers: corsHeaders }
+    return handleServerError(
+      "create-voice-clone",
+      error,
+      req,
+      "Voice clone creation failed. Please try again.",
     );
   }
 });

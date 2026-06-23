@@ -175,6 +175,19 @@ export async function secureConvexRequest(
   request: Request,
   feature: ConvexFeature,
 ): Promise<AuthContext | Response> {
+  // Bootstrap mode: allow ai-chat without Supabase (e.g. when Supabase project is unavailable).
+  if (feature === "ai-chat" && process.env.ALLOW_PUBLIC_AI_CHAT === "true") {
+    const publicCtx: AuthContext = {
+      userId: "public",
+      email: null,
+      isPremium: false,
+      subscriptionTier: null,
+    };
+    const rateLimited = enforceInMemoryRateLimit(publicCtx, feature);
+    if (rateLimited) return rateLimited;
+    return publicCtx;
+  }
+
   const authHeader = request.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return jsonResponse(

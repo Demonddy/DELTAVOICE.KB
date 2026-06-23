@@ -1,0 +1,101 @@
+{
+  "settings": {
+    "language": "اللغة"
+  },
+  "nav": {
+    "voice": "الصوت",
+    "video": "الفيديو",
+    "home": "الرئيسية",
+    "back": "→ رجوع"
+  },
+  "status": {
+    "ready": "جاهز"
+  },
+  "index": {
+    "title": "DeltaVoice",
+    "recordTitle": "الخطوة 1: سجّل صوتك",
+    "recordSubtitle": "اضغط على الميكروفون لبدء التسجيل",
+    "recordHint": "اضغط للتسجيل",
+    "processTitle": "الخطوة 2: معالجة صوتك",
+    "modeLabel": "اختر وضع المعالجة:",
+    "modeComplete": "تغيير اللغة والصوت",
+    "modeCompleteDesc": "تحويل كامل",
+    "modeVoice": "ترجمة بنفس صوتي",
+    "modeVoiceDesc": "استنساخ الصوت",
+    "modeText": "نسخ وترجمة",
+    "modeTextDesc": "مخرجات نصية",
+    "targetLanguage": "اللغة المستهدفة",
+    "voiceStyle": "نمط الصوت",
+    "processBtn": "معالجة",
+    "sendBtn": "إرسال"
+  },
+  "voice": {
+    "title": "عملية الصوت",
+    "subtitle": "ترجم أو استنسخ صوتك",
+    "sectionMode": "وضع المعالجة",
+    "cardFull": "تغيير اللغة والصوت",
+    "cardFullDesc": "تحويل كامل",
+    "cardVoice": "ترجمة بنفس صوتي",
+    "cardVoiceDesc": "استنساخ الصوت",
+    "cardText": "نسخ وترجمة",
+    "cardTextDesc": "مخرجات نصية",
+    "options": "الخيارات",
+    "targetLanguage": "اللغة المستهدفة",
+    "voice": "الصوت",
+    "hint": "سجّل أو حمّل ملفاً صوتياً، ثم اختر الخيارات أدناه.",
+    "upload": "تحميل الصوت",
+    "record": "تسجيل",
+    "statusReady": "التسجيل جاهز",
+    "process": "معالجة",
+    "transcriptPlaceholder": "سيظهر النص هنا",
+    "results": "الأصوات المعالجة",
+    "tipTitle": "نصيحة",
+    "tipBody": "تحدث بوضوح وقلل الضوضاء في الخلفية للحصول على أفضل النتائج."
+  },
+  "video": {
+    "title": "عملية الفيديو",
+    "subtitle": "ترجمة ودبلجة التسجيل الخاص بك",
+    "upload": "تحميل الفيديو",
+    "record": "سجل الفيديو",
+    "options": "خيارات المعالجة",
+    "targetLanguage": "اللغة المستهدفة",
+    "voiceStyle": "نمط الصوت",
+    "hint": "سجّل أو حمّل فيديو، ثم اختر اللغة والصوت.",
+    "preview": "معاينة",
+    "previewHint": "معاينة مباشرة أثناء التسجيل؛ شغّل المقطع بعد التوقف",
+    "statusReady": "الفيديو جاهز للمعالجة",
+    "process": "معالجة الفيديو",
+    "results": "مقاطع الفيديو المعالجة",
+    "tipTitle": "نصيحة",
+    "tipBody": "الإضاءة الجيدة والكلام الواضح يحسّنان جودة الترجمة."
+  },
+  "languages": {
+    "en": "الإنجليزية",
+    "es": "الإسبانية",
+    "fr": "الفرنسية",
+    "de": "الألمانية",
+    "it": "الإيطالية",
+    "pt": "البرتغالية",
+    "ru": "الروسية",
+    "ja": "اليابانية",
+    "ko": "الكورية",
+    "zh": "الصينية",
+    "ar": "العربية",
+    "hi": "الهندية"
+  },
+  "voices": {
+    "adam": "Adam",
+    "aria": "Aria",
+    "sarah": "Sarah",
+    "liam": "Liam",
+    "charlotte": "Charlotte",
+    "alice": "Alice",
+    "roger": "Roger",
+    "laura": "Laura"
+  },
+  "landing": {
+    "title": "DeltaVoice — لوحة مفاتيح صوتية بالذكاء الاصطناعي",
+    "tryApp": "جرّب التطبيق",
+    "features": "الميزات"
+  }
+}

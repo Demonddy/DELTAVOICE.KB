@@ -174,7 +174,7 @@ class CompleteVoiceWorkflowService {
                 "Network error. Please check your internet connection."
             lastException?.message?.contains("socket", ignoreCase = true) == true ->
                 "Connection lost. Please try again."
-            else -> lastException?.message ?: "Processing failed. Please try again."
+            else -> "Processing failed. Please try again."
         }
         android.util.Log.e("DeltaVoice", "WorkflowService: All attempts failed: $errorMsg")
         Result.failure(Exception(errorMsg))

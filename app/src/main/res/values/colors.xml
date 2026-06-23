@@ -8,7 +8,7 @@
     <color name="glass_key_pressed">#40FFFFFF</color>
 
     <!-- Lumina Voice / Ethereal — Primary palette -->
-    <color name="ic_launcher_background">#712AE2</color>
+    <color name="ic_launcher_background">#0A0E1A</color>
     <color name="primary">#712AE2</color>
     <color name="primary_dark">#5A00C6</color>
     <color name="primary_light">#8A4CFC</color>

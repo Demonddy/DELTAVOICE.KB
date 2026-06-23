@@ -316,6 +316,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        refreshKeyboardForLocaleChange()
+    }
+
+    private fun refreshKeyboardForLocaleChange() {
         localeResourcesCacheTag = null
         localeWrappedResources = null
         if (rootView != null) {
@@ -346,21 +350,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         com.deltavoice.theme.KeyboardThemeStore.defaultPalette()
     private var themePrefsListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
 
-    private val languages = listOf(
-        "English" to "en",
-        "Spanish" to "es",
-        "French" to "fr",
-        "German" to "de",
-        "Italian" to "it",
-        "Portuguese" to "pt",
-        "Russian" to "ru",
-        "Japanese" to "ja",
-        "Korean" to "ko",
-        "Chinese" to "zh",
-        "Arabic" to "ar",
-        "Hindi" to "hi"
-    )
-    
+    private fun languages(): List<Pair<String, String>> = KeyboardData.languageOptions(this)
+
     // Keyboard language state
     private var currentKeyboardLanguage = "en"
     private var currentKeyboardLanguageName = "English (UK)"
@@ -369,16 +360,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     // All 40+ keyboard layouts from shared KeyboardLayouts
     private val keyboardLayouts = KeyboardLayouts.layouts
 
-    private val voiceStyles = listOf(
-        "Adam" to "adam",
-        "Aria" to "aria",
-        "Roger" to "roger",
-        "Sarah" to "sarah",
-        "Laura" to "laura",
-        "Charlie" to "charlie",
-        "George" to "george",
-        "Liam" to "liam"
-    )
+    private fun voiceStyles(): List<Pair<String, String>> = KeyboardData.voiceOptions(this)
 
     // Speech Recognition
     private var speechRecognizer: SpeechRecognizer? = null
@@ -859,6 +841,20 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val audioFilter = IntentFilter(KeyboardAudioUploadActivity.ACTION_KEYBOARD_AUDIO_UPLOADED)
         ContextCompat.registerReceiver(this, videoUploadReceiver, videoFilter, ContextCompat.RECEIVER_NOT_EXPORTED)
         ContextCompat.registerReceiver(this, audioUploadReceiver, audioFilter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        appLocaleReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action != AppLocaleHelper.ACTION_APP_LOCALE_CHANGED) return
+                localeResourcesCacheTag = null
+                localeWrappedResources = null
+                Handler(Looper.getMainLooper()).post { refreshKeyboardForLocaleChange() }
+            }
+        }
+        ContextCompat.registerReceiver(
+            this,
+            appLocaleReceiver,
+            IntentFilter(AppLocaleHelper.ACTION_APP_LOCALE_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
         // Clipboard history: capture copies from any app
         clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         loadClipboardHistory()
@@ -1021,7 +1017,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val languageAdapter = ArrayAdapter(
             this,
             R.layout.spinner_item_dark,
-            languages.map { it.first }
+            languages().map { it.first }
         )
         languageAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item_dark)
         keyboardSpinnerLanguage.adapter = languageAdapter
@@ -1029,7 +1025,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val voiceAdapter = ArrayAdapter(
             this,
             R.layout.spinner_item_dark,
-            voiceStyles.map { it.first }
+            voiceStyles().map { it.first }
         )
         voiceAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item_dark)
         keyboardSpinnerVoice.adapter = voiceAdapter
@@ -1395,9 +1391,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         // • complete: preset voice (Adam, Aria, etc.) from spinner
         // • voice-only: always "myvoiceclone" — backend clones from this recording
         // • text-only: voice unused (text output only)
-        val targetLang = languages.getOrNull(keyboardSpinnerLanguage.selectedItemPosition)?.second ?: "en"
-        val selectedVoiceStyle = voiceStyles.getOrNull(keyboardSpinnerVoice.selectedItemPosition)?.second ?: "adam"
-        val selectedVoiceStyleName = voiceStyles.getOrNull(keyboardSpinnerVoice.selectedItemPosition)?.first ?: "Adam"
+        val targetLang = languages().getOrNull(keyboardSpinnerLanguage.selectedItemPosition)?.second ?: "en"
+        val selectedVoiceStyle = voiceStyles().getOrNull(keyboardSpinnerVoice.selectedItemPosition)?.second ?: "adam"
+        val selectedVoiceStyleName = voiceStyles().getOrNull(keyboardSpinnerVoice.selectedItemPosition)?.first ?: "Adam"
         val voiceStyle = when (workflowType) {
             "voice-only" -> "myvoiceclone"  // Translate My Same Voice: clone from recording
             else -> selectedVoiceStyle       // Change Language & Voice: use selected preset
@@ -1406,7 +1402,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             "voice-only" -> "My Voice Clone"
             else -> selectedVoiceStyleName
         }
-        val languageName = languages.getOrNull(keyboardSpinnerLanguage.selectedItemPosition)?.first ?: "English"
+        val languageName = languages().getOrNull(keyboardSpinnerLanguage.selectedItemPosition)?.first ?: "English"
 
         android.util.Log.d("DeltaVoice", "Options: workflow=$workflowType, lang=$targetLang ($languageName), voice=$voiceStyle ($voiceStyleName)")
 
@@ -3284,18 +3280,14 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             Toast.makeText(this, getString(R.string.no_text_to_translate), Toast.LENGTH_SHORT).show()
             return
         }
-        val languages = listOf(
-            "English", "Spanish", "French", "German", "Italian", "Portuguese",
-            "Russian", "Japanese", "Korean", "Chinese", "Arabic", "Hindi",
-            "Dutch", "Turkish", "Polish", "Vietnamese", "Thai", "Indonesian"
-        )
+        val langOptions = languages().map { it.first }
         showSelectionMenu(
-            title = "Translate to",
+            title = getString(R.string.select_translation_language),
             anchorView = anchorView,
-            options = languages
+            options = langOptions
         ) { lang ->
             val (fullText, _, _) = input
-            runWritingToolAndShowInChat("translate", fullText.trim(), lang, "Translate to $lang")
+            runWritingToolAndShowInChat("translate", fullText.trim(), lang, getString(R.string.translate_to, lang))
         }
     }
     
@@ -5445,11 +5437,35 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 // Convex first (DeepSeek), then Supabase — each with its own timeout so
                 // a slow Convex failure doesn't starve the Supabase fallback.
                 val edgeResponse = if (isNetworkAvailable()) {
-                    val convexResult = withTimeoutOrNull(aiChatEdgeTotalTimeoutMs) {
-                        callOpenAiViaConvex(message)
+                    val history = aiConversationHistory.map {
+                        (it["role"] ?: "user") to (it["content"] ?: "")
                     }
-                    convexResult ?: withTimeoutOrNull(aiChatEdgeTotalTimeoutMs) {
-                        callOpenAiViaSupabase(message)
+                    val signInMsg = getString(R.string.please_sign_in_first)
+                    val result = withTimeoutOrNull(aiChatEdgeTotalTimeoutMs * 2) {
+                        com.deltavoice.api.AiChatHttp.callCloud(
+                            history,
+                            signInMsg,
+                            aiChatConnectTimeoutMs,
+                            aiChatReadTimeoutMs
+                        )
+                    }
+                    when (result) {
+                        is com.deltavoice.api.AiChatHttp.ChatResult.Success -> result.text
+                        is com.deltavoice.api.AiChatHttp.ChatResult.Error -> {
+                            if (result.authRequired) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(
+                                        this@MainKeyboardService,
+                                        result.userMessage,
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                                return@withContext result.userMessage
+                            }
+                            android.util.Log.w("DeltaVoice", "AI chat cloud error: ${result.userMessage}")
+                            null
+                        }
+                        null -> null
                     }
                 } else null
                 if (edgeResponse != null) {
@@ -5898,12 +5914,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Setup language and voice spinners for video processing
      */
     private fun setupVideoSpinners() {
-        val languageNames = languages.map { it.first }
+        val languageNames = languages().map { it.first }
         val languageAdapter = ArrayAdapter(this, R.layout.spinner_item_dark, languageNames)
         languageAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item_dark)
         videoSpinnerLanguage?.adapter = languageAdapter
         
-        val voiceNames = voiceStyles.map { it.first }
+        val voiceNames = voiceStyles().map { it.first }
         val voiceAdapter = ArrayAdapter(this, R.layout.spinner_item_dark, voiceNames)
         voiceAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item_dark)
         videoSpinnerVoice?.adapter = voiceAdapter
@@ -6360,10 +6376,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         val selectedLanguageIndex = videoSpinnerLanguage?.selectedItemPosition ?: 0
         val selectedVoiceIndex = videoSpinnerVoice?.selectedItemPosition ?: 0
         
-        val targetLanguage = languages[selectedLanguageIndex].second
-        val voiceStyle = voiceStyles[selectedVoiceIndex].second
-        val languageName = languages[selectedLanguageIndex].first
-        val voiceStyleName = voiceStyles[selectedVoiceIndex].first
+        val targetLanguage = languages()[selectedLanguageIndex].second
+        val voiceStyle = voiceStyles()[selectedVoiceIndex].second
+        val languageName = languages()[selectedLanguageIndex].first
+        val voiceStyleName = voiceStyles()[selectedVoiceIndex].first
         
         // Get the recorded video file path
         val videoPath = videoFilePath
@@ -8731,8 +8747,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     }
                 }.onFailure { error ->
                     // Fallback to Android TTS if Supabase fails
-                    Toast.makeText(this@MainKeyboardService, 
-                        "Supabase TTS failed, using fallback: ${error.message}", 
+                    Toast.makeText(this@MainKeyboardService,
+                        "Supabase TTS failed, using fallback.",
                         Toast.LENGTH_SHORT).show()
                     fallbackToAndroidTTS(fullText)
                 }
@@ -9122,22 +9138,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private fun setupTranslationButton(view: View) {
         val languageContainer = view.findViewById<LinearLayout>(R.id.language_selector_container)
         translateButton = Button(this).apply {
-            val languageName = when (targetTranslationLanguage.language) {
-                "en" -> "English"
-                "es" -> "Spanish"
-                "fr" -> "French"
-                "de" -> "German"
-                "it" -> "Italian"
-                "pt" -> "Portuguese"
-                "ru" -> "Russian"
-                "ja" -> "Japanese"
-                "ko" -> "Korean"
-                "zh" -> "Chinese"
-                "ar" -> "Arabic"
-                "hi" -> "Hindi"
-                else -> targetTranslationLanguage.displayLanguage
-            }
-            text = "Translate to: $languageName"
+            val code = targetTranslationLanguage.language
+            val languageName = languages().firstOrNull { it.second == code }?.first
+                ?: targetTranslationLanguage.getDisplayName(resources.configuration.locales[0])
+            text = getString(R.string.translate_to, languageName)
             textSize = 12f
             setTextColor(Color.BLACK)
             gravity = Gravity.CENTER
@@ -9172,19 +9176,15 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Language names are displayed in the user's device language.
      */
     private fun showTranslationLanguageSelector() {
-        val languages = listOf(
-            Locale.ENGLISH, Locale("es"), Locale("fr"), Locale("de"), Locale("it"),
-            Locale("pt"), Locale("ru"), Locale("ja"), Locale("ko"), Locale("zh"),
-            Locale("ar"), Locale("hi")
-        )
-        val displayLocale = Locale.getDefault()
-        val languageNames = languages.map { it.getDisplayName(displayLocale) }.toTypedArray()
-        
+        val opts = languages()
+        val languageNames = opts.map { it.first }.toTypedArray()
+
         android.app.AlertDialog.Builder(this)
             .setTitle(getString(R.string.select_translation_language))
             .setItems(languageNames) { _, which ->
-                targetTranslationLanguage = languages[which]
-                val name = languages[which].getDisplayName(displayLocale)
+                val code = opts[which].second
+                targetTranslationLanguage = Locale.forLanguageTag(code)
+                val name = opts[which].first
                 translateButton.text = getString(R.string.translate_to, name)
                 Toast.makeText(this, getString(R.string.translation_target_set, name), Toast.LENGTH_SHORT).show()
             }
@@ -9227,8 +9227,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     }
                     Toast.makeText(this@MainKeyboardService, getString(R.string.translation_complete), Toast.LENGTH_SHORT).show()
                 }.onFailure { error ->
-                    Toast.makeText(this@MainKeyboardService, 
-                        "Translation failed: ${error.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainKeyboardService,
+                        "Translation failed. Please try again.", Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
                 Toast.makeText(this@MainKeyboardService, 
@@ -9272,7 +9272,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     }
                 }.onFailure { error ->
                     Toast.makeText(this@MainKeyboardService,
-                        "Voice conversion failed: ${error.message}", Toast.LENGTH_LONG).show()
+                        "Voice conversion failed. Please try again.", Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
                 Toast.makeText(this@MainKeyboardService,
@@ -9307,7 +9307,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     }
                 }.onFailure { error ->
                     Toast.makeText(this@MainKeyboardService,
-                        "Voice clone error: ${error.message}", Toast.LENGTH_LONG).show()
+                        "Voice clone failed. Please try again.", Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
                 Toast.makeText(this@MainKeyboardService,
@@ -9357,14 +9357,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     android.util.Log.d("DeltaVoice", "audioLength: ${response.convertedAudioBase64?.length ?: 0}")
                     handleWorkflowSuccess(response, workflowType, voiceStyleName, languageName)
                 }.onFailure { error ->
-                    android.util.Log.e("DeltaVoice", "=== FAILURE from backend ===")
-                    android.util.Log.e("DeltaVoice", "Error: ${error.message}", error)
-                    handleWorkflowError(error.message ?: "Unknown error")
+                    android.util.Log.e("DeltaVoice", "=== FAILURE from backend ===", error)
+                    handleWorkflowError(error)
                 }
             } catch (e: Exception) {
                 android.util.Log.e("DeltaVoice", "=== EXCEPTION in workflow ===")
                 android.util.Log.e("DeltaVoice", "Exception: ${e.javaClass.simpleName}: ${e.message}", e)
-                handleWorkflowError(e.message ?: "Connection error")
+                handleWorkflowError(e)
             }
         }
         
@@ -9470,8 +9469,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
     }
     
-    private fun handleWorkflowError(errorMessage: String) {
-        android.util.Log.e("DeltaVoice", "Workflow error: $errorMessage")
+    private fun handleWorkflowError(error: Throwable) {
+        android.util.Log.e("DeltaVoice", "Workflow error", error)
+        val errorMessage = error.message ?: ""
         
         // Check if it's a network-related error
         val isNetworkError = errorMessage.contains("internet", ignoreCase = true) ||
@@ -9507,7 +9507,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             errorMessage.contains("transcri", ignoreCase = true) ->
                 "🗣️ No speech detected. Speak clearly and try again."
             
-            else -> "❌ Error: ${errorMessage.take(50)}"
+            else -> "Something went wrong. Please try again."
         }
         
         Toast.makeText(this, userMessage, Toast.LENGTH_LONG).show()
@@ -9889,7 +9889,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                                         }
                                     }.onFailure { error ->
                                         Toast.makeText(this@MainKeyboardService,
-                                            "Transcription failed: ${error.message}",
+                                            "Transcription failed. Please try again.",
                                             Toast.LENGTH_LONG).show()
                                     }
                                 } catch (e: Exception) {

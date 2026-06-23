@@ -1,0 +1,1 @@
+{"name":"voice-to-text","entrypoint_path":"index.ts","verify_jwt":true,"file_names":["index.ts","../_shared/security.ts"],"payload_bytes":21291}

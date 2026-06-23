@@ -260,14 +260,22 @@ class AIChatConfigActivity : AppCompatActivity() {
 
         // Convex first (DeepSeek on server); Supabase second
         return try {
-            val c = callOpenAiViaConvex()
-            if (c != null) {
-                aidLog("H1", "callAiApi", "result", mapOf("source" to "convex", "ok" to true))
-                return c
+            val signInMsg = getString(R.string.please_sign_in_first)
+            when (val result = com.deltavoice.api.AiChatHttp.callCloud(conversationHistory, signInMsg)) {
+                is com.deltavoice.api.AiChatHttp.ChatResult.Success -> {
+                    aidLog("H1", "callAiApi", "result", mapOf("source" to "cloud", "ok" to true))
+                    result.text
+                }
+                is com.deltavoice.api.AiChatHttp.ChatResult.Error -> {
+                    aidLog("H4", "callAiApi", "cloud_error", mapOf("msg" to result.userMessage.take(120), "auth" to result.authRequired))
+                    if (result.authRequired) {
+                        mainHandler.post {
+                            Toast.makeText(this, result.userMessage, Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    result.userMessage.takeIf { result.authRequired }
+                }
             }
-            val s = callOpenAiViaSupabase()
-            aidLog("H2", "callAiApi", "result", mapOf("source" to "supabase", "nonNull" to (s != null)))
-            s
         } catch (e: Exception) {
             aidLog("H4", "callAiApi", "exception", mapOf("type" to e.javaClass.simpleName, "msg" to (e.message?.take(120) ?: "")))
             if (e.message?.contains("Unable to resolve host", ignoreCase = true) == true) {

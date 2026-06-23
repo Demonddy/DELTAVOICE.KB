@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { logger } from "../_shared/security.ts";
 
 const RELEVANT_EVENTS = new Set([
   "customer.subscription.updated",
@@ -35,13 +36,13 @@ serve(async (req) => {
   const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
   const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
   if (!stripeKey || !webhookSecret) {
-    console.error("[stripe-webhook] Missing STRIPE_SECRET_KEY or STRIPE_WEBHOOK_SECRET");
+    logger.error("stripe-webhook", "Missing STRIPE_SECRET_KEY or STRIPE_WEBHOOK_SECRET");
     return new Response("Server misconfigured", { status: 500 });
   }
 
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
-    return new Response("Missing stripe-signature header", { status: 400 });
+    return new Response("Bad request", { status: 400 });
   }
 
   const body = await req.text();
@@ -51,9 +52,8 @@ serve(async (req) => {
   try {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[stripe-webhook] Signature verification failed:", msg);
-    return new Response(`Webhook signature verification failed: ${msg}`, { status: 400 });
+    logger.error("stripe-webhook", "Signature verification failed", err);
+    return new Response("Invalid signature", { status: 400 });
   }
 
   if (!RELEVANT_EVENTS.has(event.type)) {
@@ -71,13 +71,13 @@ serve(async (req) => {
 
       const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
       if (!customer || customer.deleted) {
-        console.warn("[stripe-webhook] Customer deleted or not found:", customerId);
+        logger.warn("stripe-webhook", "Customer deleted or not found");
         return new Response(JSON.stringify({ received: true }), { status: 200 });
       }
 
       const email = customer.email;
       if (!email) {
-        console.warn("[stripe-webhook] Customer has no email:", customerId);
+        logger.warn("stripe-webhook", "Customer has no email");
         return new Response(JSON.stringify({ received: true }), { status: 200 });
       }
 
@@ -104,9 +104,7 @@ serve(async (req) => {
       );
 
       if (error) {
-        console.error("[stripe-webhook] DB upsert failed:", error);
-      } else {
-        console.log(`[stripe-webhook] ${event.type}: ${email} → subscribed=${isActive}, tier=${subscriptionTier}`);
+        logger.error("stripe-webhook", "DB upsert failed", error);
       }
     }
 
@@ -142,9 +140,7 @@ serve(async (req) => {
         );
 
         if (error) {
-          console.error("[stripe-webhook] DB upsert (checkout) failed:", error);
-        } else {
-          console.log(`[stripe-webhook] checkout.session.completed: ${session.customer_email} → subscribed=${isActive}, tier=${subscriptionTier}`);
+          logger.error("stripe-webhook", "DB upsert (checkout) failed", error);
         }
       }
     }
@@ -156,16 +152,12 @@ serve(async (req) => {
         : invoice.customer?.id;
 
       if (customerId) {
-        const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
-        if (customer && !customer.deleted && customer.email) {
-          console.warn(`[stripe-webhook] Payment failed for ${customer.email}`);
-        }
+        logger.warn("stripe-webhook", "Payment failed for customer");
       }
     }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[stripe-webhook] Processing error:", msg);
-    return new Response(`Webhook processing error: ${msg}`, { status: 500 });
+    logger.error("stripe-webhook", "Processing error", err);
+    return new Response("Webhook processing failed", { status: 500 });
   }
 
   return new Response(JSON.stringify({ received: true }), { status: 200 });

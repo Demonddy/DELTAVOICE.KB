@@ -1,7 +1,7 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, secureEdgeRequest } from "../_shared/security.ts";
+import { corsHeadersForRequest, handleServerError, jsonResponse, logger, secureEdgeRequest } from "../_shared/security.ts";
 
 const elevenLabsVoiceMap: { [key: string]: string } = {
   'aria': '9BWtsMINqrJLrRacOk9x',
@@ -14,7 +14,6 @@ const elevenLabsVoiceMap: { [key: string]: string } = {
   'charlotte': 'XB0fDUnXU5powFXDhCwa',
   'alice': 'Xb7hH8MSUJpSbSDYk0k2',
   'matilda': 'XrExE9yKIg1WjnnlVkGX',
-  // Legacy mappings for backward compatibility
   'professional-male': 'CwhRBWXzGAHq8TQ4Fs17',
   'friendly-male': 'TX3LPaxmHKxFdv7VOQHJ',
   'professional-female': 'EXAVITQu4vr4xnSDxMaL',
@@ -29,7 +28,7 @@ const elevenLabsVoiceMap: { [key: string]: string } = {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: { ...corsHeadersForRequest(req), 'Content-Type': 'application/json' } });
   }
 
   const auth = await secureEdgeRequest(req, "voice-conversion");
@@ -39,20 +38,12 @@ serve(async (req) => {
     const { text, voiceStyle, targetLanguage } = await req.json();
 
     if (!text || !voiceStyle) {
-      return new Response(
-        JSON.stringify({ error: 'Text and voice style are required' }),
-        { status: 400, headers: corsHeaders }
-      );
+      return jsonResponse({ error: 'Text and voice style are required.' }, 400, req);
     }
-
-    console.log('Voice conversion request:', { text, voiceStyle, targetLanguage });
 
     let finalText = text;
 
-    // Step 1: Translate text if target language is specified and not English
     if (targetLanguage && targetLanguage !== 'en') {
-      console.log('Translating text to:', targetLanguage);
-      
       const translationResponse = await fetch(`${req.url.split('/functions/v1/')[0]}/functions/v1/translate-text`, {
         method: 'POST',
         headers: {
@@ -69,38 +60,23 @@ serve(async (req) => {
       if (translationResponse.ok) {
         const translationData = await translationResponse.json();
         finalText = translationData.translatedText || text;
-        console.log('Translation successful:', finalText);
       } else {
-        const errorData = await translationResponse.json();
-        console.warn('Translation failed:', errorData);
-        throw new Error(`Translation failed: ${errorData.error || 'Unknown translation error'}`);
+        logger.warn("voice-conversion", "Translation step failed");
+        throw new Error("Translation failed");
       }
     }
 
-    // Step 2: Convert translated text to speech using ElevenLabs
     const elevenLabsApiKey = Deno.env.get('ELEVENLABS_API_KEY');
     if (!elevenLabsApiKey) {
       throw new Error('ElevenLabs API key not configured');
     }
 
-    // Check if voiceStyle is a voice clone (starts with 'clone_') or a regular voice
     let voiceId: string;
     if (voiceStyle.startsWith('clone_')) {
-      // For voice clones, we need to get the actual ElevenLabs voice ID
-      // In a real implementation, you'd store the mapping between clone IDs and ElevenLabs voice IDs
-      // For now, we'll use a default voice for clones
-      console.log('Using voice clone:', voiceStyle);
-      voiceId = '9BWtsMINqrJLrRacOk9x'; // Default to Aria for now
-      
-      // TODO: In production, you would:
-      // 1. Store clone_id -> elevenlabs_voice_id mapping in database
-      // 2. Look up the actual ElevenLabs voice ID here
-      // 3. Use that voice ID for TTS
+      voiceId = '9BWtsMINqrJLrRacOk9x';
     } else {
       voiceId = elevenLabsVoiceMap[voiceStyle] || '9BWtsMINqrJLrRacOk9x';
     }
-    
-    console.log('Converting to speech with voice:', voiceId, 'Text:', finalText.substring(0, 100));
 
     const ttsResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
@@ -123,34 +99,29 @@ serve(async (req) => {
 
     if (!ttsResponse.ok) {
       const errorText = await ttsResponse.text();
-      console.error('ElevenLabs API error:', ttsResponse.status, errorText);
-      throw new Error(`ElevenLabs API error: ${ttsResponse.status} - ${errorText}`);
+      logger.error("voice-conversion", `ElevenLabs API error: ${ttsResponse.status}`, errorText.slice(0, 400));
+      throw new Error(`ElevenLabs API error: ${ttsResponse.status}`);
     }
 
     const audioBuffer = await ttsResponse.arrayBuffer();
     const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        audioBase64: base64Audio,
-        originalText: text,
-        translatedText: finalText,
-        voiceStyle: voiceStyle,
-        targetLanguage: targetLanguage || 'en',
-        isVoiceClone: voiceStyle.startsWith('clone_')
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({
+      success: true,
+      audioBase64: base64Audio,
+      originalText: text,
+      translatedText: finalText,
+      voiceStyle: voiceStyle,
+      targetLanguage: targetLanguage || 'en',
+      isVoiceClone: voiceStyle.startsWith('clone_')
+    }, 200, req);
 
   } catch (error) {
-    console.error('Voice conversion error:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Voice conversion failed',
-        timestamp: new Date().toISOString()
-      }),
-      { status: 500, headers: corsHeaders }
+    return handleServerError(
+      "voice-conversion",
+      error,
+      req,
+      "Voice conversion failed. Please try again.",
     );
   }
 });

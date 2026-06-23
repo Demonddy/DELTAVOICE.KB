@@ -4,7 +4,7 @@ import com.deltavoice.BuildConfig
 
 object SupabaseConfig {
     val SUPABASE_URL: String = BuildConfig.SUPABASE_URL.ifBlank {
-        "https://rkfveqzktfmgegtsoxlf.supabase.co"
+        "https://yvizvsojpwgvaisoahda.supabase.co"
     }
 
     val SUPABASE_ANON_KEY: String by lazy {

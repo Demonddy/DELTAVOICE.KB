@@ -88,16 +88,8 @@ class VoiceConfigActivity : AppCompatActivity() {
     private val completeVoiceWorkflowService = CompleteVoiceWorkflowService()
     private val activityScope = CoroutineScope(Dispatchers.Main)
 
-    private val languages = listOf(
-        "English" to "en", "Spanish" to "es", "French" to "fr", "German" to "de",
-        "Italian" to "it", "Portuguese" to "pt", "Russian" to "ru", "Japanese" to "ja",
-        "Korean" to "ko", "Chinese" to "zh", "Arabic" to "ar", "Hindi" to "hi"
-    )
-
-    private val voiceStyles = listOf(
-        "Adam" to "adam", "Aria" to "aria", "Sarah" to "sarah", "Liam" to "liam",
-        "Charlotte" to "charlotte", "Alice" to "alice", "Roger" to "roger", "Laura" to "laura"
-    )
+    private lateinit var languages: List<Pair<String, String>>
+    private lateinit var voiceStyles: List<Pair<String, String>>
 
     companion object {
         private const val PERMISSION_REQUEST_RECORD = 100
@@ -143,6 +135,9 @@ class VoiceConfigActivity : AppCompatActivity() {
         recordingAmplitude = findViewById(R.id.recording_amplitude)
 
         findViewById<ImageButton>(R.id.btn_back).setOnClickListener { finish() }
+
+        languages = KeyboardData.languageOptions(this)
+        voiceStyles = KeyboardData.videoVoiceOptions(this)
 
         val langAdapter = ArrayAdapter(this, R.layout.spinner_item_on_surface, languages.map { it.first })
         langAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item_on_surface)

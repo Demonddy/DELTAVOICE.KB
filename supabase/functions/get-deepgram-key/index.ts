@@ -1,12 +1,12 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "../_shared/security.ts";
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { corsHeadersForRequest, jsonResponse } from "../_shared/security.ts";
 
 /**
  * Disabled for production: never expose third-party API keys to clients.
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: { ...corsHeadersForRequest(req), "Content-Type": "application/json" } });
   }
 
   return new Response(
@@ -16,7 +16,7 @@ serve(async (req) => {
     }),
     {
       status: 403,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeadersForRequest(req), "Content-Type": "application/json" },
     },
   );
 });

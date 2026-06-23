@@ -1,11 +1,18 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { corsHeaders, secureEdgeRequest } from "../_shared/security.ts";
+import {
+  corsHeadersForRequest,
+  handleServerError,
+  jsonResponse,
+  logger,
+  secureEdgeRequest,
+  validateRedirectOrigin,
+} from "../_shared/security.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeadersForRequest(req) });
   }
 
   const auth = await secureEdgeRequest(req, "create-checkout");
@@ -14,18 +21,12 @@ serve(async (req) => {
   try {
     const user = auth.user;
     if (!user?.email) {
-      return new Response(
-        JSON.stringify({ error: "Email not available on account" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return jsonResponse({ error: "Email not available on account" }, 400, req);
     }
 
     const { plan } = await req.json();
     if (!plan) {
-      return new Response(
-        JSON.stringify({ error: "Plan is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return jsonResponse({ error: "Plan is required" }, 400, req);
     }
 
     const PRICE_IDS: Record<string, string> = {
@@ -36,22 +37,18 @@ serve(async (req) => {
 
     const priceId = PRICE_IDS[plan];
     if (!priceId) {
-      return new Response(
-        JSON.stringify({ error: "Invalid plan selected" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return jsonResponse({ error: "Invalid plan selected" }, 400, req);
     }
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
 
+    const safeOrigin = validateRedirectOrigin(req, { allowNativeClient: true });
+    if (safeOrigin instanceof Response) return safeOrigin;
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     const customerId = customers.data.length > 0 ? customers.data[0].id : undefined;
-
-    const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") || "").split(",").map((s: string) => s.trim()).filter(Boolean);
-    const reqOrigin = req.headers.get("origin") || "";
-    const safeOrigin = allowedOrigins.includes(reqOrigin) ? reqOrigin : allowedOrigins[0] || reqOrigin;
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -62,16 +59,13 @@ serve(async (req) => {
       cancel_url: `${safeOrigin}/`,
     });
 
-    return new Response(JSON.stringify({ url: session.url }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+    return jsonResponse({ url: session.url }, 200, req);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[create-checkout] ERROR:", errorMessage);
-    return new Response(
-      JSON.stringify({ error: "Checkout creation failed. Please try again." }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    return handleServerError(
+      "create-checkout",
+      error,
+      req,
+      "Checkout creation failed. Please try again.",
     );
   }
 });

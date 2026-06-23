@@ -1,8 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, secureEdgeRequest } from "../_shared/security.ts";
+import { corsHeadersForRequest, handleServerError, jsonResponse, logger, secureEdgeRequest } from "../_shared/security.ts";
 
-// Supported languages for display/logging.
 const languageNames: { [key: string]: string } = {
   'en': 'English',
   'es': 'Spanish',
@@ -21,7 +20,7 @@ const languageNames: { [key: string]: string } = {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: { ...corsHeadersForRequest(req), 'Content-Type': 'application/json' } });
   }
 
   const auth = await secureEdgeRequest(req, "free-translate-text");
@@ -34,18 +33,13 @@ serve(async (req) => {
     const model = ALLOWED_MODELS.includes(reqBody.model) ? reqBody.model : "gpt-4o-mini";
 
     if (!text || !targetLanguage) {
-      return new Response(JSON.stringify({ error: "Missing text or targetLanguage" }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ error: "Text and target language are required." }, 400, req);
     }
 
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY77') || Deno.env.get('OPENAI_API_KEY');
     if (!openAIApiKey) {
-      return new Response(JSON.stringify({ error: "OpenAI API key not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      logger.error("free-translate-text", "OpenAI API key not configured");
+      return jsonResponse({ error: "Translation service temporarily unavailable." }, 503, req);
     }
 
     const targetName = languageNames[targetLanguage] || targetLanguage;
@@ -54,7 +48,6 @@ serve(async (req) => {
       ? `You are a professional translator. Translate the given text from ${sourceName} into ${targetName}. Only return the translated text, nothing else.`
       : `You are a professional translator. Translate the given text accurately into ${targetName}. Only return the translated text, nothing else.`;
 
-    // Call OpenAI Chat API to translate text
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -75,26 +68,19 @@ serve(async (req) => {
     const data = await response.json();
 
     if (!response.ok) {
-      const errorMessage = data?.error?.message || "Translation failed";
-      return new Response(JSON.stringify({ error: errorMessage }), {
-        status: response.status,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      logger.error("free-translate-text", `OpenAI API error: ${response.status}`, data?.error?.message);
+      return jsonResponse({ error: "Translation failed. Please try again." }, response.status >= 500 ? 502 : 400, req);
     }
 
     const translatedText = data?.choices?.[0]?.message?.content?.trim() || '';
 
-    return new Response(
-      JSON.stringify({ translatedText }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ translatedText }, 200, req);
   } catch (error) {
-    return new Response(
-      JSON.stringify({
-        error: error.message || "Unknown error in free-translate-text function",
-        timestamp: new Date().toISOString()
-      }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    return handleServerError(
+      "free-translate-text",
+      error,
+      req,
+      "Translation failed. Please try again.",
     );
   }
 });
