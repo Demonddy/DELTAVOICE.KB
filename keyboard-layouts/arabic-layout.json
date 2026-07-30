@@ -1,0 +1,79 @@
+{
+  "keyboard_layout": "Arabic",
+  "version": "1.0",
+  "description": "Professional Arabic Keyboard Layout with Long-Press Support",
+  "main_keyboard": {
+    "row_1": [
+      {"key": "ض", "long_press": ["ض"]},
+      {"key": "ص", "long_press": ["ص"]},
+      {"key": "ث", "long_press": ["ث"]},
+      {"key": "ق", "long_press": ["ق"]},
+      {"key": "ف", "long_press": ["ف"]},
+      {"key": "غ", "long_press": ["غ"]},
+      {"key": "ع", "long_press": ["ع"]},
+      {"key": "ه", "long_press": ["ه"]},
+      {"key": "خ", "long_press": ["خ"]},
+      {"key": "ح", "long_press": ["ح"]},
+      {"key": "ج", "long_press": ["ج"]},
+      {"key": "د", "long_press": ["د"]}
+    ],
+    "row_2": [
+      {"key": "ش", "long_press": ["ش"]},
+      {"key": "س", "long_press": ["س"]},
+      {"key": "ي", "long_press": ["ي", "ى"]},
+      {"key": "ب", "long_press": ["ب"]},
+      {"key": "ل", "long_press": ["ل"]},
+      {"key": "ا", "long_press": ["ا", "أ", "إ", "آ"]},
+      {"key": "ت", "long_press": ["ت"]},
+      {"key": "ن", "long_press": ["ن"]},
+      {"key": "م", "long_press": ["م"]},
+      {"key": "ك", "long_press": ["ك"]},
+      {"key": "ط", "long_press": ["ط"]}
+    ],
+    "row_3": [
+      {"key": "ئ", "long_press": ["ئ"]},
+      {"key": "ء", "long_press": ["ء"]},
+      {"key": "ؤ", "long_press": ["ؤ"]},
+      {"key": "ر", "long_press": ["ر"]},
+      {"key": "لا", "long_press": ["لا"]},
+      {"key": "ى", "long_press": ["ى", "ي"]},
+      {"key": "ة", "long_press": ["ة"]},
+      {"key": "و", "long_press": ["و"]},
+      {"key": "ز", "long_press": ["ز"]}
+    ]
+  },
+  "long_press_config": {
+    "duration_ms": 400,
+    "alif_variants": {
+      "primary": "ا",
+      "variants": ["أ", "إ", "آ"],
+      "descriptions": {
+        "ا": "Alif",
+        "أ": "Alif with Hamza Above",
+        "إ": "Alif with Hamza Below",
+        "آ": "Alif with Madda Above"
+      }
+    }
+  },
+  "ui_guidelines": {
+    "long_press_popup": {
+      "position": "above_key",
+      "animation": "fade_in",
+      "background": "rgba(0, 0, 0, 0.85)",
+      "text_color": "#FFFFFF",
+      "border_radius": "8px",
+      "padding": "8px 12px",
+      "font_size": "16px"
+    },
+    "selection_highlight": {
+      "color": "#4CAF50",
+      "opacity": 0.9
+    }
+  },
+  "behavior": {
+    "quick_tap": "Insert primary character",
+    "long_press": "Show variant popup",
+    "drag_select": "Select from popup variants",
+    "release": "Insert selected character"
+  }
+}
