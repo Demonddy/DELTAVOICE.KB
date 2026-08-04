@@ -16,6 +16,7 @@ import kotlin.math.min
 /**
  * Theme preview that mirrors the IME: gradient root, rounded top toolbar with circular accent
  * buttons, rounded keyboard panel, and five rows (numbers, QWERTY, ASDF, ZXCV, bottom row).
+ * Icon colors dynamically match the keyboard theme.
  */
 class KeyboardThemePreviewView @JvmOverloads constructor(
     context: Context,
@@ -35,7 +36,8 @@ class KeyboardThemePreviewView @JvmOverloads constructor(
     private val toolbarFillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val toolbarStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val accentCirclePaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val iconDotPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val accentCircleStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val iconPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val keyFillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val keyStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
@@ -83,18 +85,30 @@ class KeyboardThemePreviewView @JvmOverloads constructor(
         val circleD = min((innerW - toolGap * (nTools + 1)) / nTools, toolbarH * 0.72f)
         var cx = innerLeft + toolGap + circleD / 2f
         val cy = toolbarTop + toolbarH / 2f
-        accentCirclePaint.color = pal.iconTint
-        iconDotPaint.color = ColorUtils.setAlphaComponent(0xFFFFFFFF.toInt(), 0xEE)
-        labelPaint.color = iconDotPaint.color
+        
+        // Dynamic circle color - matches keyboard accent color
+        accentCirclePaint.color = pal.accent
+        accentCircleStrokePaint.color = ColorUtils.setAlphaComponent(pal.accent, 0x99)
+        accentCircleStrokePaint.strokeWidth = maxOf(1.5f, resources.displayMetrics.density * 0.8f)
+        
+        // Dynamic icon color - contrasts with keyboard background
+        iconPaint.color = pal.keyText
+        labelPaint.color = pal.keyText
         labelPaint.textSize = circleD * 0.28f
+        
         for (i in 0 until nTools) {
+            // Draw filled circle with theme accent color
             canvas.drawCircle(cx, cy, circleD / 2f, accentCirclePaint)
+            // Draw stroke circle for depth
+            canvas.drawCircle(cx, cy, circleD / 2f, accentCircleStrokePaint)
+            
             val hint = toolbarGlyphHints[i]
             if (hint.length <= 2) {
                 val ty = cy - (labelPaint.descent() + labelPaint.ascent()) / 2f
                 canvas.drawText(hint, cx, ty, labelPaint)
             } else {
-                canvas.drawCircle(cx, cy, circleD * 0.12f, iconDotPaint)
+                // Draw dot icon with theme text color
+                canvas.drawCircle(cx, cy, circleD * 0.12f, iconPaint)
             }
             cx += circleD + toolGap
         }
@@ -202,7 +216,7 @@ class KeyboardThemePreviewView @JvmOverloads constructor(
                 "🌐" -> "G"
                 else -> label
             }
-            labelPaint.color = if (useIconTint(label)) pal.iconTint else pal.keyText
+            labelPaint.color = if (useIconTint(label)) pal.accent else pal.keyText
             val cy = y + rowH / 2f - (labelPaint.descent() + labelPaint.ascent()) / 2f
             canvas.drawText(display, cx, cy, labelPaint)
             x += keyW + gapX
