@@ -8,7 +8,8 @@ data class KeyboardLayout(
     val row1: List<String>,
     val row2: List<String>,
     val row3: List<String>,
-    val displayName: String
+    val displayName: String,
+    val longPressVariants: Map<String, List<String>>? = null
 )
 
 object KeyboardLayouts {
@@ -55,9 +56,13 @@ object KeyboardLayouts {
         "ar" to KeyboardLayout(
             numbers = listOf("١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", "٠"),
             row1 = listOf("ض", "ص", "ث", "ق", "ف", "غ", "ع", "ه", "خ", "ح", "ج"),
-            row2 = listOf("ش", "س", "ي", "ب", "ل", "أ", "ت", "ن", "م", "ك", "ط"),
+            row2 = listOf("ش", "س", "ي", "ب", "ل", "ا", "ت", "ن", "م", "ك", "ط"),
             row3 = listOf("ذ", "ء", "ؤ", "ر", "ئ", "ة", "و", "ز", "ظ", "د"),
-            displayName = "العربية"
+            displayName = "العربية",
+            longPressVariants = mapOf(
+                "ا" to listOf("ا", "أ", "إ", "آ"),
+                "ي" to listOf("ي", "ى")
+            )
         ),
         "hi" to KeyboardLayout(
             numbers = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0"),
@@ -349,10 +354,10 @@ object KeyboardLayouts {
         // ──────────────────────────────────────────────
 
         "bn" to KeyboardLayout(
-            numbers = listOf("১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯", "০"),
+            numbers = listOf("१", "२", "३", "४", "५", "६", "७", "८", "९", "०"),
             row1 = listOf("ৌ", "ৈ", "া", "ী", "ূ", "ভ", "হ", "গ", "দ", "জ", "ড"),
-            row2 = listOf("ো", "ে", "্", "ি", "ু", "প", "র", "ক", "ত", "চ", "ট"),
-            row3 = listOf("ং", "ম", "ন", "শ", "ল", "স", "য"),
+            row2 = listOf("ো", "ে", "্", "ि", "ु", "प", "र", "क", "त", "च", "ट"),
+            row3 = listOf("ং", "म", "न", "श", "ल", "स", "य"),
             displayName = "বাংলা"
         ),
         "ta" to KeyboardLayout(
