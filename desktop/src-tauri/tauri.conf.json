@@ -1,0 +1,43 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicehash/tauri/refs/heads/dev/crates/tauri-config-schema/schema.json",
+  "productName": "DeltaVoice",
+  "version": "1.0.0",
+  "identifier": "com.deltavoice.desktop",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "DeltaVoice",
+        "width": 420,
+        "height": 620,
+        "resizable": true,
+        "decorations": false,
+        "transparent": false,
+        "backgroundColor": "#0a0a0f",
+        "center": true,
+        "visible": true
+      }
+    ],
+    "trayIcon": {
+      "id": "main",
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
+      "tooltip": "DeltaVoice - Ctrl+Space to record"
+    },
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:1420 ws://localhost:1420 ws://localhost:1421 https://*.supabase.co https://*.convex.site https://api.deepseek.com https://api.openai.com https://api.elevenlabs.io https://api.dictionaryapi.dev; media-src 'self' blob:; img-src 'self' data: blob:"
+    }
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    }
+  }
+}

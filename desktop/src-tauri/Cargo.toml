@@ -1,0 +1,30 @@
+[package]
+name = "deltavoice-desktop"
+version = "1.0.0"
+description = "DeltaVoice Desktop - System-wide voice dictation & AI tools"
+authors = ["DeltaVoice"]
+edition = "2021"
+
+[lib]
+name = "deltavoice_desktop_lib"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+enigo = { version = "0.2", features = ["serde"] }
+base64 = "0.22"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

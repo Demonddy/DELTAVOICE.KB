@@ -1,5 +1,7 @@
 package com.deltavoice
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
 import android.os.Handler
@@ -130,12 +132,23 @@ class AIChatConfigActivity : AppCompatActivity() {
             params.gravity = Gravity.START
             params.marginStart = 24
             params.marginEnd = 64
+            bubble.isLongClickable = true
+            bubble.setOnLongClickListener {
+                copyAiChatText(text)
+                true
+            }
         }
 
         bubble.layoutParams = params
         chatMessages.addView(bubble)
 
         scrollToBottom(keepInputFocus = true)
+    }
+
+    private fun copyAiChatText(text: String) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("AI response", text))
+        Toast.makeText(this, R.string.copied_short, Toast.LENGTH_SHORT).show()
     }
 
     private var loadingBubbleView: android.view.View? = null

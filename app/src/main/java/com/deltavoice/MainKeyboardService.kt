@@ -5375,6 +5375,16 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 textSize = 14f
                 setLineSpacing(0f, 1.3f)
             }
+
+            if (!isUser && !isLoading) {
+                bubbleLayout.isLongClickable = true
+                bubbleLayout.setOnLongClickListener {
+                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("AI response", message))
+                    Toast.makeText(this@MainKeyboardService, getString(R.string.copied_short), Toast.LENGTH_SHORT).show()
+                    true
+                }
+            }
             
             bubbleLayout.addView(textView)
             messageLayout.addView(bubbleLayout)
