@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="SpinningGradientBorderLayout">
+        <attr name="borderWidth" format="dimension" />
+        <attr name="cornerRadius" format="dimension" />
+        <attr name="contentPadding" format="dimension" />
+    </declare-styleable>
+</resources>

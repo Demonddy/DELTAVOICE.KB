@@ -7,18 +7,24 @@
     android:background="@drawable/glass_root_background"
     android:padding="4dp">
 
-    <!-- Liquid Glass Top Bar: more_vert, videocam, home, AI, KB, mic, clipboard -->
-    <FrameLayout
+    <!-- Top icon row — spinning gradient border -->
+    <com.deltavoice.ui.SpinningGradientBorderLayout
         android:id="@+id/top_bar_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="8dp"
-        android:background="@drawable/glass_panel_background"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp"
-        android:minHeight="60dp">
+        android:minHeight="60dp"
+        app:borderWidth="2dp"
+        app:cornerRadius="24dp"
+        app:contentPadding="6dp">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp">
 
         <LinearLayout
             android:id="@+id/ai_features_row"
@@ -212,7 +218,8 @@
                 android:layout_marginStart="4dp"
                 android:padding="8dp" />
         </LinearLayout>
-    </FrameLayout>
+        </FrameLayout>
+    </com.deltavoice.ui.SpinningGradientBorderLayout>
 
     <!-- AI Features Container (Language Selector - Hidden by default) -->
     <LinearLayout
@@ -658,14 +665,22 @@
         </LinearLayout>
     </ScrollView>
 
-    <!-- AI Chat Container - Hidden by default -->
+    <!-- AI Chat — spinning gradient border -->
+    <com.deltavoice.ui.SpinningGradientBorderLayout
+        android:id="@+id/ai_chat_panel_frame"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:borderWidth="2dp"
+        app:cornerRadius="28dp"
+        app:contentPadding="6dp">
+
     <LinearLayout
         android:id="@+id/ai_chat_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="@drawable/ai_chat_panel_rounded_28"
-        android:visibility="gone">
+        android:background="@android:color/transparent">
 
         <!-- Chat Header -->
         <LinearLayout
@@ -677,6 +692,7 @@
             android:background="#1A1F2E">
 
             <ImageView
+                android:id="@+id/ai_chat_header_icon"
                 android:layout_width="28dp"
                 android:layout_height="28dp"
                 android:src="@drawable/ic_ai_mode"
@@ -975,32 +991,52 @@
 
     </LinearLayout>
 
-    <!-- AI Writing Tools Container (Hidden by default) -->
+    </com.deltavoice.ui.SpinningGradientBorderLayout>
+
+    <!-- AI Writing Tools — spinning gradient border -->
+    <com.deltavoice.ui.SpinningGradientBorderLayout
+        android:id="@+id/ai_writing_tools_panel_frame"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:borderWidth="2dp"
+        app:cornerRadius="28dp"
+        app:contentPadding="6dp">
+
     <include
         android:id="@+id/ai_writing_tools_include"
         layout="@layout/ai_writing_tools"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="gone" />
+        android:layout_height="wrap_content" />
 
-    <!-- More Options (8 tools + back — same layout as bubble overlay) -->
+    </com.deltavoice.ui.SpinningGradientBorderLayout>
+
+    <!-- More Options — spinning gradient border -->
+    <com.deltavoice.ui.SpinningGradientBorderLayout
+        android:id="@+id/more_options_panel_frame"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:borderWidth="2dp"
+        app:cornerRadius="28dp"
+        app:contentPadding="6dp">
+
     <include
         android:id="@+id/more_options_container"
         layout="@layout/overlay_more_options"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="gone" />
+        android:layout_height="wrap_content" />
 
-    <!-- Liquid Glass Keyboard Panel - Gboard-style: minimal padding for larger keys -->
-    <FrameLayout
+    </com.deltavoice.ui.SpinningGradientBorderLayout>
+
+    <!-- Keyboard panel: spinning gradient border with inner inset so keys stay inside -->
+    <com.deltavoice.ui.SpinningGradientBorderLayout
         android:id="@+id/keyboard_panel_frame"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/glass_keyboard_panel_background"
-        android:paddingStart="2dp"
-        android:paddingEnd="2dp"
-        android:paddingTop="2dp"
-        android:paddingBottom="4dp">
+        app:borderWidth="2dp"
+        app:cornerRadius="28dp"
+        app:contentPadding="6dp">
 
     <LinearLayout
         android:id="@+id/keyboard_container"
@@ -1066,6 +1102,6 @@
 
     </LinearLayout>
 
-    </FrameLayout>
+    </com.deltavoice.ui.SpinningGradientBorderLayout>
 
 </LinearLayout>

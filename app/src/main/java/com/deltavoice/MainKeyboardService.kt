@@ -70,6 +70,7 @@ import com.deltavoice.api.VoiceConversionService
 import com.deltavoice.api.CompleteVoiceWorkflowService
 import com.deltavoice.privacy.OutboundHttpPolicy
 import com.deltavoice.privacy.OutboundMediaSanitizer
+import com.deltavoice.ui.SpinningGradientBorderLayout
 import com.deltavoice.predict.PredictionProvider
 import com.deltavoice.predict.PredictionResult
 import com.deltavoice.debug.AgentDebugLog
@@ -159,7 +160,24 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun applyImeKeyboardContainerVisible(visible: Boolean) {
         if (overlayBubbleKeyboardIsolated && !visible) return
+        rootView?.findViewById<View>(R.id.keyboard_panel_frame)?.visibility =
+            if (visible) View.VISIBLE else View.GONE
         keyboardContainer.visibility = if (visible) View.VISIBLE else View.GONE
+    }
+
+    private fun setAiChatPanelVisible(visible: Boolean) {
+        rootView?.findViewById<View>(R.id.ai_chat_panel_frame)?.visibility =
+            if (visible) View.VISIBLE else View.GONE
+    }
+
+    private fun setAiWritingToolsPanelVisible(visible: Boolean) {
+        rootView?.findViewById<View>(R.id.ai_writing_tools_panel_frame)?.visibility =
+            if (visible) View.VISIBLE else View.GONE
+    }
+
+    private fun setMoreOptionsPanelVisible(visible: Boolean) {
+        rootView?.findViewById<View>(R.id.more_options_panel_frame)?.visibility =
+            if (visible) View.VISIBLE else View.GONE
     }
 
     /** Restore top icon row + key row on the IME while a bubble panel is open (independent window). */
@@ -580,6 +598,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             // #endregion
             applyOrientationOptimizations(rootView!!)
             applyThemePalette()
+            startKeyboardBorderAnimation(rootView)
             return rootView!!
         }
         // #region agent log
@@ -691,6 +710,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
         // Apply theme palette colors to root, panels, top bar, and keys
         applyThemePalette()
+        startKeyboardBorderAnimation(view)
 
         // Setup language selector
         setupLanguageSelector(view)
@@ -1455,9 +1475,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         isCalculatorVisible = false
         dictionaryContainer.visibility = View.GONE
         isDictionaryVisible = false
-        aiChatContainer.visibility = View.GONE
+        setAiChatPanelVisible(false)
         isAiChatVisible = false
-        aiWritingToolsContainer.visibility = View.GONE
+        setAiWritingToolsPanelVisible(false)
         isAiWritingToolsVisible = false
         applyImeKeyboardContainerVisible(true)
         showTopBarsAfterOverlay()
@@ -1527,9 +1547,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         isCalculatorVisible = false
         dictionaryContainer.visibility = View.GONE
         isDictionaryVisible = false
-        aiChatContainer.visibility = View.GONE
+        setAiChatPanelVisible(false)
         isAiChatVisible = false
-        aiWritingToolsContainer.visibility = View.GONE
+        setAiWritingToolsPanelVisible(false)
         isAiWritingToolsVisible = false
         applyImeKeyboardContainerVisible(true)
         showTopBarsAfterOverlay()
@@ -2592,7 +2612,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             isCalculatorVisible = false
             dictionaryContainer.visibility = View.GONE
             isDictionaryVisible = false
-            aiChatContainer.visibility = View.GONE
+            setAiChatPanelVisible(false)
             isAiChatVisible = false
             showEmojiPicker()
         }
@@ -2912,7 +2932,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun setupAiWritingTools(view: View) {
         aiWritingToolsContainer = view.findViewById(R.id.ai_writing_tools_include)
-        aiWritingToolsContainer.visibility = View.GONE
+        setAiWritingToolsPanelVisible(false)
         aiWritingToolsInput = view.findViewById(R.id.ai_writing_tools_input)
         aiWritingToolsInput?.let { edit ->
             edit.isFocusableInTouchMode = true
@@ -3115,12 +3135,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         hideAllOverlays()
         hideTopBarsForOverlay()
         applyImeKeyboardContainerVisible(false)
-        aiWritingToolsContainer.visibility = View.VISIBLE
+        setAiWritingToolsPanelVisible(true)
         isAiWritingToolsVisible = true
     }
     
     private fun hideAiWritingTools() {
-        aiWritingToolsContainer.visibility = View.GONE
+        setAiWritingToolsPanelVisible(false)
         applyImeKeyboardContainerVisible(true)
         showTopBarsAfterOverlay()
         isAiWritingToolsVisible = false
@@ -4680,10 +4700,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         isEmojiPickerVisible = false
         calculatorContainer.visibility = View.GONE
         isCalculatorVisible = false
-        aiWritingToolsContainer.visibility = View.GONE
+        setAiWritingToolsPanelVisible(false)
         isAiWritingToolsVisible = false
         aiFeaturesContainer.visibility = View.GONE
-        moreOptionsContainer.visibility = View.GONE
+        setMoreOptionsPanelVisible(false)
         voiceRecordingContainer.visibility = View.GONE
         voiceProcessingStep2Container.visibility = View.GONE
         dictionaryContainer.visibility = View.VISIBLE
@@ -5774,9 +5794,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             aiFeaturesContainer.visibility = View.GONE
             voiceRecordingContainer.visibility = View.GONE
             voiceProcessingStep2Container.visibility = View.GONE
-            moreOptionsContainer.visibility = View.GONE
+            setMoreOptionsPanelVisible(false)
         }
-        aiChatContainer.visibility = View.VISIBLE
+        setAiChatPanelVisible(true)
         isAiChatVisible = true
         aiChatNumbersMode = false
         aiChatSymbolsPage2 = false
@@ -5816,7 +5836,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         aiChatNumbersMode = false
         aiChatSymbolsPage2 = false
         updateAiChatKeyModeButtonText()
-        aiChatContainer.visibility = View.GONE
+        setAiChatPanelVisible(false)
         applyImeKeyboardContainerVisible(true)
         showTopBarsAfterOverlay()
         isAiChatVisible = false
@@ -7015,13 +7035,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         dictionaryContainer.visibility = View.GONE
         isDictionaryVisible = false
 
-        aiChatContainer.visibility = View.GONE
+        setAiChatPanelVisible(false)
         isAiChatVisible = false
 
-        aiWritingToolsContainer.visibility = View.GONE
+        setAiWritingToolsPanelVisible(false)
         isAiWritingToolsVisible = false
 
-        moreOptionsContainer.visibility = View.GONE
+        setMoreOptionsPanelVisible(false)
 
         voiceRecordingContainer.visibility = View.GONE
         voiceProcessingStep2Container.visibility = View.GONE
@@ -7039,9 +7059,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun hideAllOverlaysForBubbleOverlayOnly() {
         isClipboardVisible = false
-        aiChatContainer.visibility = View.GONE
+        setAiChatPanelVisible(false)
         isAiChatVisible = false
-        aiWritingToolsContainer.visibility = View.GONE
+        setAiWritingToolsPanelVisible(false)
         isAiWritingToolsVisible = false
         voiceRecordingContainer.visibility = View.GONE
         voiceProcessingStep2Container.visibility = View.GONE
@@ -7242,34 +7262,79 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
         view.background = rootBg
 
-        // Top bar panel
-        view.findViewById<FrameLayout>(R.id.top_bar_container)?.background = makeThemedPanelDrawable(
-            color = androidx.core.graphics.ColorUtils.setAlphaComponent(pal.background, 0xDD),
-            radiusDp = 24f,
-            strokeColor = androidx.core.graphics.ColorUtils.setAlphaComponent(Color.WHITE, 0x26)
-        )
+        // Top bar + overlay panels + keyboard: spinning gradient borders
+        val borderInner = androidx.core.graphics.ColorUtils.setAlphaComponent(pal.background, 0xDD)
+        val borderColors = paletteBorderColors(pal)
+        listOf(
+            R.id.top_bar_container,
+            R.id.keyboard_panel_frame,
+            R.id.ai_chat_panel_frame,
+            R.id.ai_writing_tools_panel_frame,
+            R.id.more_options_panel_frame
+        ).forEach { id ->
+            view.findViewById<SpinningGradientBorderLayout>(id)?.apply {
+                setInnerColor(borderInner)
+                setGradientColors(*borderColors)
+            }
+        }
 
-        // Keyboard panel frame
-        view.findViewById<FrameLayout>(R.id.keyboard_panel_frame)?.background = makeThemedPanelDrawable(
-            color = androidx.core.graphics.ColorUtils.setAlphaComponent(pal.background, 0xDD),
-            radiusDp = 28f,
-            strokeColor = androidx.core.graphics.ColorUtils.setAlphaComponent(Color.WHITE, 0x26)
-        )
-
-        // Top bar icon buttons
+        // Top bar + prediction + overlay icon buttons
         val topBarIcons = listOf(
             R.id.btn_more, R.id.btn_camera, R.id.btn_list,
-            R.id.btn_text_t, R.id.btn_kb_plus, R.id.btn_voice, R.id.btn_app_grid
+            R.id.btn_text_t, R.id.btn_kb_plus, R.id.btn_voice, R.id.btn_app_grid,
+            R.id.predictions_voice_btn, R.id.predictions_return_btn,
+            R.id.btn_more_calculator, R.id.btn_more_dictionary
         )
         for (iconId in topBarIcons) {
-            val ib = view.findViewById<ImageButton>(iconId) ?: continue
-            ib.setColorFilter(pal.iconTint, android.graphics.PorterDuff.Mode.SRC_IN)
-            val circBg = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(androidx.core.graphics.ColorUtils.setAlphaComponent(pal.accent, 0x33))
-                setSize((48 * resources.displayMetrics.density).toInt(), (48 * resources.displayMetrics.density).toInt())
+            applyAccentCircleIcon(view.findViewById(iconId), pal)
+        }
+
+        view.findViewById<ImageView>(R.id.ai_chat_header_icon)?.setColorFilter(
+            pal.iconTint, android.graphics.PorterDuff.Mode.SRC_IN
+        )
+        view.findViewById<ImageButton>(R.id.ai_chat_close_btn)?.setColorFilter(
+            pal.keyTextMuted, android.graphics.PorterDuff.Mode.SRC_IN
+        )
+        applyAccentFilledIcon(view.findViewById(R.id.ai_chat_send_btn), pal)
+        view.findViewById<ImageButton>(R.id.ai_tools_close_btn)?.setColorFilter(
+            pal.keyTextMuted, android.graphics.PorterDuff.Mode.SRC_IN
+        )
+
+        val aiToolButtonIds = listOf(
+            R.id.ai_tool_grammar, R.id.ai_tool_reply, R.id.ai_tool_translate, R.id.ai_tool_enhance,
+            R.id.ai_tool_tone, R.id.ai_tool_paraphrase, R.id.ai_tool_continue, R.id.ai_tool_longer,
+            R.id.ai_tool_summarize, R.id.ai_tool_synonymous, R.id.ai_tool_shorter, R.id.ai_tool_email
+        )
+        for (toolId in aiToolButtonIds) {
+            val btn = view.findViewById<Button>(toolId) ?: continue
+            btn.setTextColor(pal.keyText)
+            tintButtonDrawableStart(btn, pal.iconTint)
+            if (toolId == R.id.ai_tool_email) {
+                btn.background = makeThemedKeyDrawable(
+                    androidx.core.graphics.ColorUtils.setAlphaComponent(pal.accent, 0x55)
+                )
+            } else {
+                btn.background = makeThemedKeyDrawable(pal.surface)
             }
-            ib.background = circBg
+        }
+
+        view.findViewById<Button>(R.id.btn_more_back)?.apply {
+            setTextColor(pal.keyText)
+            background = makeThemedKeyDrawable(pal.surface)
+        }
+        view.findViewById<Button>(R.id.ai_chat_key_send)?.background =
+            makeThemedKeyDrawable(androidx.core.graphics.ColorUtils.setAlphaComponent(pal.accent, 0x88))
+        listOf(R.id.ai_chat_key_globe, R.id.ai_chat_key_emoji).forEach { id ->
+            view.findViewById<Button>(id)?.apply {
+                setTextColor(pal.iconTint)
+                background = makeThemedKeyDrawable(pal.surface)
+            }
+        }
+        view.findViewById<Button>(R.id.ai_chat_key_space)?.apply {
+            setTextColor(pal.keyTextMuted)
+            background = makeThemedKeyDrawable(
+                androidx.core.graphics.ColorUtils.blendARGB(pal.background, Color.WHITE, 0.08f)
+            )
         }
 
         // Key rows: re-tint every button
@@ -7290,6 +7355,60 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 child.setTextColor(pal.keyText)
             }
         }
+    }
+
+    private fun paletteBorderColors(pal: com.deltavoice.theme.KeyboardThemePalette): IntArray = intArrayOf(
+        pal.accent,
+        pal.accentSoft,
+        androidx.core.graphics.ColorUtils.blendARGB(pal.accent, pal.background, 0.35f),
+        pal.accentSoft
+    )
+
+    private fun applyAccentCircleIcon(button: ImageButton?, pal: com.deltavoice.theme.KeyboardThemePalette) {
+        button ?: return
+        button.setColorFilter(pal.iconTint, android.graphics.PorterDuff.Mode.SRC_IN)
+        val sizeDp = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) 40 else 48
+        button.background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(androidx.core.graphics.ColorUtils.setAlphaComponent(pal.accent, 0x33))
+            val sizePx = (sizeDp * resources.displayMetrics.density).toInt()
+            setSize(sizePx, sizePx)
+        }
+    }
+
+    private fun applyAccentFilledIcon(button: ImageButton?, pal: com.deltavoice.theme.KeyboardThemePalette) {
+        button ?: return
+        button.setColorFilter(Color.WHITE, android.graphics.PorterDuff.Mode.SRC_IN)
+        button.background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(pal.accent)
+        }
+    }
+
+    private fun tintButtonDrawableStart(button: Button, color: Int) {
+        val drawables = button.compoundDrawablesRelative
+        val start = drawables[0]?.mutate() ?: return
+        DrawableCompat.setTint(start, color)
+        button.setCompoundDrawablesRelativeWithIntrinsicBounds(start, drawables[1], drawables[2], drawables[3])
+    }
+
+    private fun forEachSpinningBorder(view: View, action: (SpinningGradientBorderLayout) -> Unit) {
+        if (view is SpinningGradientBorderLayout) action(view)
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                forEachSpinningBorder(view.getChildAt(i), action)
+            }
+        }
+    }
+
+    private fun startKeyboardBorderAnimation(view: View? = rootView) {
+        view ?: return
+        forEachSpinningBorder(view) { it.startBorderAnimation() }
+    }
+
+    private fun stopKeyboardBorderAnimation(view: View? = rootView) {
+        view ?: return
+        forEachSpinningBorder(view) { it.stopBorderAnimation() }
     }
 
     /**
@@ -8789,14 +8908,14 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         hideAllOverlays()
         hideTopBarsForOverlay()
         applyImeKeyboardContainerVisible(false)
-        moreOptionsContainer.visibility = View.VISIBLE
+        setMoreOptionsPanelVisible(true)
     }
 
     /**
      * Hide more options, show keyboard
      */
     private fun hideMoreOptions() {
-        moreOptionsContainer.visibility = View.GONE
+        setMoreOptionsPanelVisible(false)
         applyImeKeyboardContainerVisible(true)
         showTopBarsAfterOverlay()
     }
@@ -10182,6 +10301,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         clipboardManager = null
         // Release camera so status bar icon disappears
         releaseCameraAndStopThread()
+        stopKeyboardBorderAnimation()
         super.onDestroy()
         stopBackspaceRepeat(applyPredictionUpdate = false)
         predictionComputeJob?.cancel()

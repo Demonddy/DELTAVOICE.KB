@@ -5,8 +5,8 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="@drawable/ai_chat_panel_rounded_28"
-    android:padding="12dp">
+    android:background="@android:color/transparent"
+    android:padding="6dp">
 
     <LinearLayout
         android:layout_width="match_parent"
