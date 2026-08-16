@@ -201,21 +201,8 @@ http.route({
     }
 
     try {
-      const openAIApiKey =
-        process.env.OPENAI_API_KEY77 || process.env.OPENAI_API_KEY;
       const elevenLabsApiKey =
         process.env.ELEVENLABS_API_KEY77 || process.env.ELEVENLABS_API_KEY;
-
-      if (!openAIApiKey) {
-        logger.error("complete-voice-workflow", "OpenAI API key not configured");
-        return new Response(
-          JSON.stringify({
-            error: "Voice processing is temporarily unavailable. Please try again later.",
-            code: "SERVICE_UNAVAILABLE",
-          }),
-          { status: 500, headers: jsonHeaders }
-        );
-      }
 
       const body = (await request.json()) as {
         audioBase64?: string;
@@ -258,7 +245,7 @@ http.route({
         );
       }
 
-      if (wfType !== "text-only" && !elevenLabsApiKey) {
+      if (!elevenLabsApiKey) {
         logger.error("complete-voice-workflow", "ElevenLabs API key not configured");
         return new Response(
           JSON.stringify({
@@ -296,6 +283,8 @@ http.route({
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       const isTtsError =
+        err.message?.includes("Speech-to-speech") ||
+        err.message?.includes("Dubbing") ||
         err.message?.includes("Voice conversion failed") ||
         err.message?.includes("Voice clone creation failed");
 
@@ -392,21 +381,9 @@ http.route({
         );
       }
 
-      const openAIApiKey =
-        process.env.OPENAI_API_KEY77 || process.env.OPENAI_API_KEY;
       const elevenLabsApiKey =
         process.env.ELEVENLABS_API_KEY77 || process.env.ELEVENLABS_API_KEY;
 
-      if (!openAIApiKey) {
-        logger.error("video-workflow", "OpenAI API key not configured");
-        return new Response(
-          JSON.stringify({
-            error: "Video processing is temporarily unavailable. Please try again later.",
-            code: "SERVICE_UNAVAILABLE",
-          }),
-          { status: 500, headers: jsonHeaders }
-        );
-      }
       if (!elevenLabsApiKey) {
         logger.error("video-workflow", "ElevenLabs API key not configured");
         return new Response(

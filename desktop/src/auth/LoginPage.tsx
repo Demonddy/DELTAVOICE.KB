@@ -2,8 +2,11 @@ import { useState } from "react";
 import { useAuth } from "./AuthContext";
 import { SUPABASE_ANON_KEY } from "../api/supabase";
 import { Mic } from "lucide-react";
+import { usePlatformInfo } from "../hooks/usePlatformInfo";
+import { HotkeyLabel } from "../components/HotkeyLabel";
 
 export default function LoginPage() {
+  const platform = usePlatformInfo();
   const { signIn, signUp } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -224,8 +227,7 @@ export default function LoginPage() {
           textAlign: "center",
         }}
       >
-        Press <kbd style={{ color: "var(--accent)" }}>Ctrl+Space</kbd> anywhere
-        to start voice recording
+        Press <HotkeyLabel label={platform.voiceHotkey} /> anywhere to start voice recording
       </p>
     </div>
   );

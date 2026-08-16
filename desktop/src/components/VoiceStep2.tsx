@@ -12,21 +12,32 @@ import {
   Sparkles,
   Copy,
   Check,
+  Square,
 } from "lucide-react";
 import {
   callVoiceWorkflow,
+  callCreateVoiceClone,
   LANGUAGES,
   VOICES,
   type VoiceWorkflowResult,
 } from "../api/convex";
+import {
+  loadSavedVoiceClone,
+  saveVoiceClone,
+  cloneVoiceStyle,
+  type SavedVoiceClone,
+} from "../utils/savedVoiceClone";
 
 type Mode = "complete" | "voice-only" | "text-only";
+type ClonePhase = "choose" | "record" | "saving" | "ready";
 
 interface Props {
   blob: Blob;
   onBack: () => void;
   onDone: () => void;
 }
+
+const MIN_SAMPLE_SECONDS = 8;
 
 async function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -64,15 +75,35 @@ export default function VoiceStep2({ blob, onBack, onDone }: Props) {
   const [resultProgress, setResultProgress] = useState(0);
   const [resultDuration, setResultDuration] = useState(0);
 
+  const [savedClone, setSavedClone] = useState<SavedVoiceClone | null>(() => loadSavedVoiceClone());
+  const [clonePhase, setClonePhase] = useState<ClonePhase>(
+    loadSavedVoiceClone() ? "choose" : "record"
+  );
+  const [activeCloneId, setActiveCloneId] = useState("");
+  const [sampleRecording, setSampleRecording] = useState(false);
+  const [sampleElapsed, setSampleElapsed] = useState(0);
+
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const resultAudioRef = useRef<HTMLAudioElement | null>(null);
   const recordingUrlRef = useRef<string>("");
+  const sampleRecorderRef = useRef<MediaRecorder | null>(null);
+  const sampleChunksRef = useRef<Blob[]>([]);
+  const sampleTimerRef = useRef<number | null>(null);
+  const sampleStreamRef = useRef<MediaStream | null>(null);
+  const sampleElapsedRef = useRef(0);
+  const sampleStartedAtRef = useRef(0);
+
+  const cloneReady = mode !== "voice-only" || Boolean(activeCloneId);
+  const showTextResult = Boolean(
+    result && (result.workflowType === "text-only" || result.ttsFallback)
+  );
 
   useEffect(() => {
     recordingUrlRef.current = URL.createObjectURL(blob);
     return () => {
       stopPreview();
       stopResultAudio();
+      stopSampleRecording(false);
       if (recordingUrlRef.current) URL.revokeObjectURL(recordingUrlRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,6 +128,114 @@ export default function VoiceStep2({ blob, onBack, onDone }: Props) {
     setResultPlaying(false);
     setResultProgress(0);
   }, []);
+
+  const stopSampleRecording = useCallback((save: boolean) => {
+    if (sampleTimerRef.current) {
+      window.clearInterval(sampleTimerRef.current);
+      sampleTimerRef.current = null;
+    }
+    const recorder = sampleRecorderRef.current;
+    if (recorder && recorder.state === "recording") {
+      if (!save) sampleChunksRef.current = [];
+      recorder.stop();
+    }
+    sampleStreamRef.current?.getTracks().forEach((t) => t.stop());
+    sampleStreamRef.current = null;
+    setSampleRecording(false);
+  }, []);
+
+  const selectMode = (next: Mode) => {
+    setMode(next);
+    setError("");
+    if (next !== "voice-only") return;
+    const existing = loadSavedVoiceClone();
+    setSavedClone(existing);
+    if (existing && activeCloneId === existing.voiceId) {
+      setClonePhase("ready");
+      return;
+    }
+    setActiveCloneId("");
+    setClonePhase(existing ? "choose" : "record");
+  };
+
+  const useSavedClone = () => {
+    const existing = savedClone || loadSavedVoiceClone();
+    if (!existing) return;
+    setSavedClone(existing);
+    setActiveCloneId(existing.voiceId);
+    setClonePhase("ready");
+    setError("");
+  };
+
+  const startNewSample = () => {
+    setActiveCloneId("");
+    setClonePhase("record");
+    setError("");
+  };
+
+  const startSampleRecording = async () => {
+    stopPreview();
+    stopResultAudio();
+    setError("");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      sampleStreamRef.current = stream;
+      const recorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+          ? "audio/webm;codecs=opus"
+          : "audio/webm",
+      });
+      sampleChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) sampleChunksRef.current.push(e.data);
+      };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const sampleBlob = new Blob(sampleChunksRef.current, { type: "audio/webm" });
+        if (sampleBlob.size < 1000) return;
+        const recordedSec = Math.floor((Date.now() - sampleStartedAtRef.current) / 1000);
+        if (recordedSec < MIN_SAMPLE_SECONDS) {
+          setError(`Record at least ${MIN_SAMPLE_SECONDS} seconds of clear speech.`);
+          setClonePhase("record");
+          return;
+        }
+        setClonePhase("saving");
+        try {
+          const audioBase64 = await blobToBase64(sampleBlob);
+          const name = `My Voice ${new Date().toLocaleDateString()}`;
+          const created = await callCreateVoiceClone({
+            audioBase64,
+            name,
+            format: "webm",
+          });
+          const stored = {
+            voiceId: created.voiceId,
+            name: created.name,
+            createdAt: Date.now(),
+          };
+          saveVoiceClone(stored);
+          setSavedClone(stored);
+          setActiveCloneId(created.voiceId);
+          setClonePhase("ready");
+        } catch (err: any) {
+          setError(err.message || "Could not save your voice");
+          setClonePhase("record");
+        }
+      };
+      recorder.start(250);
+      sampleRecorderRef.current = recorder;
+      sampleElapsedRef.current = 0;
+      sampleStartedAtRef.current = Date.now();
+      setSampleElapsed(0);
+      setSampleRecording(true);
+      sampleTimerRef.current = window.setInterval(() => {
+        sampleElapsedRef.current += 1;
+        setSampleElapsed(sampleElapsedRef.current);
+      }, 1000);
+    } catch {
+      setError("Microphone access denied. Allow the mic to save your voice.");
+    }
+  };
 
   const togglePreview = useCallback(() => {
     if (previewPlaying) {
@@ -156,7 +295,12 @@ export default function VoiceStep2({ blob, onBack, onDone }: Props) {
   }, [result, resultPlaying, stopPreview]);
 
   const handleProcess = async () => {
+    if (mode === "voice-only" && !activeCloneId) {
+      setError("Save or choose your voice before translating.");
+      return;
+    }
     stopPreview();
+    stopSampleRecording(false);
     setProcessing(true);
     setError("");
     setResult(null);
@@ -165,7 +309,7 @@ export default function VoiceStep2({ blob, onBack, onDone }: Props) {
       const res = await callVoiceWorkflow({
         audioBase64,
         targetLanguage: language,
-        voiceStyle: voice,
+        voiceStyle: mode === "voice-only" ? cloneVoiceStyle(activeCloneId) : voice,
         workflowType: mode,
         format: "webm",
       });
@@ -225,7 +369,6 @@ export default function VoiceStep2({ blob, onBack, onDone }: Props) {
 
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 12, paddingTop: 8 }}>
-      {/* Recording preview bar */}
       <div
         className="glass-panel"
         style={{
@@ -284,7 +427,7 @@ export default function VoiceStep2({ blob, onBack, onDone }: Props) {
           type="button"
           className="icon-btn"
           onClick={handleProcess}
-          disabled={processing}
+          disabled={processing || !cloneReady}
           style={{
             width: 36,
             height: 36,
@@ -302,6 +445,7 @@ export default function VoiceStep2({ blob, onBack, onDone }: Props) {
           className="icon-btn"
           onClick={() => {
             stopPreview();
+            stopSampleRecording(false);
             onBack();
           }}
           style={{ width: 32, height: 32, flexShrink: 0 }}
@@ -328,7 +472,7 @@ export default function VoiceStep2({ blob, onBack, onDone }: Props) {
                 key={m.key}
                 type="button"
                 className={`mode-card ${mode === m.key ? "selected" : ""}`}
-                onClick={() => setMode(m.key)}
+                onClick={() => selectMode(m.key)}
                 disabled={processing}
               >
                 <m.icon size={20} color={mode === m.key ? "#7c52ff" : "#e5e7eb"} />
@@ -354,25 +498,102 @@ export default function VoiceStep2({ blob, onBack, onDone }: Props) {
               ))}
             </select>
 
-            {mode !== "text-only" && (
+            {mode === "complete" && (
               <select
                 className="pill-select"
                 value={voice}
                 onChange={(e) => setVoice(e.target.value)}
                 disabled={processing}
               >
-                {mode === "voice-only" ? (
-                  <option value="myvoiceclone">My Voice (Clone)</option>
-                ) : (
-                  VOICES.map((v) => (
-                    <option key={v} value={v.toLowerCase()}>
-                      {v}
-                    </option>
-                  ))
-                )}
+                {VOICES.map((v) => (
+                  <option key={v} value={v.toLowerCase()}>
+                    {v}
+                  </option>
+                ))}
               </select>
             )}
           </div>
+
+          {mode === "voice-only" && (
+            <div className={`clone-box ${clonePhase === "ready" ? "ready" : ""}`}>
+              {clonePhase === "choose" && savedClone && (
+                <>
+                  <h4>Use your saved voice?</h4>
+                  <p>
+                    {savedClone.name} is ready. Use it for this translation, or record a new sample.
+                  </p>
+                  <div className="clone-box-actions">
+                    <button type="button" className="primary" onClick={useSavedClone} disabled={processing}>
+                      Use saved voice
+                    </button>
+                    <button type="button" onClick={startNewSample} disabled={processing}>
+                      Add new
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {clonePhase === "record" && !sampleRecording && (
+                <>
+                  <h4>{savedClone ? "Record a new sample" : "Save your voice first"}</h4>
+                  <p>
+                    Record at least {MIN_SAMPLE_SECONDS} seconds of clear speech. This sample is saved and reused — it is not the clip you just recorded.
+                  </p>
+                  <div className="clone-box-actions">
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={startSampleRecording}
+                      disabled={processing}
+                    >
+                      Record sample
+                    </button>
+                    {savedClone && (
+                      <button type="button" onClick={useSavedClone} disabled={processing}>
+                        Use saved
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {clonePhase === "record" && sampleRecording && (
+                <>
+                  <h4>Recording sample… {formatTime(sampleElapsed)}</h4>
+                  <p>Speak clearly in a quiet place. Stop when you have at least {MIN_SAMPLE_SECONDS} seconds.</p>
+                  <div className="clone-box-actions">
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={() => stopSampleRecording(true)}
+                    >
+                      <Square size={12} />
+                      Stop
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {clonePhase === "saving" && (
+                <>
+                  <h4>Saving your voice…</h4>
+                  <p>Creating a reusable voice from your sample.</p>
+                </>
+              )}
+
+              {clonePhase === "ready" && savedClone && (
+                <>
+                  <h4>Voice ready</h4>
+                  <p>{savedClone.name} will be used to translate this recording.</p>
+                  <div className="clone-box-actions">
+                    <button type="button" onClick={startNewSample} disabled={processing}>
+                      Change voice
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           {error && (
             <div
@@ -392,7 +613,7 @@ export default function VoiceStep2({ blob, onBack, onDone }: Props) {
             type="button"
             className="btn-primary"
             onClick={handleProcess}
-            disabled={processing}
+            disabled={processing || !cloneReady}
           >
             {processing ? (
               <>
@@ -414,10 +635,10 @@ export default function VoiceStep2({ blob, onBack, onDone }: Props) {
       ) : (
         <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--success)" }}>
-            Processing Complete
+            {showTextResult ? "Processing Complete" : "Audio ready"}
           </h3>
 
-          {result.originalText && (
+          {showTextResult && result.originalText && (
             <div className="glass-panel" style={{ padding: 12, borderRadius: 14 }}>
               <p style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>
                 Original
@@ -428,7 +649,7 @@ export default function VoiceStep2({ blob, onBack, onDone }: Props) {
             </div>
           )}
 
-          {result.translatedText && (
+          {showTextResult && result.translatedText && (
             <div className="glass-panel" style={{ padding: 12, borderRadius: 14 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                 <p style={{ fontSize: 11, color: "var(--text-muted)" }}>Translated</p>
@@ -502,7 +723,7 @@ export default function VoiceStep2({ blob, onBack, onDone }: Props) {
             </div>
           )}
 
-          {result.translatedText && (
+          {showTextResult && result.translatedText && (
             <button
               type="button"
               className="btn-primary"

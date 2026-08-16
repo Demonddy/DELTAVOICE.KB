@@ -1,5 +1,7 @@
 mod hotkeys;
 mod insertion;
+mod platform;
+mod window_position;
 
 use tauri::Manager;
 
@@ -12,6 +14,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             insertion::insert_text_at_cursor,
             insertion::save_audio_file,
+            window_position::position_floating_bar,
+            platform::get_platform_info,
         ])
         .setup(|app| {
             hotkeys::register_hotkeys(app)?;
@@ -42,6 +46,7 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .build()?;
 
     if let Some(tray) = app.tray_by_id("main") {
+        tray.set_tooltip(Some(&platform::tray_tooltip()))?;
         tray.set_menu(Some(menu))?;
         tray.on_menu_event(move |app, event| match event.id().as_ref() {
             "show" => {

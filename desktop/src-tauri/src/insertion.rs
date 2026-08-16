@@ -1,9 +1,17 @@
-use enigo::{Enigo, Keyboard, Settings, Key, Direction};
+use enigo::{Direction, Enigo, Key, Keyboard, Settings};
 use tauri::Manager;
 use std::thread;
 use std::time::Duration;
 
-/// Write text to clipboard and simulate Ctrl+V to paste into any focused app.
+fn paste_modifier_key() -> Key {
+    if cfg!(target_os = "macos") {
+        Key::Meta
+    } else {
+        Key::Control
+    }
+}
+
+/// Write text to clipboard and simulate paste (Cmd+V on macOS, Ctrl+V elsewhere).
 #[tauri::command]
 pub async fn insert_text_at_cursor(
     app: tauri::AppHandle,
@@ -21,12 +29,13 @@ pub async fn insert_text_at_cursor(
     let mut enigo = Enigo::new(&Settings::default())
         .map_err(|e| format!("Enigo init failed: {e}"))?;
 
-    // Simulate Ctrl+V
-    enigo.key(Key::Control, Direction::Press)
+    let modifier = paste_modifier_key();
+
+    enigo.key(modifier, Direction::Press)
         .map_err(|e| format!("Key press failed: {e}"))?;
     enigo.key(Key::Unicode('v'), Direction::Click)
         .map_err(|e| format!("Key click failed: {e}"))?;
-    enigo.key(Key::Control, Direction::Release)
+    enigo.key(modifier, Direction::Release)
         .map_err(|e| format!("Key release failed: {e}"))?;
 
     Ok(())

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ArrowLeft, Upload, Mic, Square } from "lucide-react";
+import { usePlatformInfo } from "../hooks/usePlatformInfo";
 
 interface Props {
   onRecorded: (blob: Blob) => void;
@@ -14,6 +15,7 @@ export default function VoiceRecorder({
   autoStart = false,
   stopSignal = 0,
 }: Props) {
+  const platform = usePlatformInfo();
   const [isRecording, setIsRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const mediaRecRef = useRef<MediaRecorder | null>(null);
@@ -155,7 +157,7 @@ export default function VoiceRecorder({
         )}
 
         <button
-          onClick={isRecording ? stopRecording : startRecording}
+          onClick={() => (isRecording ? stopRecording() : startRecording())}
           style={{
             width: 80,
             height: 80,
@@ -190,8 +192,8 @@ export default function VoiceRecorder({
         }}
       >
         {isRecording
-          ? "Recording... tap or press Ctrl+Space to stop"
-          : "Tap to record or press Ctrl+Space"}
+          ? `Recording... tap or press ${platform.voiceHotkey} to stop`
+          : `Tap to record or press ${platform.voiceHotkey}`}
       </p>
 
       <p style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}>

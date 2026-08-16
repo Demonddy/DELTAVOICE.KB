@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/emoji_picker_container"
     android:layout_width="match_parent"
-    android:layout_height="@dimen/emoji_picker_height"
+    android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="#1A1A1A">
 
@@ -165,13 +165,16 @@
             
     </LinearLayout>
 
-    <!-- Emoji Grid with ScrollView -->
+    <!-- Emoji Grid — framework ScrollView so IME inflation does not depend on NestedScrollView -->
     <ScrollView
+        android:id="@+id/emoji_grid_scroll"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
+        android:fillViewport="true"
         android:scrollbars="vertical"
         android:fadeScrollbars="false"
+        android:overScrollMode="always"
         android:background="#1A1A1A">
 
         <GridLayout

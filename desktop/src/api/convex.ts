@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabase";
 
 const CONVEX_SITE_URL = "https://kindred-curlew-363.eu-west-1.convex.site";
 const AI_CHAT_CONVEX_SITE = "https://spotted-guanaco-278.eu-west-1.convex.site";
@@ -33,6 +33,43 @@ export interface VoiceWorkflowResult {
   workflowType: string;
   ttsFallback?: boolean;
   error?: string;
+}
+
+export async function callCreateVoiceClone(req: {
+  audioBase64: string;
+  name: string;
+  format?: string;
+}): Promise<{ success: boolean; voiceId: string; name: string }> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) {
+    throw new Error("Please sign in to save your voice.");
+  }
+
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/create-voice-clone`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      apikey: SUPABASE_ANON_KEY || token,
+    },
+    body: JSON.stringify({
+      name: req.name,
+      audioBase64: req.audioBase64,
+      format: req.format || "webm",
+      description: "Saved from Translate My Same Voice",
+    }),
+  });
+
+  const body = await res.json().catch(() => ({ error: res.statusText }));
+  if (!res.ok || !body.voiceId) {
+    throw new Error(body.error || `Could not save voice: ${res.status}`);
+  }
+  return {
+    success: true,
+    voiceId: body.voiceId,
+    name: body.name || req.name,
+  };
 }
 
 export async function callVoiceWorkflow(

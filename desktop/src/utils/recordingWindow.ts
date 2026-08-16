@@ -1,12 +1,14 @@
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import {
-  LogicalSize,
-  PhysicalPosition,
-  type PhysicalSize,
-} from "@tauri-apps/api/dpi";
+import { type PhysicalSize, type PhysicalPosition } from "@tauri-apps/api/dpi";
 
-const BAR_WIDTH = 420;
-const BAR_HEIGHT = 58;
+export type FloatingBarMode = "recording" | "toolbar" | "step2";
+
+const BAR_SIZES: Record<FloatingBarMode, { width: number; height: number }> = {
+  recording: { width: 420, height: 58 },
+  toolbar: { width: 420, height: 72 },
+  step2: { width: 420, height: 640 },
+};
 
 interface SavedWindowState {
   size: PhysicalSize;
@@ -16,8 +18,9 @@ interface SavedWindowState {
 
 let savedState: SavedWindowState | null = null;
 
-export async function enterRecordingWindowMode(): Promise<void> {
+export async function enterFloatingBarMode(mode: FloatingBarMode): Promise<void> {
   const win = getCurrentWindow();
+  const { width, height } = BAR_SIZES[mode];
 
   if (!savedState) {
     savedState = {
@@ -27,25 +30,10 @@ export async function enterRecordingWindowMode(): Promise<void> {
     };
   }
 
-  await win.setResizable(false);
-  await win.setSize(new LogicalSize(BAR_WIDTH, BAR_HEIGHT));
-
-  const monitor = await win.currentMonitor();
-  if (monitor) {
-    const scale = monitor.scaleFactor;
-    const barW = BAR_WIDTH * scale;
-    const barH = BAR_HEIGHT * scale;
-    const x = monitor.position.x + (monitor.size.width - barW) / 2;
-    const y = monitor.position.y + monitor.size.height - barH - 56;
-    await win.setPosition(new PhysicalPosition(Math.round(x), Math.round(y)));
-  }
-
-  await win.setAlwaysOnTop(true);
-  await win.show();
-  await win.setFocus();
+  await invoke("position_floating_bar", { width, height });
 }
 
-export async function exitRecordingWindowMode(): Promise<void> {
+export async function exitFloatingBarMode(): Promise<void> {
   const win = getCurrentWindow();
 
   if (savedState) {
@@ -56,8 +44,31 @@ export async function exitRecordingWindowMode(): Promise<void> {
   }
 
   await win.setResizable(true);
+  await win.show();
+  await win.unminimize();
+  await win.setFocus();
 }
 
-export async function hideAfterRecordingCancel(): Promise<void> {
+export async function showMainWindow(): Promise<void> {
+  const win = getCurrentWindow();
+  await win.show();
+  await win.unminimize();
+  await win.setFocus();
+}
+
+export async function hideFloatingBar(): Promise<void> {
   await getCurrentWindow().hide();
 }
+
+/** Switch between floating bar sizes without restoring the main window. */
+export async function resizeFloatingBar(mode: FloatingBarMode): Promise<void> {
+  const { width, height } = BAR_SIZES[mode];
+  await invoke("position_floating_bar", { width, height });
+}
+
+/** @deprecated use enterFloatingBarMode("recording") */
+export const enterRecordingWindowMode = () => enterFloatingBarMode("recording");
+/** @deprecated use exitFloatingBarMode */
+export const exitRecordingWindowMode = exitFloatingBarMode;
+/** @deprecated use hideFloatingBar */
+export const hideAfterRecordingCancel = hideFloatingBar;

@@ -24,15 +24,20 @@ export default function RecordingBar({
   const mediaRecRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<number | null>(null);
   const saveOnStopRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animRef = useRef<number | null>(null);
+  const segmentStartRef = useRef<number | null>(null);
+  const accumulatedMsRef = useRef(0);
 
-  const cleanupAudio = useCallback(() => {
+  const stopWaveform = useCallback(() => {
     if (animRef.current) cancelAnimationFrame(animRef.current);
     animRef.current = null;
+  }, []);
+
+  const cleanupAudio = useCallback(() => {
+    stopWaveform();
     analyserRef.current = null;
     if (audioCtxRef.current) {
       audioCtxRef.current.close().catch(() => {});
@@ -40,6 +45,14 @@ export default function RecordingBar({
     }
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+  }, [stopWaveform]);
+
+  const syncElapsed = useCallback(() => {
+    const segmentMs =
+      segmentStartRef.current !== null
+        ? Date.now() - segmentStartRef.current
+        : 0;
+    setElapsed(Math.floor((accumulatedMsRef.current + segmentMs) / 1000));
   }, []);
 
   const startWaveform = useCallback((stream: MediaStream) => {
@@ -93,13 +106,11 @@ export default function RecordingBar({
       recorder.start(250);
       mediaRecRef.current = recorder;
       saveOnStopRef.current = false;
-      setIsRecording(true);
-      setIsPaused(false);
+      accumulatedMsRef.current = 0;
+      segmentStartRef.current = Date.now();
       setElapsed(0);
-      timerRef.current = window.setInterval(
-        () => setElapsed((s) => s + 1),
-        1000
-      );
+      setIsPaused(false);
+      setIsRecording(true);
     } catch {
       alert("Microphone access denied. Please allow microphone access.");
       onCancel();
@@ -113,54 +124,60 @@ export default function RecordingBar({
       if (rec && (rec.state === "recording" || rec.state === "paused")) {
         rec.stop();
       }
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = null;
+      if (segmentStartRef.current !== null) {
+        accumulatedMsRef.current += Date.now() - segmentStartRef.current;
+      }
+      segmentStartRef.current = null;
+      syncElapsed();
       mediaRecRef.current = null;
       setIsRecording(false);
       setIsPaused(false);
-      if (!save) cleanupAudio();
+      if (!save) {
+        accumulatedMsRef.current = 0;
+        cleanupAudio();
+      }
     },
-    [cleanupAudio]
+    [cleanupAudio, syncElapsed]
   );
 
   const pauseRecording = useCallback(() => {
+    if (!isRecording || isPaused) return;
+
     const rec = mediaRecRef.current;
     if (rec?.state === "recording" && typeof rec.pause === "function") {
-      rec.pause();
-      setIsPaused(true);
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (animRef.current) cancelAnimationFrame(animRef.current);
-    }
-  }, []);
-
-  const resumeRecording = useCallback(() => {
-    const rec = mediaRecRef.current;
-    if (rec?.state === "paused" && typeof rec.resume === "function") {
-      rec.resume();
-      setIsPaused(false);
-      timerRef.current = window.setInterval(
-        () => setElapsed((s) => s + 1),
-        1000
-      );
-      if (analyserRef.current) {
-        const data = new Uint8Array(analyserRef.current.frequencyBinCount);
-        const tick = () => {
-          if (!analyserRef.current) return;
-          analyserRef.current.getByteFrequencyData(data);
-          const bars = 24;
-          const step = Math.floor(data.length / bars);
-          const heights = Array.from({ length: bars }, (_, i) => {
-            const slice = data.slice(i * step, (i + 1) * step);
-            const avg = slice.reduce((a, b) => a + b, 0) / slice.length;
-            return Math.max(4, Math.min(28, (avg / 255) * 28));
-          });
-          setWaveHeights(heights);
-          animRef.current = requestAnimationFrame(tick);
-        };
-        animRef.current = requestAnimationFrame(tick);
+      try {
+        rec.pause();
+      } catch {
+        // Fall back to UI-only pause below.
       }
     }
-  }, []);
+
+    if (segmentStartRef.current !== null) {
+      accumulatedMsRef.current += Date.now() - segmentStartRef.current;
+      segmentStartRef.current = null;
+    }
+    stopWaveform();
+    setWaveHeights(Array.from({ length: 24 }, () => 4));
+    setIsPaused(true);
+    syncElapsed();
+  }, [isPaused, isRecording, stopWaveform, syncElapsed]);
+
+  const resumeRecording = useCallback(() => {
+    if (!isRecording || !isPaused) return;
+
+    const rec = mediaRecRef.current;
+    if (rec?.state === "paused" && typeof rec.resume === "function") {
+      try {
+        rec.resume();
+      } catch {
+        // Continue with UI-only resume.
+      }
+    }
+
+    segmentStartRef.current = Date.now();
+    setIsPaused(false);
+    if (streamRef.current) startWaveform(streamRef.current);
+  }, [isPaused, isRecording, startWaveform]);
 
   const deleteRecording = useCallback(() => {
     stopRecording(false);
@@ -170,6 +187,14 @@ export default function RecordingBar({
   const finishRecording = useCallback(() => {
     stopRecording(true);
   }, [stopRecording]);
+
+  useEffect(() => {
+    if (!isRecording || isPaused) return;
+
+    syncElapsed();
+    const id = window.setInterval(syncElapsed, 250);
+    return () => clearInterval(id);
+  }, [isRecording, isPaused, syncElapsed]);
 
   useEffect(() => {
     if (autoStart) startRecording();
@@ -182,7 +207,6 @@ export default function RecordingBar({
 
   useEffect(() => {
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
       const rec = mediaRecRef.current;
       if (rec && (rec.state === "recording" || rec.state === "paused")) {
         saveOnStopRef.current = false;

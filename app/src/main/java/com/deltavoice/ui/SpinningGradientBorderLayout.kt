@@ -4,22 +4,18 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Matrix
-import android.graphics.Outline
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.SweepGradient
 import android.util.AttributeSet
-import android.view.View
-import android.view.ViewGroup
-import android.view.ViewOutlineProvider
 import android.view.animation.LinearInterpolator
 import android.widget.FrameLayout
 import com.deltavoice.R
 import kotlin.math.max
 
 /**
- * Panel container with a seamless spinning gradient border and inner inset so content
- * stays fully inside the rounded frame.
+ * Panel container with a spinning gradient border. Uses normal FrameLayout padding/measure
+ * so scrollable children (emoji grid) stay bounded and can scroll.
  */
 class SpinningGradientBorderLayout @JvmOverloads constructor(
     context: Context,
@@ -33,6 +29,7 @@ class SpinningGradientBorderLayout @JvmOverloads constructor(
         set(value) {
             field = value
             borderPaint.strokeWidth = value
+            applyContentInsets()
             requestLayout()
             invalidate()
         }
@@ -40,14 +37,13 @@ class SpinningGradientBorderLayout @JvmOverloads constructor(
     var cornerRadiusPx: Float = 28f * density
         set(value) {
             field = value
-            requestLayout()
             invalidate()
         }
 
-    /** Padding inside the border stroke before child content begins. */
     var contentPaddingPx: Float = 6f * density
         set(value) {
             field = value
+            applyContentInsets()
             requestLayout()
             invalidate()
         }
@@ -86,7 +82,7 @@ class SpinningGradientBorderLayout @JvmOverloads constructor(
     init {
         setWillNotDraw(false)
         clipChildren = true
-        clipToPadding = false
+        clipToPadding = true
 
         context.theme.obtainStyledAttributes(attrs, R.styleable.SpinningGradientBorderLayout, defStyleAttr, 0).apply {
             try {
@@ -98,6 +94,7 @@ class SpinningGradientBorderLayout @JvmOverloads constructor(
             }
         }
         borderPaint.strokeWidth = borderWidthPx
+        applyContentInsets()
     }
 
     fun setInnerColor(color: Int) {
@@ -129,55 +126,6 @@ class SpinningGradientBorderLayout @JvmOverloads constructor(
     fun stopBorderAnimation() {
         borderAnimator?.cancel()
         borderAnimator = null
-    }
-
-    override fun onFinishInflate() {
-        super.onFinishInflate()
-        for (i in 0 until childCount) {
-            applyContentClip(getChildAt(i))
-        }
-    }
-
-    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val inset = innerInsetPx * 2
-        val parentWidth = MeasureSpec.getSize(widthMeasureSpec)
-        val childWidthSpec = when (MeasureSpec.getMode(widthMeasureSpec)) {
-            MeasureSpec.EXACTLY -> MeasureSpec.makeMeasureSpec(
-                (parentWidth - inset).coerceAtLeast(0),
-                MeasureSpec.EXACTLY
-            )
-            MeasureSpec.AT_MOST -> MeasureSpec.makeMeasureSpec(
-                (parentWidth - inset).coerceAtLeast(0),
-                MeasureSpec.AT_MOST
-            )
-            else -> MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
-        }
-        val childHeightSpec = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
-
-        var maxChildWidth = 0
-        var maxChildHeight = 0
-        for (i in 0 until childCount) {
-            val child = getChildAt(i)
-            measureChild(child, childWidthSpec, childHeightSpec)
-            maxChildWidth = max(maxChildWidth, child.measuredWidth)
-            maxChildHeight = max(maxChildHeight, child.measuredHeight)
-        }
-
-        val desiredWidth = maxChildWidth + inset
-        val desiredHeight = maxChildHeight + inset
-        setMeasuredDimension(
-            resolveSize(desiredWidth, widthMeasureSpec),
-            resolveSize(desiredHeight, heightMeasureSpec)
-        )
-    }
-
-    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
-        val inset = innerInsetPx
-        for (i in 0 until childCount) {
-            val child = getChildAt(i)
-            child.layout(inset, inset, width - inset, height - inset)
-            applyContentClip(child)
-        }
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -215,6 +163,11 @@ class SpinningGradientBorderLayout @JvmOverloads constructor(
         super.onDetachedFromWindow()
     }
 
+    private fun applyContentInsets() {
+        val inset = innerInsetPx
+        setPadding(inset, inset, inset, inset)
+    }
+
     private fun ensureSweepGradient(): SweepGradient {
         val existing = sweepGradient
         if (existing != null) return existing
@@ -226,18 +179,7 @@ class SpinningGradientBorderLayout @JvmOverloads constructor(
         return created
     }
 
-    private fun applyContentClip(child: View) {
-        child.clipToOutline = true
-        child.outlineProvider = object : ViewOutlineProvider() {
-            override fun getOutline(view: View, outline: Outline) {
-                if (view.width <= 0 || view.height <= 0) return
-                outline.setRoundRect(0, 0, view.width, view.height, innerCornerRadiusPx)
-            }
-        }
-    }
-
     companion object {
-        /** Repeat the first color at the end so the sweep gradient loop has no visible seam. */
         private fun seamlessColors(vararg colors: Int): IntArray {
             if (colors.isEmpty()) return intArrayOf()
             if (colors.size == 1) return intArrayOf(colors[0], colors[0])

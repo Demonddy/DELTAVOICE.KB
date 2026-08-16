@@ -17,12 +17,12 @@ import android.speech.tts.UtteranceProgressListener
 import android.text.TextUtils
 import android.util.Base64
 import android.util.Log
+import android.view.ContextThemeWrapper
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.LinearInterpolator
-import android.view.animation.OvershootInterpolator
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
@@ -97,6 +97,7 @@ import android.graphics.drawable.RippleDrawable
 import android.os.Environment
 import android.os.SystemClock
 import android.provider.MediaStore
+import com.deltavoice.auth.FeatureGate
 import java.io.File
 import java.io.IOException
 import java.net.UnknownHostException
@@ -160,9 +161,124 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun applyImeKeyboardContainerVisible(visible: Boolean) {
         if (overlayBubbleKeyboardIsolated && !visible) return
-        rootView?.findViewById<View>(R.id.keyboard_panel_frame)?.visibility =
-            if (visible) View.VISIBLE else View.GONE
-        keyboardContainer.visibility = if (visible) View.VISIBLE else View.GONE
+        val frame = rootView?.findViewById<View>(R.id.keyboard_panel_frame)
+        if (visible && isEmojiPickerVisible) {
+            frame?.visibility = View.VISIBLE
+            if (::keyboardContainer.isInitialized) {
+                keyboardContainer.visibility = View.GONE
+            }
+            emojiPickerContainer?.visibility = View.VISIBLE
+            return
+        }
+        frame?.visibility = if (visible) View.VISIBLE else View.GONE
+        if (::keyboardContainer.isInitialized) {
+            keyboardContainer.visibility = if (visible) View.VISIBLE else View.GONE
+        }
+        if (visible) {
+            emojiPickerContainer?.visibility = View.GONE
+            isEmojiPickerVisible = false
+        }
+    }
+
+    /** True when a full-screen overlay replaces the QWERTY key panel on the IME. */
+    private fun isOverlayReplacingMainKeyboard(): Boolean {
+        val root = rootView ?: return false
+        if (root.findViewById<View>(R.id.ai_chat_panel_frame)?.visibility == View.VISIBLE) return true
+        if (root.findViewById<View>(R.id.ai_writing_tools_panel_frame)?.visibility == View.VISIBLE) return true
+        if (root.findViewById<View>(R.id.more_options_panel_frame)?.visibility == View.VISIBLE) return true
+        if (::calculatorContainer.isInitialized && calculatorContainer.visibility == View.VISIBLE) return true
+        if (::dictionaryContainer.isInitialized && dictionaryContainer.visibility == View.VISIBLE) return true
+        if (::voiceRecordingContainer.isInitialized && voiceRecordingContainer.visibility == View.VISIBLE) return true
+        if (::voiceProcessingStep2Container.isInitialized && voiceProcessingStep2Container.visibility == View.VISIBLE) {
+            return true
+        }
+        if (videoRecordingContainer?.visibility == View.VISIBLE) return true
+        if (videoPreviewContainer?.visibility == View.VISIBLE) return true
+        return false
+    }
+
+    /** Drop stale overlay flags when panel views are no longer visible. */
+    private fun reconcileOverlayFlagsWithViews() {
+        val root = rootView ?: return
+        if (isAiChatVisible && root.findViewById<View>(R.id.ai_chat_panel_frame)?.visibility != View.VISIBLE) {
+            isAiChatVisible = false
+        }
+        if (isAiWritingToolsVisible &&
+            root.findViewById<View>(R.id.ai_writing_tools_panel_frame)?.visibility != View.VISIBLE
+        ) {
+            isAiWritingToolsVisible = false
+        }
+        if (isEmojiPickerVisible && emojiPickerContainer?.visibility != View.VISIBLE) {
+            isEmojiPickerVisible = false
+        }
+        if (isCalculatorVisible && ::calculatorContainer.isInitialized &&
+            calculatorContainer.visibility != View.VISIBLE
+        ) {
+            isCalculatorVisible = false
+        }
+        if (isDictionaryVisible && ::dictionaryContainer.isInitialized &&
+            dictionaryContainer.visibility != View.VISIBLE
+        ) {
+            isDictionaryVisible = false
+        }
+        if (isVideoRecordingVisible && videoRecordingContainer?.visibility != View.VISIBLE) {
+            isVideoRecordingVisible = false
+        }
+        if (isVideoPreviewVisible && videoPreviewContainer?.visibility != View.VISIBLE) {
+            isVideoPreviewVisible = false
+        }
+    }
+
+    /** Keep keyboard panel visibility aligned with overlay state (cached rootView survives IME hide). */
+    private fun syncImeKeyboardVisibilityWithOverlayState() {
+        if (!::keyboardContainer.isInitialized) return
+        reconcileOverlayFlagsWithViews()
+        val showKeyboard = !isOverlayReplacingMainKeyboard()
+        applyImeKeyboardContainerVisible(showKeyboard)
+        if (showKeyboard) {
+            showTopBarsAfterOverlay()
+        }
+    }
+
+    /** Restore QWERTY chrome after overlays or a dismissed bubble panel left views hidden. */
+    private fun resetImeTypingChrome() {
+        if (!::keyboardContainer.isInitialized) return
+        try {
+            hideAllOverlays()
+            applyImeKeyboardContainerVisible(true)
+            showTopBarsAfterOverlay()
+        } catch (e: Exception) {
+            Log.e("DeltaVoice", "resetImeTypingChrome", e)
+        }
+    }
+
+    /**
+     * Bubble overlays rebind [voiceRecordingContainer] and other widgets to detached panel views.
+     * Re-anchor them to [rootView] whenever the IME input surface is shown.
+     */
+    private fun rebindImeWidgetRootsFromRootView() {
+        if (overlayBubbleKeyboardIsolated) {
+            dismissAllBubbleOverlayState()
+        }
+        val root = rootView ?: return
+        if (!::keyboardContainer.isInitialized) return
+        overlayBubbleKeyboardIsolated = false
+        overlayDictionaryRoot = null
+        overlayDictionaryClose = null
+        videoUiHost = null
+        try {
+            root.findViewById<LinearLayout>(R.id.voice_recording_container)?.let { voiceRecordingContainer = it }
+            root.findViewById<LinearLayout>(R.id.voice_processing_step2_container)?.let {
+                voiceProcessingStep2Container = it
+            }
+            root.findViewById<View>(R.id.dictionary_include)?.let { dictionaryContainer = it }
+            root.findViewById<View>(R.id.calculator_include)?.let { calculatorContainer = it }
+            emojiPickerContainer = root.findViewById(R.id.emoji_picker_include)
+            root.findViewById<View>(R.id.ai_chat_container)?.let { aiChatContainer = it }
+            root.findViewById<View>(R.id.ai_writing_tools_include)?.let { aiWritingToolsContainer = it }
+        } catch (e: Exception) {
+            Log.e("DeltaVoice", "rebindImeWidgetRootsFromRootView", e)
+        }
     }
 
     private fun setAiChatPanelVisible(visible: Boolean) {
@@ -188,6 +304,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             root.findViewById<View>(R.id.top_bar_container)?.visibility = View.VISIBLE
             root.findViewById<View>(R.id.ai_features_row)?.visibility = View.VISIBLE
             root.findViewById<View>(R.id.predictions_container)?.visibility = View.GONE
+            root.findViewById<View>(R.id.keyboard_panel_frame)?.visibility = View.VISIBLE
             if (::keyboardContainer.isInitialized) {
                 keyboardContainer.visibility = View.VISIBLE
             }
@@ -203,6 +320,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             jo.put(
                 "data",
                 JSONObject().apply {
+                    put(
+                        "panelVis",
+                        root.findViewById<View>(R.id.keyboard_panel_frame)?.visibility ?: -1
+                    )
                     put("kbVis", if (::keyboardContainer.isInitialized) keyboardContainer.visibility else -1)
                 }
             )
@@ -247,6 +368,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private var predictionPrefsLastReadMs: Long = 0L
     private var lastTypingEventMs: Long = 0L
     private var lastTypingIntervalMs: Long = Long.MAX_VALUE
+    private var lastImeKeyAreaHeightPx: Int = 0
     // Auto-correct state (Gboard-style)
     private var pendingAutoCorrect: String? = null
     private var lastAutoCorrectOriginal: String? = null
@@ -267,7 +389,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
          * so bubble overlays use the same UI and logic as the keyboard without the IME window.
          */
         fun acquireForOverlay(context: Context): MainKeyboardService? {
-            serviceInstance?.let { return it }
+            // Never attach bubble panels to the live IME — it corrupts cached rootView bindings.
             standaloneOverlayInstance?.let { return it }
             return try {
                 val h = MainKeyboardService()
@@ -289,20 +411,20 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             standaloneOverlayInstance = null
         }
 
-        // Performance targets (confirmed): backspace 30-45 chars/sec when held, typing 12-15 chars/sec
+        // Typing path: commit on ACTION_DOWN; keep UI cheaper than Gboard/iPhone (~4x snappier).
         private const val PREDICTION_DELAY_NORMAL_MS = 80L
-        private const val PREDICTION_DELAY_FAST_MS = 200L
-        private const val FAST_TYPING_INTERVAL_MS = 65L
+        private const val PREDICTION_DELAY_FAST_MS = 220L
+        private const val FAST_TYPING_INTERVAL_MS = 50L
         private const val KEY_FEEDBACK_PREFS_CACHE_MS = 1000L
         private const val PREDICTION_PREFS_CACHE_MS = 1000L
-        // Backspace repeat: 22ms interval = 1000/22 ≈ 45 chars/sec (target 30-45)
-        private const val BACKSPACE_REPEAT_START_DELAY_MS = 120L
-        private const val BACKSPACE_REPEAT_INTERVAL_MS = 22L
-        private const val KEY_PRESS_DOWN_MS = 60L
-        private const val KEY_PRESS_UP_MS = 100L
-        private const val KEY_PRESS_SCALE = 0.92f
+        private const val BACKSPACE_REPEAT_START_DELAY_MS = 70L
+        private const val BACKSPACE_REPEAT_INTERVAL_MS = 12L
+        private const val KEY_PRESS_DOWN_MS = 10L
+        private const val KEY_PRESS_UP_MS = 12L
+        private const val KEY_PRESS_SCALE = 0.97f
+        private const val KEY_PREVIEW_SKIP_INTERVAL_MS = 70L
         @Suppress("unused")
-        private const val KEY_PRESS_ANIM_DURATION_MS = 35L
+        private const val KEY_PRESS_ANIM_DURATION_MS = 10L
         private const val CLIPBOARD_PREFS = "clipboard_prefs"
         private const val CLIPBOARD_HISTORY_KEY = "clipboard_history"
         private const val CLIPBOARD_MAX_ITEMS = 20
@@ -405,6 +527,19 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     private var pendingWorkflowType: String = "complete"
     private var pendingVoiceStyle: String = "aria"
     private var pendingTargetLanguage: String = Locale.getDefault().language
+
+    private var cloneGateBox: LinearLayout? = null
+    private var cloneGateTitle: TextView? = null
+    private var cloneGateSubtitle: TextView? = null
+    private var cloneGatePrimary: Button? = null
+    private var cloneGateSecondary: Button? = null
+    private var cloneReadyVoiceId: String? = null
+    private var cloneSampleFilePath: String? = null
+    private var cloneSampleRecorder: MediaRecorder? = null
+    private var isCloneSampleRecording = false
+    private var cloneSampleElapsedSec = 0
+    private val cloneSampleHandler = Handler(Looper.getMainLooper())
+    private var cloneSampleTicker: Runnable? = null
 
     // Keyboard Mode: NORMAL or AI
     enum class KeyboardMode {
@@ -599,6 +734,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             applyOrientationOptimizations(rootView!!)
             applyThemePalette()
             startKeyboardBorderAnimation(rootView)
+            rebindImeWidgetRootsFromRootView()
+            syncImeKeyboardVisibilityWithOverlayState()
             return rootView!!
         }
         // #region agent log
@@ -608,10 +745,29 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             mapOf("cached" to "false")
         )
         // #endregion
-        val view = LayoutInflater.from(this).inflate(R.layout.keyboard_layout, null)
-        rootView = view
-        bindKeyboardLayout(view)
-        return view
+        return try {
+            val view = inflateKeyboardLayout()
+            rootView = view
+            bindKeyboardLayout(view)
+            view
+        } catch (e: Exception) {
+            Log.e("DeltaVoice", "onCreateInputView bind failed", e)
+            try {
+                val fallback = inflateKeyboardLayout()
+                rootView = fallback
+                bindKeyboardLayout(fallback)
+                fallback
+            } catch (e2: Exception) {
+                Log.e("DeltaVoice", "onCreateInputView fallback bind failed", e2)
+                rootView = null
+                throw e2
+            }
+        }
+    }
+
+    private fun inflateKeyboardLayout(): View {
+        val themed = ContextThemeWrapper(this, R.style.Theme_DeltaVoice_IME)
+        return LayoutInflater.from(themed).inflate(R.layout.keyboard_layout, null)
     }
 
     /**
@@ -621,7 +777,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     fun ensureKeyboardLayoutInflated(): Boolean {
         if (rootView != null) return true
         return try {
-            val view = LayoutInflater.from(this).inflate(R.layout.keyboard_layout, null)
+            val view = inflateKeyboardLayout()
             rootView = view
             bindKeyboardLayout(view)
             true
@@ -729,6 +885,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
         // Set initial mode
         updateKeyboardMode()
+        syncImeKeyboardVisibilityWithOverlayState()
     }
 
     /**
@@ -740,6 +897,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
     override fun onStartInputView(info: android.view.inputmethod.EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        rebindImeWidgetRootsFromRootView()
         rootView?.let { applyOrientationOptimizations(it) }
         // Apply pending upload state so uploaded media is processed in Step 2 (voice) or Preview & Process (video)
         if (pendingShowVoiceFromUpload && !recordingFilePath.isNullOrBlank()) {
@@ -757,6 +915,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         spaceBarButton?.text = currentKeyboardLanguageName
         rebuildKeyboardLayout()
         applyThemePalette()
+        syncImeKeyboardVisibilityWithOverlayState()
+        rootView?.post { captureImeKeyAreaHeight() }
         // #region agent log
         run {
             val pal = com.deltavoice.theme.KeyboardThemeStore.loadPalette(this)
@@ -772,7 +932,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
         // #endregion
         // Enable background blur and transparency (API 31+)
-        applyBlurAndTransparency()
+        try {
+            applyBlurAndTransparency()
+        } catch (e: Exception) {
+            Log.e("DeltaVoice", "applyBlurAndTransparency", e)
+        }
     }
 
     /**
@@ -782,9 +946,13 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun applyBlurAndTransparency() {
         val w = (window as? android.app.Dialog)?.window ?: return
-        w.setBackgroundDrawableResource(R.drawable.transparent_background)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            applyBlurRadius(w)
+        try {
+            w.setBackgroundDrawableResource(R.drawable.transparent_background)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                applyBlurRadius(w)
+            }
+        } catch (e: Exception) {
+            Log.e("DeltaVoice", "applyBlurAndTransparency window", e)
         }
     }
 
@@ -796,9 +964,14 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
         // Release camera immediately when keyboard is hidden so status bar icon disappears
-        if (isVideoRecordingVisible) {
-            hideVideoRecording()
+        try {
+            if (isVideoRecordingVisible) {
+                hideVideoRecording()
+            }
+        } catch (e: Exception) {
+            Log.e("DeltaVoice", "onFinishInputView hideVideoRecording", e)
         }
+        resetImeTypingChrome()
     }
 
     private var videoUploadReceiver: BroadcastReceiver? = null
@@ -1080,6 +1253,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 }
             }
         }
+
+        bindCloneGateViews(view)
         
         // Close button
         view.findViewById<ImageButton>(R.id.keyboard_button_close_processing).setOnClickListener {
@@ -1119,6 +1294,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         keyboardCardFull.setBackgroundResource(if (workflowType == "complete") selected else unselected)
         keyboardCardVoice.setBackgroundResource(if (workflowType == "voice-only") selected else unselected)
         keyboardCardText.setBackgroundResource(if (workflowType == "text-only") selected else unselected)
+        refreshCloneGate(workflowType)
         
         // Scope pills/icons to Step 2 (keyboard + overlay each have their own included layout)
         if (!::voiceProcessingStep2Container.isInitialized) return
@@ -1352,6 +1528,189 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Check network and show appropriate error if not available
      * Returns true if network is available, false otherwise
      */
+    private fun bindCloneGateViews(scope: View) {
+        cloneGateBox = scope.findViewById(R.id.clone_gate_box)
+        cloneGateTitle = scope.findViewById(R.id.clone_gate_title)
+        cloneGateSubtitle = scope.findViewById(R.id.clone_gate_subtitle)
+        cloneGatePrimary = scope.findViewById(R.id.clone_gate_primary)
+        cloneGateSecondary = scope.findViewById(R.id.clone_gate_secondary)
+        cloneGatePrimary?.setOnClickListener { onCloneGatePrimary() }
+        cloneGateSecondary?.setOnClickListener { onCloneGateSecondary() }
+        refreshCloneGate(pendingWorkflowType)
+    }
+
+    private fun refreshCloneGate(workflowType: String) {
+        val box = cloneGateBox ?: return
+        if (workflowType != "voice-only") {
+            stopCloneSampleRecording(save = false)
+            box.visibility = View.GONE
+            return
+        }
+        box.visibility = View.VISIBLE
+        val saved = SavedVoiceClone.get(this)
+        when {
+            isCloneSampleRecording -> {
+                cloneGateTitle?.text = getString(
+                    R.string.clone_gate_recording_title,
+                    String.format("%d:%02d", cloneSampleElapsedSec / 60, cloneSampleElapsedSec % 60)
+                )
+                cloneGateSubtitle?.text = getString(R.string.clone_gate_recording_body)
+                cloneGatePrimary?.text = getString(R.string.clone_gate_stop)
+                cloneGateSecondary?.visibility = View.GONE
+            }
+            !cloneReadyVoiceId.isNullOrBlank() -> {
+                val name = saved?.name ?: getString(R.string.clone_gate_ready_title)
+                cloneGateTitle?.text = getString(R.string.clone_gate_ready_title)
+                cloneGateSubtitle?.text = getString(R.string.clone_gate_ready_body, name)
+                cloneGatePrimary?.text = getString(R.string.clone_gate_change)
+                cloneGateSecondary?.visibility = View.GONE
+            }
+            saved != null -> {
+                cloneGateTitle?.text = getString(R.string.clone_gate_choose_title)
+                cloneGateSubtitle?.text = getString(R.string.clone_gate_choose_body, saved.name)
+                cloneGatePrimary?.text = getString(R.string.clone_gate_use_saved)
+                cloneGateSecondary?.text = getString(R.string.clone_gate_add_new)
+                cloneGateSecondary?.visibility = View.VISIBLE
+            }
+            else -> {
+                cloneGateTitle?.text = getString(R.string.clone_gate_save_title)
+                cloneGateSubtitle?.text = getString(R.string.clone_gate_save_body)
+                cloneGatePrimary?.text = getString(R.string.clone_gate_record)
+                cloneGateSecondary?.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun onCloneGatePrimary() {
+        val saved = SavedVoiceClone.get(this)
+        when {
+            isCloneSampleRecording -> stopCloneSampleRecording(save = true)
+            !cloneReadyVoiceId.isNullOrBlank() -> {
+                cloneReadyVoiceId = null
+                refreshCloneGate("voice-only")
+            }
+            saved != null && cloneGateSecondary?.visibility == View.VISIBLE -> {
+                cloneReadyVoiceId = saved.voiceId
+                refreshCloneGate("voice-only")
+            }
+            else -> startCloneSampleRecording()
+        }
+    }
+
+    private fun onCloneGateSecondary() {
+        if (isCloneSampleRecording) return
+        cloneReadyVoiceId = null
+        startCloneSampleRecording()
+    }
+
+    private fun startCloneSampleRecording() {
+        if (isRecording || isCloneSampleRecording) {
+            Toast.makeText(this, getString(R.string.already_processing), Toast.LENGTH_SHORT).show()
+            return
+        }
+        stopRecordingPlayback()
+        val file = File(cacheDir, "clone_sample_${System.currentTimeMillis()}.m4a")
+        cloneSampleFilePath = file.absolutePath
+        try {
+            cloneSampleRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                MediaRecorder(this)
+            } else {
+                @Suppress("DEPRECATION")
+                MediaRecorder()
+            }
+            cloneSampleRecorder?.apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                setOutputFile(file.absolutePath)
+                prepare()
+                start()
+            }
+            isCloneSampleRecording = true
+            cloneSampleElapsedSec = 0
+            cloneSampleTicker = object : Runnable {
+                override fun run() {
+                    if (!isCloneSampleRecording) return
+                    cloneSampleElapsedSec += 1
+                    refreshCloneGate("voice-only")
+                    cloneSampleHandler.postDelayed(this, 1000L)
+                }
+            }
+            cloneSampleHandler.postDelayed(cloneSampleTicker!!, 1000L)
+            refreshCloneGate("voice-only")
+        } catch (e: Exception) {
+            android.util.Log.e("DeltaVoice", "Clone sample record failed", e)
+            Toast.makeText(this, getString(R.string.clone_gate_need_voice), Toast.LENGTH_SHORT).show()
+            stopCloneSampleRecording(save = false)
+        }
+    }
+
+    private fun stopCloneSampleRecording(save: Boolean) {
+        cloneSampleTicker?.let { cloneSampleHandler.removeCallbacks(it) }
+        cloneSampleTicker = null
+        val elapsed = cloneSampleElapsedSec
+        try {
+            cloneSampleRecorder?.apply {
+                if (isCloneSampleRecording) {
+                    try { stop() } catch (_: Exception) {}
+                }
+                release()
+            }
+        } catch (_: Exception) {}
+        cloneSampleRecorder = null
+        isCloneSampleRecording = false
+        if (!save) {
+            cloneSampleFilePath?.let { File(it).delete() }
+            cloneSampleFilePath = null
+            if (pendingWorkflowType == "voice-only") refreshCloneGate("voice-only")
+            return
+        }
+        if (elapsed < 8) {
+            Toast.makeText(this, getString(R.string.clone_gate_need_8_seconds), Toast.LENGTH_LONG).show()
+            cloneSampleFilePath?.let { File(it).delete() }
+            cloneSampleFilePath = null
+            refreshCloneGate("voice-only")
+            return
+        }
+        val path = cloneSampleFilePath
+        if (path.isNullOrBlank()) {
+            refreshCloneGate("voice-only")
+            return
+        }
+        cloneGateTitle?.text = getString(R.string.clone_gate_saving)
+        cloneGateSubtitle?.text = ""
+        cloneGatePrimary?.isEnabled = false
+        serviceScope.launch {
+            try {
+                val result = voiceCloneService.createVoiceClone(
+                    audioFile = File(path),
+                    name = "My Voice",
+                    description = "Saved from Translate My Same Voice"
+                )
+                result.onSuccess { response ->
+                    val voiceId = response.voiceId
+                    if (response.success && !voiceId.isNullOrBlank()) {
+                        val name = response.name ?: "My Voice"
+                        SavedVoiceClone.save(this@MainKeyboardService, voiceId, name)
+                        cloneReadyVoiceId = voiceId
+                        Toast.makeText(this@MainKeyboardService, getString(R.string.clone_gate_saved), Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(this@MainKeyboardService, "Voice clone failed", Toast.LENGTH_LONG).show()
+                    }
+                }.onFailure { error ->
+                    FeatureGate.showAuthError(this@MainKeyboardService, error)
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@MainKeyboardService, e.message ?: "Voice clone failed", Toast.LENGTH_LONG).show()
+            } finally {
+                cloneGatePrimary?.isEnabled = true
+                File(path).delete()
+                cloneSampleFilePath = null
+                refreshCloneGate("voice-only")
+            }
+        }
+    }
+
     private fun checkNetworkAndNotify(): Boolean {
         if (!isNetworkAvailable()) {
             showNetworkErrorWithSettings("No internet connection. Please connect to WiFi or mobile data.")
@@ -1388,17 +1747,11 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             return
         }
 
-        // Voice cloning quality depends heavily on sample length.
-        // Gate voice-only mode to reduce low-fidelity clone outputs.
+        // Voice cloning uses a saved sample, not this clip.
         if (workflowType == "voice-only") {
-            val durationSeconds = getAudioDurationSeconds(audioPath)
-            if (durationSeconds in 0..7) {
-                Toast.makeText(
-                    this,
-                    "For better voice cloning, record at least 8 seconds of clear speech.",
-                    Toast.LENGTH_LONG
-                ).show()
-                audioDurationText.text = getString(R.string.status_need_8_seconds)
+            if (cloneReadyVoiceId.isNullOrBlank()) {
+                Toast.makeText(this, getString(R.string.clone_gate_need_voice), Toast.LENGTH_LONG).show()
+                audioDurationText.text = getString(R.string.clone_gate_need_voice)
                 voiceStep2ActionButton()?.apply {
                     isEnabled = true
                     text = getString(R.string.voice_step2_label_done)
@@ -1409,14 +1762,14 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
         // Mode-specific options — each workflow uses its own path (no shared state):
         // • complete: preset voice (Adam, Aria, etc.) from spinner
-        // • voice-only: always "myvoiceclone" — backend clones from this recording
+        // • voice-only: saved clone ID (clone_<elevenlabs_id>) — backend TTS with that voice
         // • text-only: voice unused (text output only)
         val targetLang = languages().getOrNull(keyboardSpinnerLanguage.selectedItemPosition)?.second ?: "en"
         val selectedVoiceStyle = voiceStyles().getOrNull(keyboardSpinnerVoice.selectedItemPosition)?.second ?: "adam"
         val selectedVoiceStyleName = voiceStyles().getOrNull(keyboardSpinnerVoice.selectedItemPosition)?.first ?: "Adam"
         val voiceStyle = when (workflowType) {
-            "voice-only" -> "myvoiceclone"  // Translate My Same Voice: clone from recording
-            else -> selectedVoiceStyle       // Change Language & Voice: use selected preset
+            "voice-only" -> SavedVoiceClone.styleFor(cloneReadyVoiceId!!)
+            else -> selectedVoiceStyle
         }
         val voiceStyleName = when (workflowType) {
             "voice-only" -> "My Voice Clone"
@@ -1517,6 +1870,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         updateRecordingMicColor(false)
         
         // Default to "Change Language & Voice" (complete) when showing Step 2
+        cloneReadyVoiceId = null
+        stopCloneSampleRecording(save = false)
         updateKeyboardModeSelection("complete")
         
         // Reset processed audio state when showing UI
@@ -1539,6 +1894,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         // Hide processing UI, show keyboard keys
         unregisterNetworkRestoredCallback()
         stopRecordingPlayback()
+        stopCloneSampleRecording(save = false)
         voiceProcessingStep2Container.visibility = View.GONE
         updateRecordingMicColor(false)
         emojiPickerContainer?.visibility = View.GONE
@@ -2294,6 +2650,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         
         // Load default category (smileys)
         loadEmojiCategory(EmojiData.Category.SMILEYS)
+        enableEmojiGridScrolling(view)
     }
     
     /**
@@ -2432,6 +2789,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         view.findViewById<View>(R.id.ai_chat_inline_emoji_top_back_to_keys)?.setOnClickListener {
             hideAiChatInlineEmojiPicker()
         }
+        enableBoundedEmojiScroll(view.findViewById(R.id.ai_chat_inline_emoji_scroll))
     }
 
     private fun loadAiChatInlineEmojiCategory(category: EmojiData.Category) {
@@ -2497,6 +2855,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         view.findViewById<View>(R.id.dict_inline_emoji_top_back_to_keys)?.setOnClickListener {
             hideDictInlineEmojiPicker()
         }
+        enableBoundedEmojiScroll(view.findViewById(R.id.dict_inline_emoji_scroll))
     }
 
     private fun loadDictInlineEmojiCategory(category: EmojiData.Category) {
@@ -2563,38 +2922,89 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
     }
     
     /**
-     * Show the emoji picker - sized to ~half screen like messaging apps
+     * Show emoji picker at the same IME key-area height as Gboard, with a scrollable grid.
      */
     private fun showEmojiPicker() {
         if (isAiChatVisible && isAiChatInlineEmojiVisible) {
             hideAiChatInlineEmojiPicker()
         }
-        applyImeKeyboardContainerVisible(false)
-        emojiPickerContainer?.let { container ->
-            // Size to half screen (like WhatsApp/Telegram emoji picker)
-            val halfScreenPx = resources.displayMetrics.heightPixels / 2
-            val lp = container.layoutParams ?: LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                halfScreenPx
-            )
-            lp.height = halfScreenPx
-            container.layoutParams = lp
-            container.visibility = View.VISIBLE
+        if (::dictionaryContainer.isInitialized) {
+            dictionaryContainer.visibility = View.GONE
+            isDictionaryVisible = false
         }
+        captureImeKeyAreaHeight()
+        val keyHeight = imeKeyAreaHeightPx()
         isEmojiPickerVisible = true
-        // Refresh current category
+        rootView?.findViewById<View>(R.id.keyboard_panel_frame)?.visibility = View.VISIBLE
+        if (::keyboardContainer.isInitialized) {
+            keyboardContainer.visibility = View.GONE
+        }
+        emojiPickerContainer?.let { container ->
+            val lp = container.layoutParams ?: FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                keyHeight
+            )
+            lp.width = ViewGroup.LayoutParams.MATCH_PARENT
+            lp.height = keyHeight
+            container.layoutParams = lp
+            container.minimumHeight = keyHeight
+            container.visibility = View.VISIBLE
+            val tabBarPx = 48.dpToPx() + 42.dpToPx()
+            container.findViewById<View>(R.id.emoji_grid_scroll)?.let { scroll ->
+                val scrollLp = scroll.layoutParams
+                if (scrollLp != null) {
+                    scrollLp.height = (keyHeight - tabBarPx).coerceAtLeast(80.dpToPx())
+                    scroll.layoutParams = scrollLp
+                }
+            }
+            enableEmojiGridScrolling(container)
+        }
         loadEmojiCategory(currentEmojiCategory)
     }
-    
+
+    private fun captureImeKeyAreaHeight() {
+        if (!::keyboardContainer.isInitialized) return
+        if (keyboardContainer.visibility == View.VISIBLE && keyboardContainer.height > 0) {
+            lastImeKeyAreaHeightPx = keyboardContainer.height
+        }
+    }
+
+    private fun imeKeyAreaHeightPx(): Int {
+        if (lastImeKeyAreaHeightPx > 0) return lastImeKeyAreaHeightPx
+        captureImeKeyAreaHeight()
+        if (lastImeKeyAreaHeightPx > 0) return lastImeKeyAreaHeightPx
+        return (getKeyHeightDp() * 5 + 12).dpToPx()
+    }
+
+    private fun enableEmojiGridScrolling(host: View) {
+        enableBoundedEmojiScroll(host.findViewById(R.id.emoji_grid_scroll))
+    }
+
+    private fun enableBoundedEmojiScroll(scroll: View?) {
+        scroll ?: return
+        scroll.isNestedScrollingEnabled = true
+        scroll.isVerticalScrollBarEnabled = true
+        scroll.setOnTouchListener { v, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE ->
+                    v.parent?.requestDisallowInterceptTouchEvent(true)
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                    v.parent?.requestDisallowInterceptTouchEvent(false)
+            }
+            false
+        }
+    }
+
     /**
      * Hide the emoji picker
      */
     private fun hideEmojiPicker() {
         emojiPickerContainer?.visibility = View.GONE
         isEmojiPickerVisible = false
-        val keepMainKeyboardHidden = isAiChatVisible || isDictionaryVisible || isCalculatorVisible ||
-            isAiWritingToolsVisible || isVoiceUiActive() || isVideoRecordingVisible || isVideoPreviewVisible
-        applyImeKeyboardContainerVisible(!keepMainKeyboardHidden)
+        if (::keyboardContainer.isInitialized) {
+            keyboardContainer.visibility = View.VISIBLE
+        }
+        applyImeKeyboardContainerVisible(!isOverlayReplacingMainKeyboard())
     }
     
     /**
@@ -7028,11 +7438,21 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
         emojiPickerContainer?.visibility = View.GONE
         isEmojiPickerVisible = false
+        if (::keyboardContainer.isInitialized &&
+            (keyboardContainer.visibility == View.INVISIBLE || keyboardContainer.visibility == View.GONE) &&
+            emojiPickerContainer?.visibility != View.VISIBLE
+        ) {
+            keyboardContainer.visibility = View.VISIBLE
+        }
 
-        calculatorContainer.visibility = View.GONE
+        if (::calculatorContainer.isInitialized) {
+            calculatorContainer.visibility = View.GONE
+        }
         isCalculatorVisible = false
 
-        dictionaryContainer.visibility = View.GONE
+        if (::dictionaryContainer.isInitialized) {
+            dictionaryContainer.visibility = View.GONE
+        }
         isDictionaryVisible = false
 
         setAiChatPanelVisible(false)
@@ -7043,8 +7463,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
         setMoreOptionsPanelVisible(false)
 
-        voiceRecordingContainer.visibility = View.GONE
-        voiceProcessingStep2Container.visibility = View.GONE
+        if (::voiceRecordingContainer.isInitialized) {
+            voiceRecordingContainer.visibility = View.GONE
+        }
+        if (::voiceProcessingStep2Container.isInitialized) {
+            voiceProcessingStep2Container.visibility = View.GONE
+        }
 
         videoRecordingContainer?.visibility = View.GONE
         isVideoRecordingVisible = false
@@ -7063,17 +7487,26 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         isAiChatVisible = false
         setAiWritingToolsPanelVisible(false)
         isAiWritingToolsVisible = false
-        voiceRecordingContainer.visibility = View.GONE
-        voiceProcessingStep2Container.visibility = View.GONE
+        if (::voiceRecordingContainer.isInitialized) {
+            voiceRecordingContainer.visibility = View.GONE
+        }
+        if (::voiceProcessingStep2Container.isInitialized) {
+            voiceProcessingStep2Container.visibility = View.GONE
+        }
         videoRecordingContainer?.visibility = View.GONE
         isVideoRecordingVisible = false
         videoPreviewContainer?.visibility = View.GONE
         isVideoPreviewVisible = false
-        dictionaryContainer.visibility = View.GONE
+        if (::dictionaryContainer.isInitialized) {
+            dictionaryContainer.visibility = View.GONE
+        }
         isDictionaryVisible = false
     }
 
     private fun isVoiceUiActive(): Boolean {
+        if (!::voiceRecordingContainer.isInitialized || !::voiceProcessingStep2Container.isInitialized) {
+            return false
+        }
         return voiceRecordingContainer.visibility == View.VISIBLE ||
             voiceProcessingStep2Container.visibility == View.VISIBLE
     }
@@ -7245,6 +7678,14 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Safe to call at any time (before or after inflate).
      */
     private fun applyThemePalette() {
+        try {
+            applyThemePaletteUnsafe()
+        } catch (e: Exception) {
+            Log.e("DeltaVoice", "applyThemePalette failed", e)
+        }
+    }
+
+    private fun applyThemePaletteUnsafe() {
         currentPalette = com.deltavoice.theme.KeyboardThemeStore.loadPalette(this)
         val view = rootView ?: return
         val pal = currentPalette
@@ -7324,9 +7765,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
         view.findViewById<Button>(R.id.ai_chat_key_send)?.background =
             makeThemedKeyDrawable(androidx.core.graphics.ColorUtils.setAlphaComponent(pal.accent, 0x88))
-        listOf(R.id.ai_chat_key_globe, R.id.ai_chat_key_emoji).forEach { id ->
-            view.findViewById<Button>(id)?.apply {
-                setTextColor(pal.iconTint)
+        listOf(R.id.ai_chat_key_globe, R.id.ai_chat_key_emoji, R.id.ai_chat_key_keyboard).forEach { id ->
+            view.findViewById<ImageButton>(id)?.apply {
+                setColorFilter(pal.iconTint, android.graphics.PorterDuff.Mode.SRC_IN)
                 background = makeThemedKeyDrawable(pal.surface)
             }
         }
@@ -7630,10 +8071,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                     when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
                             touchedView.isPressed = true
-                            touchedView.animate().scaleX(KEY_PRESS_SCALE).scaleY(KEY_PRESS_SCALE)
-                                .alpha(0.85f)
-                                .setDuration(KEY_PRESS_DOWN_MS)
-                                .setInterpolator(DecelerateInterpolator()).start()
+                            applyKeyPressVisual(touchedView, pressed = true)
                             startBackspaceRepeat(touchedView)
                             true
                         }
@@ -7641,10 +8079,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                             stopBackspaceRepeat(applyPredictionUpdate = true)
                             playKeyFeedback(touchedView)
                             touchedView.isPressed = false
-                            touchedView.animate().scaleX(1f).scaleY(1f)
-                                .alpha(1f)
-                                .setDuration(KEY_PRESS_UP_MS)
-                                .setInterpolator(OvershootInterpolator(1.2f)).start()
+                            applyKeyPressVisual(touchedView, pressed = false)
                             true
                         }
                         else -> false
@@ -7666,6 +8101,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
 
     private fun showKeyPreview(anchor: View, keyValue: String) {
         if (keyValue.isBlank() || keyValue in skipPreviewValues) return
+        if (lastTypingIntervalMs in 1..KEY_PREVIEW_SKIP_INTERVAL_MS) return
         dismissKeyPreview()
 
         val density = resources.displayMetrics.density
@@ -7709,14 +8145,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             popup.showAtLocation(rv, Gravity.NO_GRAVITY, clampedX, y.coerceAtLeast(0))
         }
 
-        tv.scaleX = 0.6f
-        tv.scaleY = 0.6f
-        tv.alpha = 0f
-        tv.animate()
-            .scaleX(1f).scaleY(1f).alpha(1f)
-            .setDuration(60)
-            .setInterpolator(DecelerateInterpolator())
-            .start()
+        tv.scaleX = 1f
+        tv.scaleY = 1f
+        tv.alpha = 1f
     }
 
     private fun dismissKeyPreview() {
@@ -7858,9 +8289,29 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         }
     }
 
+    private fun applyKeyPressVisual(v: View, pressed: Boolean) {
+        v.animate().cancel()
+        if (pressed) {
+            v.animate()
+                .scaleX(KEY_PRESS_SCALE)
+                .scaleY(KEY_PRESS_SCALE)
+                .setDuration(KEY_PRESS_DOWN_MS)
+                .setInterpolator(null)
+                .start()
+        } else {
+            v.animate()
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(KEY_PRESS_UP_MS)
+                .setInterpolator(null)
+                .start()
+        }
+    }
+
     private fun commitAccentSelection() {
         if (accentPopupSelectedIndex in accentPopupChars.indices) {
             val selected = accentPopupChars[accentPopupSelectedIndex]
+            deleteOneCharacter(triggerPredictionUpdate = false)
             when {
                 isAiChatVisible -> {
                     aiChatInputText.append(selected)
@@ -7908,12 +8359,8 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
         KeyboardAccentMaps.forKey(value, currentKeyboardLanguage)
 
     /**
-     * Apply lightweight scale animation and execute action. Fires on ACTION_DOWN for immediate
-     * response (supports 12-15 chars/sec). commitText/action runs synchronously; no debounce.
-     * For letter/number keys with accent variants, a long-press (300ms) shows the accent popup.
-     */
-    /**
-     * Key feedback for icon-only controls ([ImageButton] / non-letter keys). No accent long-press.
+     * Commit on ACTION_DOWN (Gboard/iPhone style) so characters appear before finger lift.
+     * Visuals stay under ~12ms so rapid typing is not blocked by animation or popups.
      */
     private fun setIconKeyPressWithAnimation(view: View, action: () -> Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -7927,20 +8374,14 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     action()
-                    Handler(Looper.getMainLooper()).post { playKeyFeedback(v) }
+                    playKeyFeedback(v)
                     v.isPressed = true
-                    v.animate().scaleX(KEY_PRESS_SCALE).scaleY(KEY_PRESS_SCALE)
-                        .alpha(0.85f)
-                        .setDuration(KEY_PRESS_DOWN_MS)
-                        .setInterpolator(DecelerateInterpolator()).start()
+                    applyKeyPressVisual(v, pressed = true)
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     v.isPressed = false
-                    v.animate().scaleX(1f).scaleY(1f)
-                        .alpha(1f)
-                        .setDuration(KEY_PRESS_UP_MS)
-                        .setInterpolator(OvershootInterpolator(1.2f)).start()
+                    applyKeyPressVisual(v, pressed = false)
                     true
                 }
                 else -> false
@@ -7961,21 +8402,12 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                 MotionEvent.ACTION_DOWN -> {
                     val keyValue = (v as? Button)?.tag as? String ?: ""
                     val accents = getAccentsForKey(keyValue)
-                    val hasAccents = accents.isNotEmpty()
-
-                    if (!hasAccents) {
-                        action()
-                    }
-                    Handler(Looper.getMainLooper()).post { playKeyFeedback(v) }
+                    action()
+                    playKeyFeedback(v)
                     v.isPressed = true
-                    v.animate().scaleX(KEY_PRESS_SCALE).scaleY(KEY_PRESS_SCALE)
-                        .alpha(0.85f)
-                        .setDuration(KEY_PRESS_DOWN_MS)
-                        .setInterpolator(DecelerateInterpolator()).start()
-
+                    applyKeyPressVisual(v, pressed = true)
                     showKeyPreview(v, keyValue)
-
-                    if (hasAccents) {
+                    if (accents.isNotEmpty()) {
                         longPressRunnable?.let { longPressHandler.removeCallbacks(it) }
                         longPressRunnable = Runnable { showAccentPopup(v, accents) }
                         longPressHandler.postDelayed(longPressRunnable!!, LONG_PRESS_DELAY_MS)
@@ -7997,18 +8429,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
                         } else {
                             dismissAccentPopup()
                         }
-                    } else {
-                        val keyValue = (v as? Button)?.tag as? String ?: ""
-                        if (getAccentsForKey(keyValue).isNotEmpty()) {
-                            action()
-                        }
                     }
                     v.isPressed = false
                     dismissKeyPreview()
-                    v.animate().scaleX(1f).scaleY(1f)
-                        .alpha(1f)
-                        .setDuration(KEY_PRESS_UP_MS)
-                        .setInterpolator(OvershootInterpolator(1.2f)).start()
+                    applyKeyPressVisual(v, pressed = false)
                     true
                 }
                 else -> false
@@ -8147,6 +8571,7 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      * Handle key press
      */
     private fun handleKeyPress(value: String) {
+        reconcileOverlayFlagsWithViews()
         // When AI chat is visible, route input to AI chat instead of input connection
         if (isAiChatVisible) {
             when (value) {
@@ -9147,10 +9572,10 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
      */
     private fun rebuildKeyboardLayout() {
         rootView?.let { view ->
-            val rowNumbers = view.findViewById<LinearLayout>(R.id.row_numbers)
-            val rowQwerty = view.findViewById<LinearLayout>(R.id.row_qwerty)
-            val rowAsdf = view.findViewById<LinearLayout>(R.id.row_asdf)
-            val rowZxcv = view.findViewById<LinearLayout>(R.id.row_zxcv)
+            val rowNumbers = view.findViewById<LinearLayout>(R.id.row_numbers) ?: return
+            val rowQwerty = view.findViewById<LinearLayout>(R.id.row_qwerty) ?: return
+            val rowAsdf = view.findViewById<LinearLayout>(R.id.row_asdf) ?: return
+            val rowZxcv = view.findViewById<LinearLayout>(R.id.row_zxcv) ?: return
             
             // Clear existing keys
             rowNumbers.removeAllViews()
@@ -10234,7 +10659,9 @@ class MainKeyboardService : InputMethodService(), TextToSpeech.OnInitListener {
             if (isVideoPreviewVisible) hideVideoPreview()
             if (isAiChatVisible) hideAiChat()
             if (isAiWritingToolsVisible) hideAiWritingTools()
-            dictionaryContainer.visibility = View.GONE
+            if (::dictionaryContainer.isInitialized) {
+                dictionaryContainer.visibility = View.GONE
+            }
             isDictionaryVisible = false
         } catch (_: Exception) {
         }

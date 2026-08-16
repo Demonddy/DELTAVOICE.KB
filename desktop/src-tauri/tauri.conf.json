@@ -29,7 +29,7 @@
       "id": "main",
       "iconPath": "icons/icon.png",
       "iconAsTemplate": true,
-      "tooltip": "DeltaVoice - Ctrl+Space to record"
+      "tooltip": "DeltaVoice"
     },
     "security": {
       "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:1420 ws://localhost:1420 ws://localhost:1421 https://*.supabase.co https://*.convex.site https://api.deepseek.com https://api.openai.com https://api.elevenlabs.io https://api.dictionaryapi.dev; media-src 'self' blob:; img-src 'self' data: blob:"

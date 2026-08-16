@@ -5,6 +5,8 @@ use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
+use crate::platform;
+
 static LAST_PRESS: Mutex<Option<Instant>> = Mutex::new(None);
 static VOICE_CANCEL: Mutex<Option<Arc<AtomicBool>>> = Mutex::new(None);
 const DOUBLE_PRESS_MS: u64 = 400;
@@ -18,9 +20,13 @@ fn show_main_window(app: &tauri::AppHandle) {
 }
 
 pub fn register_hotkeys(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    // Ctrl+Space on all desktop OSes (avoids macOS Spotlight on Cmd+Space).
     let shortcut: Shortcut = "ctrl+space".parse()?;
+    let hotkey_label = platform::voice_hotkey_label();
+    let gs = app.global_shortcut();
+    let _ = gs.unregister(shortcut.clone());
 
-    app.global_shortcut().on_shortcut(shortcut, move |app, _shortcut, event| {
+    match gs.on_shortcut(shortcut, move |app, _shortcut, event| {
         if event.state != ShortcutState::Pressed {
             return;
         }
@@ -65,7 +71,14 @@ pub fn register_hotkeys(app: &tauri::App) -> Result<(), Box<dyn std::error::Erro
                 let _ = window.emit("voice-record-toggle", ());
             }
         });
-    })?;
-
-    Ok(())
+    }) {
+        Ok(()) => Ok(()),
+        Err(err) => {
+            eprintln!(
+                "DeltaVoice: {hotkey_label} hotkey unavailable ({err}). \
+                 Close any other DeltaVoice instance and restart."
+            );
+            Ok(())
+        }
+    }
 }

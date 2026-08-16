@@ -5,8 +5,13 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.media.MediaPlayer
+import android.media.MediaRecorder
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Base64
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.ImageButton
@@ -17,6 +22,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.deltavoice.api.CompleteVoiceWorkflowService
+import com.deltavoice.api.VoiceCloneService
 import com.deltavoice.auth.FeatureGate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -49,10 +55,24 @@ class VoiceProcessModeActivity : AppCompatActivity() {
     
     // Backend service
     private val completeVoiceWorkflowService = CompleteVoiceWorkflowService()
+    private val voiceCloneService = VoiceCloneService()
     private val activityScope = CoroutineScope(Dispatchers.Main)
 
     private lateinit var languages: List<Pair<String, String>>
     private lateinit var voiceStyles: List<Pair<String, String>>
+
+    private var cloneGateBox: LinearLayout? = null
+    private var cloneGateTitle: TextView? = null
+    private var cloneGateSubtitle: TextView? = null
+    private var cloneGatePrimary: Button? = null
+    private var cloneGateSecondary: Button? = null
+    private var cloneReadyVoiceId: String? = null
+    private var cloneSampleFilePath: String? = null
+    private var cloneSampleRecorder: MediaRecorder? = null
+    private var isCloneSampleRecording = false
+    private var cloneSampleElapsedSec = 0
+    private val cloneSampleHandler = Handler(Looper.getMainLooper())
+    private var cloneSampleTicker: Runnable? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,6 +95,7 @@ class VoiceProcessModeActivity : AppCompatActivity() {
 
         setupSpinners()
         setupAudioPlayer()
+        bindCloneGate()
         updateCardSelection(VoiceProcessIntent.MODE_FULL)
 
         cardFull.setOnClickListener {
@@ -127,6 +148,7 @@ class VoiceProcessModeActivity : AppCompatActivity() {
         cardFull.setBackgroundResource(if (mode == VoiceProcessIntent.MODE_FULL) selected else unselected)
         cardVoice.setBackgroundResource(if (mode == VoiceProcessIntent.MODE_VOICE_ONLY) selected else unselected)
         cardText.setBackgroundResource(if (mode == VoiceProcessIntent.MODE_TEXT_ONLY) selected else unselected)
+        refreshCloneGate()
     }
 
     /**
@@ -154,14 +176,21 @@ class VoiceProcessModeActivity : AppCompatActivity() {
         }
         
         val languageCode = languages.getOrNull(spinnerLanguage.selectedItemPosition)?.second ?: "en"
-        val voiceStyle = voiceStyles.getOrNull(spinnerVoice.selectedItemPosition)?.second ?: "aria"
-
-        // Convert mode to workflow type
+        val selectedVoice = voiceStyles.getOrNull(spinnerVoice.selectedItemPosition)?.second ?: "aria"
         val workflowType = when (mode) {
             VoiceProcessIntent.MODE_FULL -> "complete"
             VoiceProcessIntent.MODE_VOICE_ONLY -> "voice-only"
             VoiceProcessIntent.MODE_TEXT_ONLY -> "text-only"
             else -> "text-only"
+        }
+        if (workflowType == "voice-only" && cloneReadyVoiceId.isNullOrBlank()) {
+            Toast.makeText(this, getString(R.string.clone_gate_need_voice), Toast.LENGTH_LONG).show()
+            return
+        }
+        val voiceStyle = if (workflowType == "voice-only") {
+            SavedVoiceClone.styleFor(cloneReadyVoiceId!!)
+        } else {
+            selectedVoice
         }
         
         // Show loading state
@@ -171,7 +200,7 @@ class VoiceProcessModeActivity : AppCompatActivity() {
         
         val loadingMessage = when (workflowType) {
             "complete" -> getString(R.string.loading_translate_convert_voice)
-            "voice-only" -> getString(R.string.loading_convert_voice_to, voiceStyle)
+            "voice-only" -> getString(R.string.loading_convert_voice_to, SavedVoiceClone.get(this)?.name ?: "My Voice")
             "text-only" -> getString(R.string.loading_transcribe_translate)
             else -> getString(R.string.processing)
         }
@@ -212,17 +241,11 @@ class VoiceProcessModeActivity : AppCompatActivity() {
         
         when (workflowType) {
             "complete" -> {
-                // Full Conversion: Save processed audio and let user preview
-                val translatedText = response.translatedText
-                if (!translatedText.isNullOrBlank()) {
-                    copyToClipboard(translatedText)
-                }
-                
                 if (!audioBase64.isNullOrBlank()) {
                     saveAndShowProcessedAudio(audioBase64)
                     Toast.makeText(this, getString(R.string.ready_tap_play_send), Toast.LENGTH_LONG).show()
                 } else {
-                    Toast.makeText(this, getString(R.string.text_copied_clipboard), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.voice_conversion_failed_short), Toast.LENGTH_SHORT).show()
                     buttonFullProcess.isEnabled = true
                 }
             }
@@ -376,6 +399,180 @@ class VoiceProcessModeActivity : AppCompatActivity() {
         }
     }
 
+    private fun bindCloneGate() {
+        cloneGateBox = findViewById(R.id.clone_gate_box)
+        cloneGateTitle = findViewById(R.id.clone_gate_title)
+        cloneGateSubtitle = findViewById(R.id.clone_gate_subtitle)
+        cloneGatePrimary = findViewById(R.id.clone_gate_primary)
+        cloneGateSecondary = findViewById(R.id.clone_gate_secondary)
+        cloneGatePrimary?.setOnClickListener { onCloneGatePrimary() }
+        cloneGateSecondary?.setOnClickListener { onCloneGateSecondary() }
+        refreshCloneGate()
+    }
+
+    private fun refreshCloneGate() {
+        val box = cloneGateBox ?: return
+        if (selectedMode != VoiceProcessIntent.MODE_VOICE_ONLY) {
+            stopCloneSampleRecording(save = false)
+            box.visibility = View.GONE
+            return
+        }
+        box.visibility = View.VISIBLE
+        val saved = SavedVoiceClone.get(this)
+        when {
+            isCloneSampleRecording -> {
+                cloneGateTitle?.text = getString(
+                    R.string.clone_gate_recording_title,
+                    String.format("%d:%02d", cloneSampleElapsedSec / 60, cloneSampleElapsedSec % 60)
+                )
+                cloneGateSubtitle?.text = getString(R.string.clone_gate_recording_body)
+                cloneGatePrimary?.text = getString(R.string.clone_gate_stop)
+                cloneGateSecondary?.visibility = View.GONE
+            }
+            !cloneReadyVoiceId.isNullOrBlank() -> {
+                val name = saved?.name ?: getString(R.string.clone_gate_ready_title)
+                cloneGateTitle?.text = getString(R.string.clone_gate_ready_title)
+                cloneGateSubtitle?.text = getString(R.string.clone_gate_ready_body, name)
+                cloneGatePrimary?.text = getString(R.string.clone_gate_change)
+                cloneGateSecondary?.visibility = View.GONE
+            }
+            saved != null -> {
+                cloneGateTitle?.text = getString(R.string.clone_gate_choose_title)
+                cloneGateSubtitle?.text = getString(R.string.clone_gate_choose_body, saved.name)
+                cloneGatePrimary?.text = getString(R.string.clone_gate_use_saved)
+                cloneGateSecondary?.text = getString(R.string.clone_gate_add_new)
+                cloneGateSecondary?.visibility = View.VISIBLE
+            }
+            else -> {
+                cloneGateTitle?.text = getString(R.string.clone_gate_save_title)
+                cloneGateSubtitle?.text = getString(R.string.clone_gate_save_body)
+                cloneGatePrimary?.text = getString(R.string.clone_gate_record)
+                cloneGateSecondary?.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun onCloneGatePrimary() {
+        val saved = SavedVoiceClone.get(this)
+        when {
+            isCloneSampleRecording -> stopCloneSampleRecording(save = true)
+            !cloneReadyVoiceId.isNullOrBlank() -> {
+                cloneReadyVoiceId = null
+                refreshCloneGate()
+            }
+            saved != null && cloneGateSecondary?.visibility == View.VISIBLE -> {
+                cloneReadyVoiceId = saved.voiceId
+                refreshCloneGate()
+            }
+            else -> startCloneSampleRecording()
+        }
+    }
+
+    private fun onCloneGateSecondary() {
+        if (isCloneSampleRecording) return
+        cloneReadyVoiceId = null
+        startCloneSampleRecording()
+    }
+
+    private fun startCloneSampleRecording() {
+        if (isCloneSampleRecording || isProcessing) return
+        stopPlayback()
+        val file = File(cacheDir, "clone_sample_${System.currentTimeMillis()}.m4a")
+        cloneSampleFilePath = file.absolutePath
+        try {
+            cloneSampleRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                MediaRecorder(this)
+            } else {
+                @Suppress("DEPRECATION")
+                MediaRecorder()
+            }
+            cloneSampleRecorder?.apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                setOutputFile(file.absolutePath)
+                prepare()
+                start()
+            }
+            isCloneSampleRecording = true
+            cloneSampleElapsedSec = 0
+            cloneSampleTicker = object : Runnable {
+                override fun run() {
+                    if (!isCloneSampleRecording) return
+                    cloneSampleElapsedSec += 1
+                    refreshCloneGate()
+                    cloneSampleHandler.postDelayed(this, 1000L)
+                }
+            }
+            cloneSampleHandler.postDelayed(cloneSampleTicker!!, 1000L)
+            refreshCloneGate()
+        } catch (e: Exception) {
+            Toast.makeText(this, getString(R.string.clone_gate_need_voice), Toast.LENGTH_SHORT).show()
+            stopCloneSampleRecording(save = false)
+        }
+    }
+
+    private fun stopCloneSampleRecording(save: Boolean) {
+        cloneSampleTicker?.let { cloneSampleHandler.removeCallbacks(it) }
+        cloneSampleTicker = null
+        val elapsed = cloneSampleElapsedSec
+        try {
+            cloneSampleRecorder?.apply {
+                if (isCloneSampleRecording) {
+                    try { stop() } catch (_: Exception) {}
+                }
+                release()
+            }
+        } catch (_: Exception) {}
+        cloneSampleRecorder = null
+        isCloneSampleRecording = false
+        if (!save) {
+            cloneSampleFilePath?.let { File(it).delete() }
+            cloneSampleFilePath = null
+            if (selectedMode == VoiceProcessIntent.MODE_VOICE_ONLY) refreshCloneGate()
+            return
+        }
+        if (elapsed < 8) {
+            Toast.makeText(this, getString(R.string.clone_gate_need_8_seconds), Toast.LENGTH_LONG).show()
+            cloneSampleFilePath?.let { File(it).delete() }
+            cloneSampleFilePath = null
+            refreshCloneGate()
+            return
+        }
+        val path = cloneSampleFilePath ?: return refreshCloneGate()
+        cloneGateTitle?.text = getString(R.string.clone_gate_saving)
+        cloneGatePrimary?.isEnabled = false
+        activityScope.launch {
+            try {
+                val result = voiceCloneService.createVoiceClone(
+                    audioFile = File(path),
+                    name = "My Voice",
+                    description = "Saved from Translate My Same Voice"
+                )
+                result.onSuccess { response ->
+                    val voiceId = response.voiceId
+                    if (response.success && !voiceId.isNullOrBlank()) {
+                        val name = response.name ?: "My Voice"
+                        SavedVoiceClone.save(this@VoiceProcessModeActivity, voiceId, name)
+                        cloneReadyVoiceId = voiceId
+                        Toast.makeText(this@VoiceProcessModeActivity, getString(R.string.clone_gate_saved), Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(this@VoiceProcessModeActivity, "Voice clone failed", Toast.LENGTH_LONG).show()
+                    }
+                }.onFailure { error ->
+                    FeatureGate.showAuthError(this@VoiceProcessModeActivity, error)
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@VoiceProcessModeActivity, e.message ?: "Voice clone failed", Toast.LENGTH_LONG).show()
+            } finally {
+                cloneGatePrimary?.isEnabled = true
+                File(path).delete()
+                cloneSampleFilePath = null
+                refreshCloneGate()
+            }
+        }
+    }
+
     private fun setupAudioPlayer() {
         updateAudioDuration()
 
@@ -515,6 +712,7 @@ class VoiceProcessModeActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         stopPlayback()
+        stopCloneSampleRecording(save = false)
         // Clean up processed audio file
         processedAudioFilePath?.let { path ->
             try {

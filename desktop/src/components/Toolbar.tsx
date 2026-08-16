@@ -7,6 +7,7 @@ import {
   Clipboard,
   ArrowLeft,
 } from "lucide-react";
+import { usePlatformInfo } from "../hooks/usePlatformInfo";
 
 interface Props {
   onSelect: (panel: string) => void;
@@ -23,6 +24,8 @@ const ICONS = [
 ];
 
 export default function Toolbar({ onSelect, onBack }: Props) {
+  const platform = usePlatformInfo();
+
   return (
     <div className="fade-in" style={{ paddingTop: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
@@ -31,7 +34,7 @@ export default function Toolbar({ onSelect, onBack }: Props) {
         </button>
         <h3 style={{ fontSize: 16, fontWeight: 600, flex: 1 }}>AI Toolbar</h3>
         <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-          Ctrl+Space×2
+          {platform.toolbarHotkey}
         </span>
       </div>
 
@@ -77,7 +80,7 @@ export default function Toolbar({ onSelect, onBack }: Props) {
           marginTop: 16,
         }}
       >
-        Select a tool or press Ctrl+Space to record voice
+        Select a tool or press {platform.voiceHotkey} to record voice
       </p>
     </div>
   );

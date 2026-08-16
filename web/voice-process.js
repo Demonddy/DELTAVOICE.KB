@@ -36,6 +36,33 @@
   let resultPreviewAudio = null;
   let resultPreviewUrl = null;
   let resultPreviewIndex = -1;
+  const CLONE_KEY = "deltavoice_saved_voice_clone";
+  const MIN_SAMPLE_SEC = 8;
+  let savedClone = loadClone();
+  let activeCloneId = "";
+  let clonePhase = savedClone ? "choose" : "record";
+  let cloneSampleRecorder = null;
+  let cloneSampleChunks = [];
+  let cloneSampleTimer = null;
+  let cloneSampleElapsed = 0;
+  let cloneSampleRecording = false;
+  let cloneSaveOnStop = false;
+
+  function loadClone() {
+    try {
+      const raw = localStorage.getItem(CLONE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed?.voiceId ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function persistClone(clone) {
+    savedClone = clone;
+    localStorage.setItem(CLONE_KEY, JSON.stringify(clone));
+  }
 
   function fillSelect(select, pairs) {
     select.innerHTML = "";
@@ -52,6 +79,179 @@
     document.querySelectorAll(".vp-card").forEach((c) => {
       c.classList.toggle("selected", c.dataset.mode === mode);
     });
+    const voiceWrap = el("voiceSelect") && el("voiceSelect").closest(".vp-select-wrap");
+    const voiceLabel = voiceWrap && voiceWrap.previousElementSibling;
+    const showVoice = mode !== "voice_only";
+    if (voiceWrap) voiceWrap.classList.toggle("vp-hidden", !showVoice);
+    if (voiceLabel && voiceLabel.classList.contains("vp-label")) {
+      voiceLabel.classList.toggle("vp-hidden", !showVoice);
+    }
+    refreshCloneGate();
+  }
+
+  function refreshCloneGate() {
+    const box = el("cloneGate");
+    if (!box) return;
+    const isVoice = workflowType === "voice_only";
+    box.classList.toggle("vp-hidden", !isVoice);
+    box.classList.toggle("ready", isVoice && clonePhase === "ready");
+    if (!isVoice) {
+      stopCloneSample(false);
+      return;
+    }
+    const title = el("cloneGateTitle");
+    const body = el("cloneGateBody");
+    const primary = el("clonePrimary");
+    const secondary = el("cloneSecondary");
+    if (cloneSampleRecording) {
+      title.textContent = "Recording sample… " + formatTime(cloneSampleElapsed);
+      body.textContent = "Speak clearly, then stop when you have at least 8 seconds.";
+      primary.textContent = "Stop";
+      secondary.classList.add("vp-hidden");
+      return;
+    }
+    if (clonePhase === "ready" && savedClone) {
+      title.textContent = "Voice ready";
+      body.textContent = savedClone.name + " will be used to translate this recording.";
+      primary.textContent = "Change voice";
+      secondary.classList.add("vp-hidden");
+      return;
+    }
+    if (savedClone && clonePhase === "choose") {
+      title.textContent = "Use your saved voice?";
+      body.textContent = savedClone.name + " is ready. Use it, or record a new sample.";
+      primary.textContent = "Use saved voice";
+      secondary.textContent = "Add new";
+      secondary.classList.remove("vp-hidden");
+      return;
+    }
+    title.textContent = savedClone ? "Record a new sample" : "Save your voice first";
+    body.textContent = "Record at least 8 seconds of clear speech. This sample is saved and reused.";
+    primary.textContent = "Record sample";
+    if (savedClone) {
+      secondary.textContent = "Use saved";
+      secondary.classList.remove("vp-hidden");
+    } else {
+      secondary.classList.add("vp-hidden");
+    }
+  }
+
+  function useSavedClone() {
+    if (!savedClone) return;
+    activeCloneId = savedClone.voiceId;
+    clonePhase = "ready";
+    refreshCloneGate();
+  }
+
+  async function startCloneSample() {
+    stopCloneSample(false);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      cloneSampleChunks = [];
+      cloneSampleElapsed = 0;
+      const rec = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+          ? "audio/webm;codecs=opus"
+          : "audio/webm",
+      });
+      rec.ondataavailable = (e) => {
+        if (e.data.size > 0) cloneSampleChunks.push(e.data);
+      };
+      rec.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (!cloneSaveOnStop) return;
+        if (cloneSampleElapsed < MIN_SAMPLE_SEC) {
+          alert("Record at least 8 seconds of clear speech.");
+          clonePhase = "record";
+          refreshCloneGate();
+          return;
+        }
+        const blob = new Blob(cloneSampleChunks, { type: "audio/webm" });
+        try {
+          el("cloneGateTitle").textContent = "Saving your voice…";
+          const ab = await blob.arrayBuffer();
+          const bytes = new Uint8Array(ab);
+          let bin = "";
+          for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+          await window.DeltaVoiceAuth.ensureSignedIn();
+          const authHeaders = await window.DeltaVoiceAuth.authHeaders();
+          const supabaseUrl = window.DeltaVoiceConfig?.SUPABASE_URL || "";
+          const res = await fetch(supabaseUrl + "/functions/v1/create-voice-clone", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders },
+            body: JSON.stringify({
+              name: "My Voice",
+              audioBase64: btoa(bin),
+              format: "webm",
+              description: "Saved from Translate My Same Voice",
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.voiceId) throw new Error(data.error || "Could not save voice");
+          persistClone({ voiceId: data.voiceId, name: data.name || "My Voice", createdAt: Date.now() });
+          activeCloneId = data.voiceId;
+          clonePhase = "ready";
+        } catch (err) {
+          alert(err.message || String(err));
+          clonePhase = "record";
+        }
+        refreshCloneGate();
+      };
+      rec.start(250);
+      cloneSampleRecorder = rec;
+      cloneSampleRecording = true;
+      cloneSampleTimer = setInterval(() => {
+        cloneSampleElapsed += 1;
+        refreshCloneGate();
+      }, 1000);
+      refreshCloneGate();
+    } catch {
+      alert("Microphone access denied.");
+    }
+  }
+
+  function stopCloneSample(save) {
+    cloneSaveOnStop = !!save;
+    if (cloneSampleTimer) {
+      clearInterval(cloneSampleTimer);
+      cloneSampleTimer = null;
+    }
+    if (cloneSampleRecorder && cloneSampleRecorder.state === "recording") {
+      if (!save) cloneSampleChunks = [];
+      cloneSampleRecorder.stop();
+    }
+    cloneSampleRecorder = null;
+    cloneSampleRecording = false;
+  }
+
+  function onClonePrimary() {
+    if (cloneSampleRecording) {
+      stopCloneSample(true);
+      return;
+    }
+    if (clonePhase === "ready") {
+      activeCloneId = "";
+      clonePhase = savedClone ? "choose" : "record";
+      refreshCloneGate();
+      return;
+    }
+    if (savedClone && clonePhase === "choose") {
+      useSavedClone();
+      return;
+    }
+    clonePhase = "record";
+    startCloneSample();
+  }
+
+  function onCloneSecondary() {
+    if (cloneSampleRecording) return;
+    if (clonePhase === "record" && savedClone) {
+      useSavedClone();
+      return;
+    }
+    activeCloneId = "";
+    clonePhase = "record";
+    startCloneSample();
   }
 
   function showRecordingSection(show) {
@@ -302,13 +502,17 @@
     }
 
     const lang = el("langSelect").value;
-    const voice = el("voiceSelect").value;
     const wf =
       workflowType === "full"
         ? "complete"
         : workflowType === "voice_only"
           ? "voice-only"
           : "text-only";
+    if (wf === "voice-only" && !activeCloneId) {
+      alert("Save or choose your voice before translating.");
+      return;
+    }
+    const voice = wf === "voice-only" ? "clone_" + activeCloneId : el("voiceSelect").value;
 
     el("processBtn").disabled = true;
     el("statusText").textContent = "Processing…";
@@ -348,8 +552,14 @@
           const arr = new Uint8Array(bin.length);
           for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
           const mp3 = new Blob([arr], { type: "audio/mpeg" });
-          const label = voiceList().find((v) => v[1] === voice)?.[0] + " #" + (processedItems.length + 1);
+          const label =
+            (wf === "voice-only"
+              ? (savedClone && savedClone.name) || "My Voice"
+              : (voiceList().find((v) => v[1] === voice) || ["Voice"])[0]) +
+            " #" +
+            (processedItems.length + 1);
           processedItems.push({ type: "audio", label, blob: mp3 });
+          el("textOutput").classList.add("vp-hidden");
           renderResults();
           el("statusText").textContent = "Ready! Download or share below.";
         } else if (data.ttsFallback && (data.translatedText || data.originalText)) {
@@ -492,6 +702,8 @@
     });
     el("playBtn").addEventListener("click", togglePlay);
     el("processBtn").addEventListener("click", processVoice);
+    el("clonePrimary").addEventListener("click", onClonePrimary);
+    el("cloneSecondary").addEventListener("click", onCloneSecondary);
 
     const canvas = el("waveCanvas");
     if (canvas) {

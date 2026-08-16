@@ -1,7 +1,9 @@
 ﻿/**
- * Voice Workflow Logic - Complete (Change Language & Voice) and Voice-only (Translate My Same Voice)
- * Transferred from Supabase Edge Functions for Convex real-time functionality.
- * Only handles workflowType: 'complete' | 'voice-only'
+ * Hybrid voice workflow (Phase 1):
+ * - text-only: ElevenLabs Scribe (+ DeepSeek translate when needed)
+ * - voice-only: Scribe + translate + TTS with saved clone (clone_<id>)
+ * - complete + same language: ElevenLabs Speech-to-Speech (preset voice)
+ * - complete + new language: ElevenLabs Dubbing (library voice)
  */
 
 import { logger } from "./logger";
@@ -26,7 +28,6 @@ function getCorsOrigin(request?: Request): string {
   return ALLOWED_ORIGINS.includes(origin) ? origin : "";
 }
 
-/** Native clients omit Origin; only reject when a disallowed Origin is present. */
 export function rejectDisallowedOrigin(request: Request): Response | null {
   const origin = request.headers.get("origin");
   if (!origin) return null;
@@ -148,6 +149,42 @@ const LANGUAGE_CODE_MAP: Record<string, string> = {
   uk: "uk",
 };
 
+/** Scribe ISO-639-3 (or short) → app ISO-639-1 */
+const SCRIBE_LANG_TO_ISO: Record<string, string> = {
+  eng: "en",
+  spa: "es",
+  fra: "fr",
+  fre: "fr",
+  deu: "de",
+  ger: "de",
+  ita: "it",
+  por: "pt",
+  rus: "ru",
+  jpn: "ja",
+  kor: "ko",
+  cmn: "zh",
+  zho: "zh",
+  ara: "ar",
+  hin: "hi",
+  nld: "nl",
+  dut: "nl",
+  pol: "pl",
+  tur: "tr",
+  swe: "sv",
+  dan: "da",
+  nor: "no",
+  fin: "fi",
+  heb: "he",
+  tha: "th",
+  vie: "vi",
+  ukr: "uk",
+  ces: "cs",
+  cze: "cs",
+  hun: "hu",
+  ron: "ro",
+  rum: "ro",
+};
+
 function resolveAudioMeta(format?: string) {
   const ext = (format || "webm").toLowerCase().replace(".", "");
   const safeExt = AUDIO_MIME_MAP[ext] ? ext : "webm";
@@ -157,10 +194,12 @@ function resolveAudioMeta(format?: string) {
   };
 }
 
+function getDeepSeekApiKey(): string {
+  return process.env.DEEPSEEK_API || process.env.DEEPSEEKA || "";
+}
+
 function getOpenAIApiKey(): string {
-  return (
-    process.env.OPENAI_API_KEY77 || process.env.OPENAI_API_KEY || ""
-  );
+  return process.env.OPENAI_API_KEY77 || process.env.OPENAI_API_KEY || "";
 }
 
 function getElevenLabsApiKey(): string {
@@ -169,15 +208,7 @@ function getElevenLabsApiKey(): string {
   );
 }
 
-async function transcribeAudio(
-  audioBase64: string,
-  format?: string
-): Promise<string> {
-  const openAIApiKey = getOpenAIApiKey();
-  if (!openAIApiKey) {
-    throw new Error("OpenAI API key not configured");
-  }
-
+function decodeBase64Audio(audioBase64: string): Uint8Array {
   const chunkSize = 32768;
   const chunks: Uint8Array[] = [];
   let position = 0;
@@ -200,39 +231,103 @@ async function transcribeAudio(
     binaryAudio.set(chunk, offset);
     offset += chunk.length;
   }
+  return binaryAudio;
+}
 
-  const formData = new FormData();
+function encodeBase64Audio(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+function normalizeLangCode(code?: string): string {
+  if (!code) return "";
+  const lower = code.toLowerCase();
+  if (SCRIBE_LANG_TO_ISO[lower]) return SCRIBE_LANG_TO_ISO[lower];
+  if (LANGUAGE_CODE_MAP[lower]) return lower;
+  return lower.length >= 2 ? lower.slice(0, 2) : lower;
+}
+
+function languagesMatch(detected?: string, target?: string): boolean {
+  const d = normalizeLangCode(detected);
+  const t = normalizeLangCode(target);
+  if (!d || !t) return false;
+  return d === t;
+}
+
+function resolveTargetLang(targetLanguage: string): string {
+  return LANGUAGE_CODE_MAP[targetLanguage] || targetLanguage;
+}
+
+function resolvePresetVoiceId(voiceStyle: string): string {
+  if (voiceStyle.startsWith("clone_")) {
+    const savedId = voiceStyle.slice("clone_".length).trim();
+    if (savedId) return savedId;
+  }
+  return ELEVENLABS_VOICE_MAP[voiceStyle] || ELEVENLABS_VOICE_MAP.aria;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+interface ScribeResult {
+  text: string;
+  languageCode?: string;
+}
+
+async function transcribeWithScribe(
+  audioBase64: string,
+  format?: string,
+): Promise<ScribeResult> {
+  const elevenLabsApiKey = getElevenLabsApiKey();
+  if (!elevenLabsApiKey) {
+    throw new Error("ElevenLabs API key not configured");
+  }
+
+  const binaryAudio = decodeBase64Audio(audioBase64);
   const audioMeta = resolveAudioMeta(format);
-  const blob = new Blob([binaryAudio], { type: audioMeta.mimeType });
-  formData.append("file", blob, audioMeta.fileName);
-  formData.append("model", "whisper-1");
+  const formData = new FormData();
+  formData.append(
+    "file",
+    new Blob([binaryAudio], { type: audioMeta.mimeType }),
+    audioMeta.fileName,
+  );
+  formData.append("model_id", "scribe_v2");
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 120000);
 
   try {
-    const response = await fetch(
-      "https://api.openai.com/v1/audio/transcriptions",
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${openAIApiKey}` },
-        body: formData,
-        signal: controller.signal,
-      }
-    );
+    const response = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
+      method: "POST",
+      headers: { "xi-api-key": elevenLabsApiKey },
+      body: formData,
+      signal: controller.signal,
+    });
     clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`Transcription failed: ${response.status} - ${errorText}`);
     }
-    const result = (await response.json()) as { text: string };
-    return result.text;
+
+    const result = (await response.json()) as {
+      text?: string;
+      language_code?: string;
+    };
+    return {
+      text: (result.text || "").trim(),
+      languageCode: result.language_code,
+    };
   } catch (err) {
     clearTimeout(timeoutId);
     if (err instanceof Error && err.name === "AbortError") {
       throw new Error(
-        "Transcription timeout - video too long or processing too slow"
+        "Transcription timeout - audio too long or processing too slow",
       );
     }
     throw err;
@@ -241,68 +336,95 @@ async function transcribeAudio(
 
 async function translateText(
   text: string,
-  targetLanguage: string
+  targetLanguage: string,
 ): Promise<string> {
-  const openAIApiKey = getOpenAIApiKey();
-  if (!openAIApiKey) {
-    throw new Error("OpenAI API key not configured");
-  }
-
   const targetLanguageName =
     LANGUAGE_NAMES[targetLanguage] || targetLanguage;
+  const systemPrompt = `You are a professional translator. Translate the given text accurately to ${targetLanguageName}. Only return the translated text, nothing else.`;
+  const messages = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: text },
+  ];
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${openAIApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  const deepSeekApiKey = getDeepSeekApiKey();
+  const openAIApiKey = getOpenAIApiKey();
+  const attempts: Array<{ url: string; key: string; model: string }> = [];
+
+  if (deepSeekApiKey) {
+    attempts.push({
+      url: "https://api.deepseek.com/v1/chat/completions",
+      key: deepSeekApiKey,
+      model: "deepseek-chat",
+    });
+  }
+  if (openAIApiKey) {
+    attempts.push({
+      url: "https://api.openai.com/v1/chat/completions",
+      key: openAIApiKey,
       model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `You are a professional translator. Translate the given text accurately to ${targetLanguageName}. Only return the translated text, nothing else.`,
-        },
-        { role: "user", content: text },
-      ],
-      temperature: 0.3,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Translation failed: ${response.status} - ${errorText}`);
+    });
   }
 
-  const result = (await response.json()) as {
-    choices: Array<{ message: { content: string } }>;
-  };
-  return result.choices[0].message.content.trim();
+  if (attempts.length === 0) {
+    throw new Error("Translation API key not configured");
+  }
+
+  let lastError = "Translation failed";
+  for (const attempt of attempts) {
+    const response = await fetch(attempt.url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${attempt.key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: attempt.model,
+        messages,
+        temperature: 0.3,
+        max_tokens: 4000,
+      }),
+    });
+
+    if (response.ok) {
+      const result = (await response.json()) as {
+        choices: Array<{ message: { content: string } }>;
+      };
+      return result.choices[0].message.content.trim();
+    }
+    lastError = await response.text();
+    logger.error(
+      "voiceWorkflow",
+      `Translation failed (${attempt.model}): ${response.status}`,
+      lastError.substring(0, 300),
+    );
+  }
+
+  throw new Error(`Translation failed: ${lastError.substring(0, 200)}`);
 }
 
-async function createVoiceCloneFromAudio(
+async function speechToSpeech(
   audioBase64: string,
-  name: string,
-  format?: string
+  voiceStyle: string,
+  format?: string,
 ): Promise<string> {
   const elevenLabsApiKey = getElevenLabsApiKey();
   if (!elevenLabsApiKey) {
     throw new Error("ElevenLabs API key not configured");
   }
 
-  const audioBuffer = Uint8Array.from(atob(audioBase64), (c) =>
-    c.charCodeAt(0)
-  );
+  const voiceId = resolvePresetVoiceId(voiceStyle);
+  const binaryAudio = decodeBase64Audio(audioBase64);
   const audioMeta = resolveAudioMeta(format);
-  const audioBlob = new Blob([audioBuffer], { type: audioMeta.mimeType });
-
   const formData = new FormData();
-  formData.append("name", name);
-  formData.append("description", `Auto-generated voice clone: ${name}`);
-  formData.append("files", audioBlob, audioMeta.fileName);
+  formData.append(
+    "audio",
+    new Blob([binaryAudio], { type: audioMeta.mimeType }),
+    audioMeta.fileName,
+  );
+  formData.append("model_id", "eleven_multilingual_sts_v2");
 
-  const response = await fetch("https://api.elevenlabs.io/v1/voices/add", {
+  const url = `https://api.elevenlabs.io/v1/speech-to-speech/${voiceId}?output_format=mp3_44100_128`;
+  const response = await fetch(url, {
     method: "POST",
     headers: { "xi-api-key": elevenLabsApiKey },
     body: formData,
@@ -311,86 +433,48 @@ async function createVoiceCloneFromAudio(
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(
-      `Voice clone creation failed: ${response.status} - ${errorText}`
+      `Speech-to-speech failed: ${response.status} - ${errorText.substring(0, 300)}`,
     );
   }
 
-  const result = (await response.json()) as { voice_id: string };
-  return result.voice_id;
+  return encodeBase64Audio(await response.arrayBuffer());
 }
 
-async function convertTextToSpeech(
+async function textToSpeech(
   text: string,
   voiceStyle: string,
-  audioBase64?: string,
-  audioFormat?: string,
-  targetLanguage?: string
+  targetLanguage?: string,
 ): Promise<string> {
   const elevenLabsApiKey = getElevenLabsApiKey();
   if (!elevenLabsApiKey) {
     throw new Error("ElevenLabs API key not configured");
   }
 
-  let voiceId: string;
-
-  if (voiceStyle === "myvoiceclone") {
-    if (!audioBase64 || audioBase64.length < 2000) {
-      throw new Error(
-        "Voice clone requires a valid recording. Please record a longer voice sample and try again."
-      );
-    }
-    const cloneName = `Live Voice Clone ${Date.now()}`;
-    voiceId = await createVoiceCloneFromAudio(
-      audioBase64,
-      cloneName,
-      audioFormat
-    );
-  } else if (voiceStyle.startsWith("clone_")) {
-    voiceId = "9BWtsMINqrJLrRacOk9x";
-  } else {
-    voiceId =
-      ELEVENLABS_VOICE_MAP[voiceStyle] || "9BWtsMINqrJLrRacOk9x";
-  }
-
-  const isClonedVoice =
-    voiceStyle === "myvoiceclone" || voiceStyle.startsWith("clone_");
+  const voiceId = resolvePresetVoiceId(voiceStyle);
+  const isClonedVoice = voiceStyle.startsWith("clone_");
   const langCode = targetLanguage
-    ? LANGUAGE_CODE_MAP[targetLanguage] || targetLanguage
+    ? resolveTargetLang(targetLanguage)
     : undefined;
-  const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?optimize_streaming_latency=${isClonedVoice ? 0 : 2}`;
   const voiceSettings = isClonedVoice
-    ? {
-        stability: 0.35,
-        similarity_boost: 1.0,
-        style: 0.0,
-        use_speaker_boost: true,
-      }
-    : {
-        stability: 0.5,
-        similarity_boost: 0.75,
-        style: 0.0,
-        use_speaker_boost: true,
-      };
+    ? { stability: 0.35, similarity_boost: 1.0, style: 0.0, use_speaker_boost: true }
+    : { stability: 0.5, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true };
   const modelsToTry = isClonedVoice
     ? ["eleven_multilingual_v2", "eleven_flash_v2_5"]
     : ["eleven_flash_v2_5", "eleven_multilingual_v2"];
+  const latency = isClonedVoice ? 0 : 2;
 
-  let response: Response | null = null;
   let lastError = "";
+  for (const modelId of modelsToTry) {
+    const ttsBody: Record<string, unknown> = {
+      text,
+      model_id: modelId,
+      voice_settings: voiceSettings,
+    };
+    if (langCode) ttsBody.language_code = langCode;
 
-  async function trySynthesize(includeLanguageCode: boolean): Promise<Response | null> {
-    let res: Response | null = null;
-    for (const modelId of modelsToTry) {
-      const ttsBody: Record<string, unknown> = {
-        text,
-        model_id: modelId,
-        voice_settings: voiceSettings,
-      };
-      if (includeLanguageCode && langCode) {
-        ttsBody.language_code = langCode;
-      }
-
-      res = await fetch(ttsUrl, {
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?optimize_streaming_latency=${latency}`,
+      {
         method: "POST",
         headers: {
           Accept: "audio/mpeg",
@@ -398,36 +482,115 @@ async function convertTextToSpeech(
           "xi-api-key": elevenLabsApiKey,
         },
         body: JSON.stringify(ttsBody),
-      });
-      if (res.ok) {
-        return res;
-      }
-      lastError = await res.text();
-      logger.error("voiceWorkflow", `ElevenLabs TTS failed: model=${modelId}, status=${res.status}`, lastError.substring(0, 300));
+      },
+    );
+
+    if (response.ok) {
+      return encodeBase64Audio(await response.arrayBuffer());
     }
-    return null;
-  }
-
-  // Prefer language_code when API accepts it; many failures are fixed by omitting it.
-  response = await trySynthesize(true);
-  if (!response || !response.ok) {
-    response = await trySynthesize(false);
-  }
-
-  if (!response || !response.ok) {
-    throw new Error(
-      `Voice conversion failed: ${response?.status || "unknown"} - ${lastError}`
+    lastError = await response.text();
+    logger.error(
+      "voiceWorkflow",
+      `TTS ${modelId} failed: ${response.status}`,
+      lastError.substring(0, 300),
     );
   }
 
-  const audioBuffer = await response.arrayBuffer();
-  const bytes = new Uint8Array(audioBuffer);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  throw new Error(`Voice conversion failed: ${lastError.substring(0, 300)}`);
+}
+
+async function dubAudio(
+  audioBase64: string,
+  targetLanguage: string,
+  format?: string,
+  options?: { disableVoiceCloning?: boolean; sourceLang?: string },
+): Promise<string> {
+  const elevenLabsApiKey = getElevenLabsApiKey();
+  if (!elevenLabsApiKey) {
+    throw new Error("ElevenLabs API key not configured");
   }
-  const base64Audio = btoa(binary);
-  return base64Audio;
+
+  const targetLang = resolveTargetLang(targetLanguage);
+  const binaryAudio = decodeBase64Audio(audioBase64);
+  const audioMeta = resolveAudioMeta(format);
+  const formData = new FormData();
+  formData.append(
+    "file",
+    new Blob([binaryAudio], { type: audioMeta.mimeType }),
+    audioMeta.fileName,
+  );
+  formData.append("target_lang", targetLang);
+  formData.append(
+    "disable_voice_cloning",
+    String(options?.disableVoiceCloning ?? false),
+  );
+  formData.append("drop_background_audio", "true");
+  formData.append("num_speakers", "1");
+  if (options?.sourceLang) {
+    formData.append("source_lang", options.sourceLang);
+  }
+
+  const createRes = await fetch("https://api.elevenlabs.io/v1/dubbing", {
+    method: "POST",
+    headers: { "xi-api-key": elevenLabsApiKey },
+    body: formData,
+  });
+
+  if (!createRes.ok) {
+    const errorText = await createRes.text();
+    throw new Error(
+      `Dubbing create failed: ${createRes.status} - ${errorText.substring(0, 300)}`,
+    );
+  }
+
+  const created = (await createRes.json()) as { dubbing_id?: string };
+  const dubbingId = created.dubbing_id;
+  if (!dubbingId) {
+    throw new Error("Dubbing did not return a dubbing_id");
+  }
+
+  const maxWaitMs = 110_000;
+  const pollIntervalMs = 2500;
+  const started = Date.now();
+
+  while (Date.now() - started < maxWaitMs) {
+    await sleep(pollIntervalMs);
+    const statusRes = await fetch(
+      `https://api.elevenlabs.io/v1/dubbing/${dubbingId}`,
+      { headers: { "xi-api-key": elevenLabsApiKey } },
+    );
+
+    if (!statusRes.ok) {
+      const t = await statusRes.text();
+      logger.error("voiceWorkflow", `Dubbing status error: ${statusRes.status}`, t.substring(0, 200));
+      continue;
+    }
+
+    const statusBody = (await statusRes.json()) as {
+      status?: string;
+      error?: string;
+    };
+
+    if (statusBody.status === "dubbed") {
+      const audioRes = await fetch(
+        `https://api.elevenlabs.io/v1/dubbing/${dubbingId}/audio/${targetLang}`,
+        { headers: { "xi-api-key": elevenLabsApiKey } },
+      );
+      if (!audioRes.ok) {
+        const t = await audioRes.text();
+        throw new Error(
+          `Dubbing audio fetch failed: ${audioRes.status} - ${t.substring(0, 200)}`,
+        );
+      }
+      return encodeBase64Audio(await audioRes.arrayBuffer());
+    }
+
+    if (statusBody.status === "failed") {
+      throw new Error(statusBody.error || "Dubbing failed");
+    }
+  }
+
+  throw new Error("Dubbing timed out. Please try a shorter recording.");
 }
 
 export interface WorkflowRequest {
@@ -447,115 +610,126 @@ export interface WorkflowResult {
   voiceStyle: string;
   workflowType: string;
   ttsFallback?: boolean;
+  ttsError?: string;
 }
 
 /**
- * Runs complete, voice-only, or text-only workflow.
- * - complete: Preset voice (Adam, Aria, etc.) from voiceStyle, optional translation, TTS
- * - voice-only: Always myvoiceclone from audioBase64, optional translation, TTS with clone
- * - text-only: Transcribe + optional translation only (no ElevenLabs)
+ * Hybrid routing:
+ * - text-only: Scribe (+ DeepSeek translate when languages differ)
+ * - voice-only: Scribe + translate + TTS with saved clone (clone_<id>)
+ * - complete + same language: Speech-to-Speech (preset voice)
+ * - complete + new language: Dubbing (library voice, cloning disabled)
  */
 export async function runVoiceWorkflow(
-  req: WorkflowRequest
+  req: WorkflowRequest,
 ): Promise<WorkflowResult> {
-  const {
-    audioBase64,
-    targetLanguage,
-    voiceStyle,
-    workflowType,
-    format,
-  } = req;
+  const { audioBase64, targetLanguage, voiceStyle, workflowType, format } =
+    req;
 
   if (!audioBase64) {
     throw new Error("Audio data is required");
   }
 
-  const originalText = await transcribeAudio(audioBase64, format);
-  if (!originalText || originalText.trim().length === 0) {
+  const scribe = await transcribeWithScribe(audioBase64, format);
+  const originalText = scribe.text;
+  if (!originalText) {
     throw new Error(
-      "No speech detected in audio. Please speak clearly and try again."
+      "No speech detected in audio. Please speak clearly and try again.",
     );
   }
 
-  const shouldTranslate =
-    targetLanguage && targetLanguage.trim().length > 0;
-  // Must default so the T catch block never reads an unassigned variable (TDZ)
-  // when translateText throws before assignment.
-  let translatedText = "";
+  const detectedLang = scribe.languageCode;
+  const targetLang = targetLanguage?.trim() || "";
+  const needsTranslation =
+    Boolean(targetLang) && !languagesMatch(detectedLang, targetLang);
+
+  let translatedText = originalText;
   let convertedAudioBase64 = "";
 
   if (workflowType === "text-only") {
-    translatedText = shouldTranslate
-      ? await translateText(originalText, targetLanguage)
-      : originalText;
+    if (needsTranslation) {
+      translatedText = await translateText(originalText, targetLang);
+    }
     return {
       success: true,
       originalText,
       translatedText,
       convertedAudioBase64: "",
-      targetLanguage: targetLanguage || "",
+      targetLanguage: targetLang,
       voiceStyle: voiceStyle || "",
       workflowType,
     };
   }
 
   try {
-    if (workflowType === "complete") {
-      translatedText = shouldTranslate
-        ? await translateText(originalText, targetLanguage)
-        : originalText;
-      convertedAudioBase64 = await convertTextToSpeech(
+    if (workflowType === "voice-only") {
+      if (!voiceStyle.startsWith("clone_")) {
+        throw new Error(
+          "Saved voice clone is required. Please record or select your voice sample first.",
+        );
+      }
+      if (needsTranslation) {
+        translatedText = await translateText(originalText, targetLang);
+      }
+      convertedAudioBase64 = await textToSpeech(
         translatedText,
         voiceStyle,
-        undefined,
-        format,
-        targetLanguage
+        targetLang,
       );
-    } else if (workflowType === "voice-only") {
-      translatedText = shouldTranslate
-        ? await translateText(originalText, targetLanguage)
-        : originalText;
-      convertedAudioBase64 = await convertTextToSpeech(
-        translatedText,
-        "myvoiceclone",
-        audioBase64,
-        format,
-        targetLanguage
-      );
+    } else if (workflowType === "complete") {
+      if (needsTranslation) {
+        convertedAudioBase64 = await dubAudio(audioBase64, targetLang, format, {
+          disableVoiceCloning: true,
+          sourceLang: detectedLang,
+        });
+        translatedText = await translateText(originalText, targetLang);
+      } else {
+        convertedAudioBase64 = await speechToSpeech(
+          audioBase64,
+          voiceStyle,
+          format,
+        );
+        translatedText = originalText;
+      }
     } else {
       throw new Error(
-        `Unsupported workflowType: ${workflowType}. Use 'complete', 'voice-only', or 'text-only'.`
+        `Unsupported workflowType: ${workflowType}. Use 'complete', 'voice-only', or 'text-only'.`,
       );
     }
-  } catch (ttsError) {
+  } catch (audioError) {
     const err =
-      ttsError instanceof Error ? ttsError : new Error(String(ttsError));
+      audioError instanceof Error ? audioError : new Error(String(audioError));
     const msg = err.message || "";
-    logger.error("voiceWorkflow", "TTS error", msg);
-    const isTtsError =
-      msg.includes("Voice conversion failed") ||
-      msg.includes("Voice clone creation failed") ||
-      msg.includes("Voice clone requires") ||
-      msg.includes("text-to-speech") ||
-      msg.includes("ElevenLabs") ||
-      msg.includes("voice_id");
-    const hasText =
-      Boolean(originalText?.trim()) || Boolean(translatedText?.trim());
+    logger.error("voiceWorkflow", "Audio pipeline error", msg);
 
-    if (isTtsError && hasText) {
+    const isAudioPipelineError =
+      msg.includes("Speech-to-speech") ||
+      msg.includes("Dubbing") ||
+      msg.includes("Voice conversion failed") ||
+      msg.includes("ElevenLabs");
+
+    if (isAudioPipelineError) {
+      let fallbackText = originalText;
+      if (needsTranslation) {
+        try {
+          fallbackText = await translateText(originalText, targetLang);
+        } catch {
+          fallbackText = originalText;
+        }
+      }
       return {
         success: true,
         originalText,
-        translatedText: translatedText || originalText || "",
+        translatedText: fallbackText,
         convertedAudioBase64: "",
-        targetLanguage: targetLanguage || "",
-        voiceStyle: workflowType === "voice-only" ? "myvoiceclone" : voiceStyle,
+        targetLanguage: targetLang,
+        voiceStyle,
         workflowType,
         ttsFallback: true,
         ttsError: msg.substring(0, 300),
-      } as WorkflowResult;
+      };
     }
-    throw ttsError;
+    throw audioError;
   }
 
   return {
@@ -563,10 +737,8 @@ export async function runVoiceWorkflow(
     originalText,
     translatedText,
     convertedAudioBase64,
-    targetLanguage: targetLanguage || "",
-    voiceStyle: workflowType === "voice-only" ? "myvoiceclone" : voiceStyle,
+    targetLanguage: targetLang,
+    voiceStyle,
     workflowType,
   };
 }
-
-export { CORS_HEADERS, corsHeadersForRequest };

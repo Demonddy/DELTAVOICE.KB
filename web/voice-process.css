@@ -159,6 +159,33 @@ body.voice-process-page {
   margin: 0 0 12px;
 }
 
+.vp-clone-box {
+  margin: 0 0 16px;
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  background: rgba(139, 92, 246, 0.08);
+}
+.vp-clone-box h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 650;
+}
+.vp-clone-box p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.vp-clone-actions {
+  display: flex;
+  gap: 8px;
+}
+.vp-clone-box.ready {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.08);
+}
+
 .vp-actions {
   display: flex;
   gap: 12px;

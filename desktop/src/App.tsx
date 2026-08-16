@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { open } from "@tauri-apps/plugin-shell";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import LoginPage from "./auth/LoginPage";
 import VoiceStep2 from "./components/VoiceStep2";
 import RecordingBar from "./components/RecordingBar";
-import Toolbar from "./components/Toolbar";
+import ToolbarBar from "./components/ToolbarBar";
 import AiChat from "./components/AiChat";
 import AiWritingTools from "./components/AiWritingTools";
 import VideoPanel from "./components/VideoPanel";
@@ -12,11 +13,16 @@ import MoreOptions from "./components/MoreOptions";
 import ClipboardPanel from "./components/ClipboardPanel";
 import TitleBar from "./components/TitleBar";
 import {
-  enterRecordingWindowMode,
-  exitRecordingWindowMode,
-  hideAfterRecordingCancel,
+  enterFloatingBarMode,
+  exitFloatingBarMode,
+  hideFloatingBar,
+  resizeFloatingBar,
+  showMainWindow,
 } from "./utils/recordingWindow";
 import { Minimize2 } from "lucide-react";
+import { WEBSITE_URL } from "./config";
+import { usePlatformInfo } from "./hooks/usePlatformInfo";
+import { HotkeyLabel } from "./components/HotkeyLabel";
 
 type View =
   | "idle"
@@ -53,10 +59,41 @@ function AppInner() {
     if (recordingActive) {
       setRecordingActive(false);
       setAutoStartRecording(false);
-      exitRecordingWindowMode().catch(console.error);
+      exitFloatingBarMode().catch(console.error);
     }
-    setView((prev) => (prev === "toolbar" ? "idle" : "toolbar"));
+    setView((prev) => {
+      if (prev === "toolbar") {
+        exitFloatingBarMode()
+          .then(() => hideFloatingBar())
+          .catch(console.error);
+        return "idle";
+      }
+      return "toolbar";
+    });
   }, [session, recordingActive]);
+
+  const closeToolbar = useCallback(async () => {
+    setView("idle");
+    await exitFloatingBarMode().catch(console.error);
+    await hideFloatingBar().catch(console.error);
+  }, []);
+
+  const openFullWindow = useCallback(async () => {
+    await exitFloatingBarMode().catch(console.error);
+    await showMainWindow().catch(console.error);
+  }, []);
+
+  const openToolbarPanel = useCallback(
+    async (panel: string) => {
+      await openFullWindow();
+      setView(panel as View);
+    },
+    [openFullWindow]
+  );
+
+  const openWebsite = useCallback(() => {
+    open(WEBSITE_URL).catch(console.error);
+  }, []);
 
   useEffect(() => {
     const unlisten1 = listen("voice-record-toggle", () => handleVoiceToggle());
@@ -69,21 +106,46 @@ function AppInner() {
   }, [handleVoiceToggle, handleToolbarToggle]);
 
   useEffect(() => {
+    if (!session || recordingActive) return;
+    if (view === "toolbar") {
+      enterFloatingBarMode("toolbar").catch(console.error);
+    } else if (view === "step2") {
+      enterFloatingBarMode("step2").catch(console.error);
+    }
+  }, [session, recordingActive, view]);
+
+  useEffect(() => {
     if (!session || !recordingActive) return;
-    enterRecordingWindowMode().catch(console.error);
+    enterFloatingBarMode("recording").catch(console.error);
   }, [session, recordingActive]);
 
-  const endRecording = useCallback(async () => {
+  const finishRecording = useCallback(async (blob: Blob) => {
+    setRecordedBlob(blob);
     setRecordingActive(false);
     setAutoStartRecording(false);
-    await exitRecordingWindowMode().catch(console.error);
+    setView("step2");
+    await resizeFloatingBar("step2").catch(console.error);
   }, []);
 
   const cancelRecording = useCallback(async () => {
     setRecordingActive(false);
     setAutoStartRecording(false);
-    await exitRecordingWindowMode().catch(console.error);
-    await hideAfterRecordingCancel().catch(console.error);
+    await exitFloatingBarMode().catch(console.error);
+    await hideFloatingBar().catch(console.error);
+  }, []);
+
+  const goBackFromStep2 = useCallback(async () => {
+    await exitFloatingBarMode().catch(console.error);
+    await hideFloatingBar().catch(console.error);
+    setView("idle");
+    setRecordedBlob(null);
+  }, []);
+
+  const finishStep2 = useCallback(async () => {
+    await exitFloatingBarMode().catch(console.error);
+    await hideFloatingBar().catch(console.error);
+    setView("idle");
+    setRecordedBlob(null);
   }, []);
 
   if (loading) {
@@ -120,20 +182,38 @@ function AppInner() {
     );
   }
 
-  const goBack = () => setView("idle");
-
   if (recordingActive) {
     return (
-      <div className="recording-only-shell">
+      <div className="floating-bar-shell">
         <RecordingBar
           autoStart={autoStartRecording}
           stopSignal={stopRecordingSignal}
-          onRecorded={async (blob) => {
-            setRecordedBlob(blob);
-            await endRecording();
-            setView("step2");
-          }}
+          onRecorded={finishRecording}
           onCancel={cancelRecording}
+        />
+      </div>
+    );
+  }
+
+  if (view === "step2" && recordedBlob) {
+    return (
+      <div className="floating-bar-shell step2-shell">
+        <VoiceStep2
+          blob={recordedBlob}
+          onBack={goBackFromStep2}
+          onDone={finishStep2}
+        />
+      </div>
+    );
+  }
+
+  if (view === "toolbar") {
+    return (
+      <div className="floating-bar-shell">
+        <ToolbarBar
+          onSelect={openToolbarPanel}
+          onOpenWebsite={openWebsite}
+          onClose={closeToolbar}
         />
       </div>
     );
@@ -170,17 +250,6 @@ function AppInner() {
           />
         )}
 
-        {view === "step2" && recordedBlob && (
-          <VoiceStep2 blob={recordedBlob} onBack={() => setView("idle")} onDone={goBack} />
-        )}
-
-        {view === "toolbar" && (
-          <Toolbar
-            onSelect={(panel) => setView(panel as View)}
-            onBack={goBack}
-          />
-        )}
-
         {view === "ai-chat" && <AiChat onBack={() => setView("toolbar")} />}
         {view === "ai-writing" && (
           <AiWritingTools onBack={() => setView("toolbar")} />
@@ -204,6 +273,8 @@ function IdleView({
   onRecord: () => void;
   onToolbar: () => void;
 }) {
+  const platform = usePlatformInfo();
+
   return (
     <div
       className="fade-in"
@@ -244,26 +315,18 @@ function IdleView({
           DeltaVoice Desktop
         </h2>
         <p style={{ color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.5 }}>
-          Press{" "}
-          <kbd
-            style={{
-              padding: "2px 8px",
-              borderRadius: 6,
-              background: "rgba(124, 82, 255, 0.2)",
-              color: "var(--accent)",
-              fontSize: 12,
-              fontWeight: 600,
-            }}
-          >
-            Ctrl+Space
-          </kbd>{" "}
-          to record voice
+          Press <HotkeyLabel label={platform.voiceHotkey} /> to record voice
         </p>
         <p style={{ color: "var(--text-muted)", fontSize: 12, marginTop: 4 }}>
-          Double press Ctrl+Space for AI toolbar
+          Double press <HotkeyLabel label={platform.voiceHotkey} style={{ fontSize: 11 }} /> for AI toolbar
         </p>
+        {platform.os === "macos" && (
+          <p style={{ color: "var(--text-muted)", fontSize: 11, marginTop: 4 }}>
+            Paste uses {platform.pasteShortcut} in other apps
+          </p>
+        )}
         <p style={{ color: "var(--text-muted)", fontSize: 11, marginTop: 8 }}>
-          Recording shows as a small floating bar — keep using other apps
+          Recording and AI tools appear as small floating bars at the bottom
         </p>
       </div>
 
